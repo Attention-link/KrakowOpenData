@@ -67,7 +67,7 @@ export class GridLayer {
   }
 
   /** grid: the API's GridDto. opts: {mode: 'safety'|'heat'|'both', style: 'score'|'priority', opacity} */
-  draw(grid, { mode = 'both', style = 'score', opacity = 0.42 } = {}) {
+  draw(grid, { mode = 'both', style = 'score', opacity = 0.62 } = {}) {
     this.grid = grid;
     this.index = indexGrid(grid);
     this.group.clearLayers();

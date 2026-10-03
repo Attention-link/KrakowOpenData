@@ -128,7 +128,7 @@ export const residentStrings = {
   'place.fromReports': ['from reports', 'ze zgłoszeń', 'через звіти'],
   'place.reportsTitle': ['Reports near here', 'Zgłoszenia w pobliżu', 'Звіти поблизу'],
 
-  'factor.water': ['Drinking water', 'Woda pitna', 'Питна вода'],
+  'factor.water': ['Drinking fountains and taps', 'Poidełka i punkty poboru wody', 'Питні фонтанчики та крани'],
   'factor.green': ['Parks and shade', 'Parki i cień', 'Парки і тінь'],
   'factor.refuge': ['Cool indoor place', 'Chłodne miejsce w budynku', 'Прохолодне приміщення'],
   'factor.toilets': ['Public toilets', 'Toalety publiczne', 'Публічні туалети'],
@@ -139,7 +139,7 @@ export const residentStrings = {
   'factor.aed': ['Defibrillator (AED)', 'Defibrylator (AED)', 'Дефібрилятор (AED)'],
   'factor.none': ['none within 1.5 km', 'brak w promieniu 1,5 km', 'немає в радіусі 1,5 км'],
   'factor.lamps': ['lamps/km²', 'lamp/km²', 'ламп/км²'],
-  'kind.DrinkingWater': ['Drinking water point', 'Punkt z wodą pitną', 'Пункт питної води'],
+  'kind.DrinkingWater': ['Drinking fountain or tap', 'Poidełko lub punkt poboru wody', 'Питний фонтанчик або кран'],
   'kind.Toilets': ['Public toilet', 'Toaleta publiczna', 'Публічний туалет'],
   'kind.Park': ['Park', 'Park', 'Парк'],
   'kind.Library': ['Library', 'Biblioteka', 'Бібліотека'],
@@ -220,7 +220,7 @@ export const residentStrings = {
   'how.title': ['How the scores work', 'Jak liczymy wyniki', 'Як рахуються оцінки'],
   'how.intro': ['Each 250 m square of the city gets two scores from 0 to 100 (higher is better).', 'Każdy kwadrat miasta o boku 250 m dostaje dwa wyniki od 0 do 100 (więcej = lepiej).', 'Кожен квадрат міста 250 м отримує дві оцінки від 0 до 100 (більше = краще).'],
   'how.safety': ['Street lighting (lamps per km²), night public transport, places staffed at night (police, hospital, 24/7 pharmacy) and a nearby defibrillator.', 'Oświetlenie uliczne (lampy na km²), transport nocny, miejsca czynne nocą (policja, szpital, apteka całodobowa) i pobliski defibrylator.', 'Вуличне освітлення (ліхтарі на км²), нічний транспорт, місця, що працюють вночі (поліція, лікарня, цілодобова аптека) і дефібрилятор поруч.'],
-  'how.heat': ['Drinking water, parks (shade), cool indoor places (library, pharmacy, hospital), public toilets and public transport to reach them.', 'Woda pitna, parki (cień), chłodne miejsca w budynkach (biblioteka, apteka, szpital), toalety publiczne i transport publiczny, by do nich dotrzeć.', 'Питна вода, парки (тінь), прохолодні приміщення (бібліотека, аптека, лікарня), туалети та транспорт, щоб до них дістатися.'],
+  'how.heat': ['Drinking fountains and taps, parks (shade), cool indoor places (library, pharmacy, hospital), public toilets and public transport to reach them.', 'Poidełka i punkty poboru wody, parki (cień), chłodne miejsca w budynkach (biblioteka, apteka, szpital), toalety publiczne i transport publiczny, by do nich dotrzeć.', 'Питні фонтанчики та крани, парки (тінь), прохолодні приміщення (бібліотека, аптека, лікарня), туалети та транспорт, щоб до них дістатися.'],
   'how.reports': ['Resident reports lower the score of their square. A single report counts a quarter; reports confirmed by others count in full, and they fade over days unless confirmed again.', 'Zgłoszenia mieszkańców obniżają wynik ich kwadratu. Pojedyncze zgłoszenie liczy się w ćwierci; potwierdzone przez innych – w pełni, a z czasem tracą znaczenie, jeśli nikt ich nie potwierdza.', 'Звіти мешканців знижують оцінку квадрата. Один звіт враховується на чверть; підтверджені іншими – повністю, і з часом втрачають вагу, якщо їх ніхто не підтверджує.'],
   'how.notCrime': ['These are scores for infrastructure and resident reports, not crime statistics. Mapped data can be incomplete.', 'To oceny infrastruktury i zgłoszeń mieszkańców, a nie statystyki przestępczości. Dane z map mogą być niepełne.', 'Це оцінки інфраструктури та звітів мешканців, а не статистика злочинності. Дані мап можуть бути неповними.'],
 

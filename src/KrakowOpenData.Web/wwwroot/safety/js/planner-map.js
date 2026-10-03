@@ -14,7 +14,7 @@ const SEV_COLOR = { Info: '#2a78d6', Warning: '#eda100', Critical: '#d03b3b' };
 
 export function mount(host) {
   const cleanups = [];
-  let metric = 'priority';       // 'priority' | 'score'
+  let metric = 'score';          // 'priority' | 'score'
   let showReports = true, showAlerts = true, showPlaces = false;
   let features = [];
   let pickForAlert = false;

@@ -74,3 +74,9 @@ ul.plain { list-style: none; padding: 0; margin: .25rem 0 0; display: flex; flex
   input:not([type=checkbox]) { min-width: 0; width: 100%; }
   .table { display: block; overflow-x: auto; }
 }
+
+/* Home page thumbnails */
+.start-card { color: inherit; padding: 1.5rem; gap: .5rem; transition: transform .1s ease, box-shadow .1s ease; }
+.start-card:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12); }
+.start-card h2 { font-size: 1.3rem; margin: .5rem 0 0; color: #212529; }
+.start-icon { width: 56px; height: 56px; border-radius: 12px; color: #fff; display: grid; place-items: center; font-size: 1.8rem; }

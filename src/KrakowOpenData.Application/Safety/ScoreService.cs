@@ -307,7 +307,7 @@ public static class SafetyMapping
 {
     private static readonly Dictionary<string, string> FactorLabels = new()
     {
-        ["water"] = "Drinking water",
+        ["water"] = "Drinking fountains and taps",
         ["green"] = "Parks and shade",
         ["refuge"] = "Indoor refuge",
         ["toilets"] = "Public toilets",
@@ -349,7 +349,7 @@ public static class SuggestedActions
 {
     private static readonly Dictionary<string, (string Code, string Text)> Catalog = new()
     {
-        ["water"] = ("ADD_WATER_POINT", "Install a drinking-water point or schedule a water truck here."),
+        ["water"] = ("ADD_WATER_POINT", "Install a drinking fountain or tap, or schedule a water truck here."),
         ["green"] = ("ADD_SHADE", "Add shade (trees, shade sails) or a mist curtain; consider extended park access."),
         ["refuge"] = ("OPEN_COOL_SPACE", "Open an air-conditioned public space (library, community centre) during heat warnings."),
         ["toilets"] = ("ADD_TOILET", "Provide a temporary public toilet."),
