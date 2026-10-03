@@ -1,0 +1,137 @@
+# Every merge to master: test, then redeploy https://opendata.al.mt by calling the Dockhand Git stack's webhook.
+# Dockhand syncs this repo and builds both images on the host (deploy/docker-compose.yml, "--build" deploy option),
+# so nothing is published to a registry. Run it by hand to redeploy without a merge.
+#
+# Repository secrets used by the deploy job:
+#   DOCKHAND_WEBHOOK_URL     https://dockhand.itaslife.com/api/git/stacks/<id>/webhook (the stack's ID in Dockhand)
+#   DOCKHAND_WEBHOOK_SECRET  the stack's webhook secret in Dockhand
+#   CF_ACCESS_CLIENT_ID      Cloudflare Access service token in front of the webhook path
+#   CF_ACCESS_CLIENT_SECRET  (iac-homelab cloudflare/access_dockhand.tf outputs)
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Test
+        run: dotnet test KrakowOpenData.sln -c Release
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    # Building both images on the host and waiting for the new API to answer takes a few minutes.
+    timeout-minutes: 30
+    permissions: {}
+    # Never run two deploys at once, and never drop one: the later merge must be the one left running.
+    concurrency:
+      group: dockhand-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Call the Dockhand stack webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.DOCKHAND_WEBHOOK_URL }}
+          WEBHOOK_SECRET: ${{ secrets.DOCKHAND_WEBHOOK_SECRET }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          SITE_URL: https://opendata.al.mt
+        shell: python3 {0}
+        run: |
+          import datetime, hashlib, hmac, json, os, re, sys, time, urllib.error, urllib.request
+
+          def fail(message):
+              print(f"::error::{message}")
+              sys.exit(1)
+
+          names = ["WEBHOOK_URL", "WEBHOOK_SECRET", "CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET"]
+          missing = [n for n in names if not os.environ[n].strip()]
+          if missing:
+              fail("Missing repository secrets: " + ", ".join(
+                  ("DOCKHAND_" + n) if n.startswith("WEBHOOK") else n for n in missing))
+          url = os.environ["WEBHOOK_URL"].strip()
+          if not url.startswith("https://"):
+              fail("DOCKHAND_WEBHOOK_URL must be an https:// URL")
+
+          # Dockhand checks a GitHub-style signature: HMAC-SHA256 of the raw body, keyed by the stack's webhook secret.
+          body = json.dumps({"ref": os.environ["REF"], "after": os.environ["SHA"]}).encode()
+          secret = os.environ["WEBHOOK_SECRET"].strip().encode()
+          request = urllib.request.Request(url, data=body, method="POST", headers={
+              "Content-Type": "application/json",
+              "X-GitHub-Event": "push",
+              "X-Hub-Signature-256": "sha256=" + hmac.new(secret, body, hashlib.sha256).hexdigest(),
+              "CF-Access-Client-Id": os.environ["CF_ACCESS_CLIENT_ID"].strip(),
+              "CF-Access-Client-Secret": os.environ["CF_ACCESS_CLIENT_SECRET"].strip(),
+              "User-Agent": "KrakowOpenData-deploy",
+          })
+
+          # Dockhand answers once the deploy has finished, image builds included. Cloudflare gives up on a proxied
+          # request after ~100 s with a 524 while Dockhand carries on, so a 524 means "still deploying", and the
+          # health check below is what confirms the result either way.
+          triggered_at = datetime.datetime.now(datetime.timezone.utc)
+          try:
+              with urllib.request.urlopen(request, timeout=300) as response:
+                  status, raw, final_url = response.status, response.read(), response.url
+          except urllib.error.HTTPError as exc:
+              status, raw, final_url = exc.code, exc.read(), url
+          except OSError as exc:
+              fail(f"Could not reach Dockhand: {getattr(exc, 'reason', exc)}")
+
+          if final_url != url:
+              fail("The request was redirected, most likely to a Cloudflare Access login: check CF_ACCESS_CLIENT_ID/SECRET")
+          try:
+              result = json.loads(raw)
+          except ValueError:
+              result = {}
+          if not isinstance(result, dict):
+              result = {}
+          detail = " ".join(str(result.get("error") or raw[:300].decode(errors="replace")).split())
+
+          hints = {
+              401: "the signature didn't verify; DOCKHAND_WEBHOOK_SECRET must match the stack's webhook secret",
+              403: "refused by Cloudflare Access (service token) or the webhook is turned off for this stack in Dockhand",
+              404: "no Git stack with the ID in DOCKHAND_WEBHOOK_URL, or the tunnel does not route that path",
+          }
+          if status in hints:
+              fail(f"Dockhand returned {status}: {hints[status]}")
+          if status == 524:
+              print("Dockhand is still building (Cloudflare stopped waiting for its answer); watching the site instead")
+          elif status != 200:
+              fail(f"Dockhand returned {status}: {detail or 'no error message'}")
+          elif result.get("skipped"):
+              fail("Dockhand skipped the redeploy because git did not change; turn on the stack's Force redeployment setting")
+          elif result.get("success") is not True:
+              fail(f"Dockhand's deploy failed: {detail or 'no error message'}")
+
+          # The API reports when its process started; a start after the webhook call means the new build is live.
+          health_url = os.environ["SITE_URL"].rstrip("/") + "/health"
+          deadline = time.monotonic() + 20 * 60
+          last = "no answer yet"
+          while time.monotonic() < deadline:
+              try:
+                  with urllib.request.urlopen(health_url, timeout=15) as response:
+                      started = json.loads(response.read()).get("startedAt", "")
+                  # .NET writes 7 fractional digits; Python's parser takes at most 6.
+                  started_at = datetime.datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", started))
+                  if started_at >= triggered_at:
+                      print(f"opendata.al.mt is running {os.environ['SHA'][:7]} (API started {started})")
+                      sys.exit(0)
+                  last = f"API still the previous one, started {started}"
+              except Exception as exc:
+                  last = str(exc)
+              time.sleep(15)
+          fail(f"The new deploy did not come up within 20 minutes ({last}); check the stack's logs in Dockhand")

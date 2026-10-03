@@ -155,6 +155,14 @@ Needs two terminals, both opened in the solution folder.
 
 This one command starts both apps.
 
+### Deployment (https://opendata.al.mt)
+
+Every merge to `master` runs [.github/workflows/deploy.yml](.github/workflows/deploy.yml): it runs the tests, then
+calls the webhook of the Dockhand Git stack that runs [deploy/docker-compose.yml](deploy/docker-compose.yml) on the
+OCI host. Dockhand pulls the repo and builds both images there (its `--build` deploy option), and the workflow waits
+until `/health` reports an API started after the webhook call. To redeploy without a merge, run the workflow by hand
+from the Actions tab. To roll back, revert the commit on `master`.
+
 ### Running the tests (optional)
 
 Not needed to run the apps. From the solution folder: `dotnet test`, or **Test → Run All Tests** in
