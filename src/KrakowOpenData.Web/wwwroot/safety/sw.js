@@ -1,14 +1,14 @@
 // Service worker: keeps the app itself (and map tiles you have looked at) available offline.
 // API answers are NOT cached here; the app saves them itself in IndexedDB so it controls freshness and shows "saved" labels.
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL = `krk-safety-shell-${VERSION}`;
 const TILES = 'krk-safety-tiles';
 const LIB = 'krk-safety-lib';
 const MAX_TILES = 400;
 
 const SHELL_FILES = [
-  './', 'index.html', 'manifest.webmanifest', 'icon.svg', 'css/app.css',
+  './', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'css/app.css',
   'js/main.js', 'js/geo.js', 'js/search.js', 'js/strings-resident-v2.js', 'js/strings-resident-v3.js', 'js/strings-planner-v2.js', 'js/explain.js', 'js/util.js', 'js/db.js', 'js/state.js', 'js/api.js', 'js/i18n.js', 'js/strings-resident.js', 'js/strings-planner.js',
   'js/model.js', 'js/map.js', 'js/chrome.js', 'js/resident.js', 'js/report.js', 'js/walk.js', 'js/alerts.js',
   'js/planner.js', 'js/planner-overview.js', 'js/planner-map.js', 'js/planner-reports.js', 'js/planner-alerts.js', 'js/planner-contacts.js', 'js/charts.js', 'js/planner-common.js'

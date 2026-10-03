@@ -14,7 +14,7 @@ builder.Services.AddSwaggerGen(o =>
 {
     o.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Kraków Open Data API",
+        Title = "Kompas Krakowa API",
         Version = "v1",
         Description = "Kraków's public data in one API: public transport, air quality, weather, rivers, warnings, " +
                       "districts, amenities, city procedures, NFZ waiting lists and the city's Open Data tables. " +
@@ -45,8 +45,8 @@ app.UseCors();
 app.UseSwagger();
 app.UseSwaggerUI(o =>
 {
-    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Kraków Open Data API v1");
-    o.DocumentTitle = "Kraków Open Data API";
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Kompas Krakowa API v1");
+    o.DocumentTitle = "Kompas Krakowa API";
 });
 
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
