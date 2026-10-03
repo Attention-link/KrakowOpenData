@@ -7,10 +7,11 @@ import { residentStringsV2 } from './strings-resident-v2.js';
 import { residentStringsV3 } from './strings-resident-v3.js';
 import { plannerStrings } from './strings-planner.js';
 import { plannerStringsV2 } from './strings-planner-v2.js';
+import { layerStrings } from './strings-layers.js';
 
 export const LANGS = [['en', 'English'], ['pl', 'Polski'], ['uk', 'Українська']];
 const INDEX = { en: 0, pl: 1, uk: 2 };
-const dict = { ...residentStrings, ...residentStringsV2, ...residentStringsV3, ...plannerStrings, ...plannerStringsV2 };
+const dict = { ...residentStrings, ...residentStringsV2, ...residentStringsV3, ...plannerStrings, ...plannerStringsV2, ...layerStrings };
 const warned = new Set();
 
 export function t(key, params) {

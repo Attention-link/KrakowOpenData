@@ -17,7 +17,7 @@ const PAGES = [
   ['contacts', 'phone', 'pl.nav.contacts']
 ];
 
-const EVENTS = [['heat', 'sun'], ['night', 'moon']];
+const EVENTS = [['heat', 'sun'], ['night', 'moon'], ['flood', 'wave'], ['air', 'wind']];
 let autoKeyRejected = false;   // the configured demo key was refused by the API: show the sign-in form instead of looping
 
 export function mountPlanner(root, page) {
@@ -76,18 +76,28 @@ export function mountPlanner(root, page) {
     if (!s) return;
     const c = s.conditions;
     const hot = c.heat.level >= 1;
-    // Only what matters for the planning event: Heat shows the heat situation, Night safety shows daylight, Both shows both.
+    // Only what matters for the planning event: Heat shows the heat situation, Night safety daylight, Flood the rivers, Air the air quality.
     // Each chip opens an explanation of where the figure comes from.
-    if (P.event !== 'night') {
+    if (P.event === 'heat') {
       const chip = h('span', { class: `chip ${hot ? 'warn' : 'heat'}` }, icon('thermo', 'sm'), `${c.heat.temperatureC !== null ? Math.round(c.heat.temperatureC) + '°C · ' : ''}${t(`heat.${c.heat.pressure}`)}`);
       conds.append(explainable(chip, () => openKpiExplainer('temperature', {
         value: c.heat.temperatureC !== null ? `${c.heat.temperatureC.toFixed(1)} °C` : '–',
         extra: [[t('cond.heat'), t(`heat.${c.heat.pressure}`)], c.heat.warningTitle ? [t('cond.warningsTitle'), c.heat.warningTitle] : null, [t('cond.airTitle'), c.air.pm25 !== null ? `${t(`air.${c.air.band}`)} · PM2.5 ${c.air.pm25} µg/m³ (${c.air.station || ''})` : t('air.Unknown')]].filter(Boolean)
       }), t('cond.temp.title')));
     }
-    if (P.event !== 'heat') {
+    if (P.event === 'night') {
       const chip = h('span', { class: `chip ${c.isDark ? 'safety' : ''}` }, icon(c.isDark ? 'moon' : 'sun', 'sm'), c.isDark ? t('cond.dark', { time: c.sunriseLocal || '' }) : t('cond.light', { time: c.sunsetLocal || '' }));
       conds.append(explainable(chip, () => openKpiExplainer('daylight', { value: `${c.sunriseLocal ?? '–'} → ${c.sunsetLocal ?? '–'}`, extra: [[t('cond.nowDark'), c.isDark ? '✓' : '–']] }), t('cond.daylight.title')));
+    }
+    if (P.event === 'flood') {
+      const high = c.hydro.elevatedGauges > 0;
+      const chip = h('span', { class: `chip ${high ? 'danger' : 'flood'}` }, icon('wave', 'sm'), high ? t('cond.rivers', { n: c.hydro.elevatedGauges }) : t('cond.riversOk'));
+      conds.append(explainable(chip, () => openKpiExplainer('riverLevel', { value: `${c.hydro.elevatedGauges}`, extra: [[t('cond.riversTitle'), high ? t('cond.rivers', { n: c.hydro.elevatedGauges }) : t('cond.riversOk')], [t('cond.worstState'), t(`hydro.${c.hydro.worstState}`)]] }), t('cond.rivers.title')));
+    }
+    if (P.event === 'air') {
+      const bad = c.air.band === 'Poor' || c.air.band === 'VeryPoor';
+      const chip = h('span', { class: `chip ${bad ? 'danger' : 'air'}` }, icon('wind', 'sm'), c.air.pm25 !== null && c.air.pm25 !== undefined ? `${t(`air.${c.air.band}`)} · PM2.5 ${Math.round(c.air.pm25)}` : t('air.Unknown'));
+      conds.append(explainable(chip, () => openKpiExplainer('airLevel', { value: c.air.pm25Average != null ? `${c.air.pm25Average} µg/m³` : '–', extra: [[t('cond.airTitle'), c.air.pm25 !== null && c.air.pm25 !== undefined ? `${t(`air.${c.air.band}`)} · PM2.5 ${c.air.pm25} µg/m³` : t('air.Unknown')], c.air.station ? [t('cond.station'), c.air.station] : null].filter(Boolean) }), t('cond.air.title')));
     }
     if (c.dataGaps?.length) conds.append(h('span', { class: 'chip warn', title: c.dataGaps.join(', ') }, icon('alert', 'sm'), t('pl.incomplete')));
     updated.textContent = P.summary.stale ? t('pl.savedAt', { when: timeAgo(P.summary.savedAt, t, getLang()) }) : t('pl.updated', { when: timeAgo(P.summary.savedAt, t, getLang()) });

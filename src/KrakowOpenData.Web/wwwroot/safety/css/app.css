@@ -19,6 +19,10 @@
   --safety-soft: #ebe8fa;
   --heat: #b8480f;
   --heat-soft: #fbece3;
+  --flood: #0b5cad;
+  --flood-soft: #e2eefb;
+  --air: #0f6b5c;
+  --air-soft: #dcf1ec;
   --danger: #b42318;
   --danger-soft: #fdeceb;
   --ok: #0b6b0b;
@@ -64,6 +68,10 @@
     --safety-soft: #2a2548;
     --heat: #f0a06f;
     --heat-soft: #3a2518;
+    --flood: #8bbcf7;
+    --flood-soft: #12273f;
+    --air: #62d6bf;
+    --air-soft: #0e2e28;
     --danger: #f2877e;
     --danger-soft: #3a1f1c;
     --ok: #7fd37f;
@@ -93,6 +101,10 @@
   --safety-soft: #2a2548;
   --heat: #f0a06f;
   --heat-soft: #3a2518;
+  --flood: #8bbcf7;
+  --flood-soft: #12273f;
+  --air: #62d6bf;
+  --air-soft: #0e2e28;
   --danger: #f2877e;
   --danger-soft: #3a1f1c;
   --ok: #7fd37f;
@@ -570,3 +582,26 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .topbar .lang-select { max-width: none; }
 }
 @media (max-width: 400px) { .brand b { font-size: .92rem; } }
+
+/* ── Flood and air layers (same roles as heat and night safety) ── */
+.seg button[data-mode="flood"][aria-pressed="true"] { color: var(--flood); }
+.seg button[data-mode="air"][aria-pressed="true"] { color: var(--air); }
+.chip.flood { background: var(--flood-soft); color: var(--flood); }
+.chip.air { background: var(--air-soft); color: var(--air); }
+.dot-marker.flood { background: #0b5cad; }
+.dot-marker.air { background: #0f6b5c; }
+.near .ico.flood, .type-card .ico.flood { background: var(--flood-soft); color: var(--flood); }
+.near .ico.air, .type-card .ico.air { background: var(--air-soft); color: var(--air); }
+.hbar.flood .fill { background: var(--flood); }
+.hbar.air .fill { background: var(--air); }
+.poi.flood { background: #0b5cad; }
+.poi.air { background: #0f6b5c; }
+/* Four tabs fit a phone: the mode switch takes its own row and shares the width between the tabs. */
+@media (max-width: 575.98px) {
+  .res-bar { flex-wrap: wrap; overflow-x: visible; }
+  .res-bar .seg, .pl-tools .seg { flex: 1 1 100%; }
+  .res-bar .seg button, .pl-tools .seg button { flex: 1 1 0; justify-content: center; padding-left: .3rem; padding-right: .3rem; }
+}
+/* Long chip labels (for example a factor name in the priority list) wrap instead of widening the page. */
+.chip { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.prio .meta { display: flex; flex-wrap: wrap; gap: .3rem; }

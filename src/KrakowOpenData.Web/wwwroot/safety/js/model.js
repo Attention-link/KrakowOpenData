@@ -7,7 +7,31 @@
 
 import { haversine } from './util.js';
 
-export const COL = { row: 0, col: 1, heat: 2, safety: 3, combined: 4, exposure: 5, reports: 6, priority: 7 };
+export const COL = { row: 0, col: 1, heat: 2, safety: 3, combined: 4, exposure: 5, reports: 6, priority: 7, flood: 8, air: 9 };
+
+/**
+ * The four score layers. mode = what residents choose; event = what planners and the API call it; api = the layer name in the
+ * API (reports, alerts, factors). kind 'heat' = higher is hotter (colours and bands are read from 100 − score); otherwise higher = better.
+ */
+export const LAYERS = {
+  safety: { mode: 'safety', event: 'night', api: 'Safety', icon: 'moon', kind: 'good', col: COL.safety },
+  heat: { mode: 'heat', event: 'heat', api: 'Heat', icon: 'sun', kind: 'heat', col: COL.heat },
+  flood: { mode: 'flood', event: 'flood', api: 'Flood', icon: 'wave', kind: 'good', col: COL.flood },
+  air: { mode: 'air', event: 'air', api: 'Air', icon: 'wind', kind: 'good', col: COL.air }
+};
+
+/** Order of the tabs: night safety, heat, flood, air. */
+export const MODE_KEYS = ['safety', 'heat', 'flood', 'air'];
+
+/** A saved or suggested value turned into one of the four modes (anything else, such as the old "both", becomes night safety). */
+export const asMode = (m) => (MODE_KEYS.includes(m) ? m : 'safety');
+
+/** Planner event name of a mode, and back: night safety is "night" for the API. */
+export const eventOfMode = (m) => LAYERS[asMode(m)].event;
+export const modeOfEvent = (ev) => MODE_KEYS.find((k) => LAYERS[k].event === ev) || 'safety';
+
+/** The layer key ('safety' ... 'air') of an API layer name such as 'Heat'; null for anything else. */
+export const layerOfApi = (name) => MODE_KEYS.find((k) => LAYERS[k].api === name) || null;
 
 export const BANDS = ['Critical', 'Weak', 'Fair', 'Good'];
 
@@ -47,7 +71,7 @@ export function priorityColor(p) {
 
 /** The score a mode shows: safety -> night safety, heat -> heat, both -> combined. */
 export function scoreOf(row, mode) {
-  return row[mode === 'safety' ? COL.safety : mode === 'heat' ? COL.heat : COL.combined];
+  return row[LAYERS[mode] ? LAYERS[mode].col : COL.combined];
 }
 
 export function indexGrid(grid) {
@@ -80,17 +104,21 @@ export const cellId = (row, col) => `${row}-${col}`;
 export const RELIEF = {
   heat: ['water', 'green', 'refuge', 'toilets'],
   safety: ['openPlaces', 'nightTransit', 'aed'],
+  flood: ['emergency'],
+  air: ['green', 'refuge'],
   both: ['water', 'green', 'refuge', 'toilets', 'openPlaces', 'aed']
 };
 
 export const FACTOR_ICON = {
   water: 'water', green: 'tree', refuge: 'building', toilets: 'toilet', transit: 'bus',
-  lighting: 'lamp', nightTransit: 'bus', openPlaces: 'shield', aed: 'heart'
+  lighting: 'lamp', nightTransit: 'bus', openPlaces: 'shield', aed: 'heart',
+  river: 'wave', emergency: 'shield', evacuation: 'bus', traffic: 'bus', trees: 'tree', cleanIndoor: 'building'
 };
 
 export const FACTOR_LAYER = {
   water: 'heat', green: 'heat', refuge: 'heat', toilets: 'heat', transit: 'heat',
-  lighting: 'safety', nightTransit: 'safety', openPlaces: 'safety', aed: 'safety'
+  lighting: 'safety', nightTransit: 'safety', openPlaces: 'safety', aed: 'safety',
+  river: 'flood', emergency: 'flood', evacuation: 'flood', traffic: 'air', trees: 'air', cleanIndoor: 'air'
 };
 
 /**
@@ -115,3 +143,11 @@ export function nearestFromFeatures(features, lat, lon, keys, maxMeters = 1500) 
   }
   return out;
 }
+
+/** Which layer each report type feeds (mirrors ReportRules on the server). */
+export const REPORT_LAYER = {
+  LightOut: 'safety', UnsafeAtNight: 'safety', PathHazard: 'safety',
+  WaterNotWorking: 'heat', NoShade: 'heat', HeatSpot: 'heat',
+  FloodedStreet: 'flood', BlockedDrain: 'flood', RisingWater: 'flood',
+  SmokeOrBurning: 'air', StrongFumes: 'air', DustCloud: 'air'
+};

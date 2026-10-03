@@ -8,7 +8,7 @@ import { state, set, on, eventForMode, isOffline } from './state.js';
 import { t, getLang } from './i18n.js';
 import { cachedGet, peek, getConditions, getGrid, getPlace, getFeatures, getReportTypes, confirmReport, errorText, ApiError, DOCS_URL } from './api.js';
 import { createMap, GridLayer, PlacesLayer, iconMarker, pinMarker, watchResize, mapInfo, coverageCircle, KRAKOW } from './map.js';
-import { bandOf, kindOf, BAND_FILL, scoreOf, indexGrid, cellOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, nearestFromFeatures, COL } from './model.js';
+import { bandOf, kindOf, BAND_FILL, scoreOf, indexGrid, cellOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, nearestFromFeatures, COL, LAYERS, MODE_KEYS, asMode } from './model.js';
 import { bandText, infoButton, legendBody, loadMethod, openFactorExplainer, openMethod, openScoreExplainer, scoreSummary } from './explain.js';
 import { topbar, statusPill, openHowItWorks, flushOutbox, notificationToggle } from './chrome.js';
 import { renderReportView } from './report.js';
@@ -17,11 +17,8 @@ import { startAlerts } from './alerts.js';
 import { searchBox } from './search.js';
 import { addressLine, coords } from './geo.js';
 
-const MODES = [['safety', 'moon'], ['heat', 'sun']];
-const asMode = (m) => (m === 'heat' || m === 'safety' ? m : 'safety');
-
-/** Which score layers a view shows. Heat and Night safety never mix. */
-export const layersOf = (mode) => (mode === 'heat' ? ['heat'] : mode === 'safety' ? ['safety'] : ['safety', 'heat']);
+/** Which score layers a view shows: exactly one. Night safety, heat, flood and air never mix. */
+export const layersOf = (mode) => [asMode(mode)];
 
 export function mountResident(root) {
   const cleanups = [];
@@ -82,7 +79,7 @@ export function mountResident(root) {
       const m = mode();
       const score = scoreOf(row, m);
       const band = bandOf(score, ctx.grid?.grid, kindOf(m));
-      tip.setLatLng(latlng).setContent(`${t(`mode.${m}.score`)}: ${score} · ${bandText(band, kindOf(m))} (${t(m === 'heat' ? 'explain.dir.heat' : m === 'safety' ? 'explain.dir.safety' : 'explain.dir.both')})`).addTo(map);
+      tip.setLatLng(latlng).setContent(`${t(`mode.${m}.score`)}: ${score} · ${bandText(band, kindOf(m))} (${t(`explain.dir.${m}`)})`).addTo(map);
     }
   });
   // Places that feed the scores (water, parks, toilets, refuges, night-open places, defibrillators), shown from zoom 14.
@@ -147,11 +144,11 @@ export function mountResident(root) {
 
   function paintModes() {
     clear(modeSeg);
-    for (const [m, ic] of MODES) {
+    for (const m of MODE_KEYS) {
       modeSeg.append(h('button', {
         type: 'button', 'data-mode': m, 'aria-pressed': String(mode() === m),
         onclick: () => { set({ mode: m }); announce(t(`mode.${m}`)); }
-      }, icon(ic, 'sm'), t(`mode.${m}`)));
+      }, icon(LAYERS[m].icon, 'sm'), t(`mode.${m}`)));
     }
   }
   paintModes();
@@ -207,7 +204,7 @@ export function mountResident(root) {
   async function loadGrid() {
     clearTimeout(retryTimer);
     try {
-      const { data, savedAt, stale } = await cachedGet('grid:both', () => getGrid('both'));
+      const { data, savedAt, stale } = await cachedGet('grid:all', () => getGrid('both'));
       applyGrid(data, savedAt, stale);
     } catch (e) {
       if (e instanceof ApiError && e.status === 503) {
@@ -249,21 +246,28 @@ export function mountResident(root) {
     condStrip.hidden = false;
     const m = mode();
     const chips = [];
-    if (m !== 'safety') {
+    if (m === 'heat') {
       const hot = c.heat.level >= 1;
       chips.push(chip(hot ? 'warn' : 'heat', 'thermo', [c.heat.temperatureC !== null ? `${Math.round(c.heat.temperatureC)}°C` : '–', ' · ', t(`heat.${c.heat.pressure}`)]));
-      if (c.air.band && c.air.band !== 'Unknown') {
-        chips.push(chip(c.air.band === 'Poor' || c.air.band === 'VeryPoor' ? 'danger' : c.air.band === 'Good' ? 'ok' : '', 'wind', t('cond.air', { band: t(`air.${c.air.band}`) })));
-      }
+      const warnings = (c.warnings || []).filter((w) => w.level > 0);
+      if (warnings.length) chips.push(chip('warn', 'alert', t('cond.warnings', { n: warnings.length })));
     }
-    if (m !== 'heat') {
+    if (m === 'safety') {
       chips.push(chip(c.isDark ? 'safety' : '', c.isDark ? 'moon' : 'sun',
         c.isDark ? t('cond.dark', { time: c.sunriseLocal || '' }) : t('cond.light', { time: c.sunsetLocal || '' })));
     }
-    if (m === 'both') {
-      if (c.hydro.elevatedGauges > 0) chips.push(chip('danger', 'wave', t('cond.rivers', { n: c.hydro.elevatedGauges })));
-      const warnings = (c.warnings || []).filter((w) => w.level > 0);
-      if (warnings.length) chips.push(chip('warn', 'alert', t('cond.warnings', { n: warnings.length })));
+    if (m === 'flood') {
+      chips.push(c.hydro.elevatedGauges > 0
+        ? chip('danger', 'wave', t('cond.rivers', { n: c.hydro.elevatedGauges }))
+        : chip('ok', 'wave', t('cond.riversOk')));
+    }
+    if (m === 'air') {
+      if (c.air.band && c.air.band !== 'Unknown') {
+        chips.push(chip(c.air.band === 'Poor' || c.air.band === 'VeryPoor' ? 'danger' : c.air.band === 'Good' ? 'ok' : '', 'wind', t('cond.air', { band: t(`air.${c.air.band}`) })));
+      } else {
+        chips.push(chip('', 'wind', t('air.Unknown')));
+      }
+      if (c.air.pm25 !== null && c.air.pm25 !== undefined) chips.push(chip('', 'info', `PM2.5 ${Math.round(c.air.pm25)} µg/m³`));
     }
     if (ctx.conditionsStale) chips.push(chip('warn', 'offline', t('cond.saved')));
     condStrip.append(...chips);
@@ -279,13 +283,15 @@ export function mountResident(root) {
     if (!c) return;
     const m = mode();
     const rows = [];
-    if (m !== 'safety') {
+    if (m === 'heat') {
       rows.push(h('dt', null, t('cond.heat')), h('dd', null, `${t(`heat.${c.heat.pressure}`)}${c.heat.temperatureC !== null ? ` (${c.heat.temperatureC.toFixed(1)} °C)` : ''}`));
-      rows.push(h('dt', null, t('cond.airTitle')), h('dd', null, c.air.pm25 !== null ? `${t(`air.${c.air.band}`)} · PM2.5 ${c.air.pm25} µg/m³` : t('air.Unknown')));
     }
-    if (m !== 'heat') rows.push(h('dt', null, t('cond.daylight')), h('dd', null, `${c.sunriseLocal ?? '–'} → ${c.sunsetLocal ?? '–'} ${c.isDark ? '· ' + t('cond.nowDark') : ''}`));
-    if (m === 'both') rows.push(h('dt', null, t('cond.riversTitle')), h('dd', null, c.hydro.elevatedGauges ? t('cond.rivers', { n: c.hydro.elevatedGauges }) : t('cond.riversOk')));
-    const warnings = m === 'safety' ? [] : (c.warnings || []).filter((w) => w.level > 0);
+    if (m === 'air') {
+      rows.push(h('dt', null, t('cond.airTitle')), h('dd', null, c.air.pm25 !== null ? `${t(`air.${c.air.band}`)} · PM2.5 ${c.air.pm25} µg/m³ (${t('cond.worstStation')}${c.air.pm25Average != null ? `; ${t('cond.average')} ${c.air.pm25Average}` : ''})` : t('air.Unknown')));
+    }
+    if (m === 'safety') rows.push(h('dt', null, t('cond.daylight')), h('dd', null, `${c.sunriseLocal ?? '–'} → ${c.sunsetLocal ?? '–'} ${c.isDark ? '· ' + t('cond.nowDark') : ''}`));
+    if (m === 'flood') rows.push(h('dt', null, t('cond.riversTitle')), h('dd', null, c.hydro.elevatedGauges ? t('cond.rivers', { n: c.hydro.elevatedGauges }) : t('cond.riversOk')));
+    const warnings = m === 'heat' ? (c.warnings || []).filter((w) => w.level > 0) : [];
     openDialog((close) => ({
       title: t('cond.title'),
       body: h('div', { class: 'stack' },
@@ -293,7 +299,7 @@ export function mountResident(root) {
         warnings.length
           ? h('div', null, h('p', { class: 'sect-title' }, t('cond.warningsTitle')),
             h('ul', { class: 'list' }, warnings.map((w) => h('li', null, h('b', null, `${w.eventName} · ${t('cond.level', { n: w.level })}`), h('p', { class: 'small muted' }, (w.content || '').slice(0, 220))))))
-          : (m !== 'safety' ? h('p', { class: 'small muted' }, t('cond.noWarnings')) : null),
+          : (m === 'heat' ? h('p', { class: 'small muted' }, t('cond.noWarnings')) : null),
         h('p', { class: 'tiny muted' }, t('cond.source'))),
       footer: h('button', { class: 'btn primary', type: 'button', onclick: () => close('ok') }, t('common.done'))
     }));
@@ -398,7 +404,7 @@ export function mountResident(root) {
   function renderHome(body) {
     const c = ctx.conditions;
     const stack = h('div', { class: 'stack' });
-    if (c && c.suggestedMode !== 'both' && mode() !== c.suggestedMode) {
+    if (c && MODE_KEYS.includes(c.suggestedMode) && mode() !== c.suggestedMode) {
       stack.append(h('div', { class: 'banner info' }, icon('info'), h('div', { class: 'grow' }, t(`home.suggest.${c.suggestedMode}`),
         h('div', null, h('button', { class: 'btn sm', type: 'button', style: { marginTop: '.4rem' }, onclick: () => set({ mode: c.suggestedMode }) }, t('home.switch', { mode: t(`mode.${c.suggestedMode}`) }))))));
     }
@@ -468,7 +474,6 @@ export function mountResident(root) {
 
     const layerData = (k) => place ? place[k] : gridRow ? { score: gridRow[COL[k]], band: bandOf(gridRow[COL[k]], ctx.grid?.grid, kindOf(k)), factors: null, reportPenalty: 0, baseScore: gridRow[COL[k]] } : null;
     const data = Object.fromEntries(layers.map((k) => [k, layerData(k)]));
-    const combined = place ? place.combined : gridRow ? gridRow[COL.combined] : null;
 
     if (layers.some((k) => !data[k])) {
       // No score for this spot: offline and not in the saved map, or outside the mapped area.
@@ -485,16 +490,8 @@ export function mountResident(root) {
       return;
     }
 
-    // Scores: one per layer; "Both" adds the overall number
-    if (m === 'both' && combined !== null) {
-      const b = bandOf(combined, ctx.grid?.grid);
-      stack.append(h('div', { class: 'row', title: scoreSummary('both', combined, b) }, ring(combined, b, t('mode.both.score')),
-        h('div', { class: 'grow' },
-          h('div', { class: 'row' }, h('span', { class: 'band', 'data-band': b }, t(`band.${b}`)), h('span', { class: 'small muted' }, t('explain.dir.both')),
-            infoButton(() => openScoreExplainer({ layer: 'both', place, meta: ctx.grid?.grid }), t('explain.how'))),
-          h('p', { class: 'small muted', style: { marginTop: '.3rem' } }, t('place.combinedHelp')))));
-    }
-    stack.append(h('div', { class: 'place-scores' }, layers.map((k) => scoreBox(k, data[k], m !== 'both', place))));
+    // The score of the chosen view
+    stack.append(h('div', { class: 'place-scores' }, layers.map((k) => scoreBox(k, data[k], true, place))));
 
     if (approx) stack.append(h('div', { class: 'banner info small' }, icon('offline', 'sm'), h('span', null, t('place.approx'))));
     if (sel.loading) stack.append(h('div', { class: 'skeleton', style: { height: '120px' } }));
@@ -502,7 +499,8 @@ export function mountResident(root) {
 
     stack.append(placeActions(sel));
     stack.append(nearbyBlock(sel, place));
-    if (m !== 'safety') stack.append(waterNote(place));
+    if (m === 'heat') stack.append(waterNote(place));
+    if (m === 'flood' || m === 'air') stack.append(dataGapNote(place, m));
 
     // Why this score: only the factors of the chosen view
     if (place) {
@@ -511,7 +509,7 @@ export function mountResident(root) {
           layers.map((k) => h('div', null,
             h('p', { class: 'sect-title' }, k === 'heat'
               ? `${t('mode.heat.score')} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` + ${place[k].reportPenalty} ${t('place.fromReports')}` : ''} = ${Math.round(place[k].score)}`
-              : `${t('mode.safety.score')} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` − ${place[k].reportPenalty} ${t('place.fromReports')}` : ''} = ${Math.round(place[k].score)}`),
+              : `${t(`mode.${k}.score`)} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` − ${place[k].reportPenalty} ${t(k === 'safety' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(place[k].score)}`),
             place[k].factors.map((f) => factorRow(f, k)))),
           h('div', { class: 'row wrap' }, h('button', { class: 'btn sm', type: 'button', onclick: () => openScoreExplainer({ layer: m, place, meta: ctx.grid?.grid }) }, icon('info', 'sm'), t('explain.how')),
             h('button', { class: 'btn sm quiet', type: 'button', onclick: () => openMethod(ctx.grid?.grid) }, icon('list', 'sm'), t('explain.fullMethod'))),
@@ -519,7 +517,7 @@ export function mountResident(root) {
     }
 
     // Reports of the chosen view
-    const wanted = new Set(layers.map((k) => (k === 'heat' ? 'Heat' : 'Safety')));
+    const wanted = new Set(layers.map((k) => LAYERS[k].api));
     const reports = (place?.reports || []).filter((r) => wanted.has(r.layer));
     if (reports.length) stack.append(h('section', null, h('h3', null, t('place.reportsTitle')), h('ul', { class: 'list' }, reports.slice(0, 6).map(reportRow))));
     stack.append(h('p', { class: 'tiny muted' }, t('how.notCrime')));
@@ -529,7 +527,14 @@ export function mountResident(root) {
   /** What the numbers on the card cover (matches the dashed circle on the map). */
   function coverageText(m) {
     const r = formatDistance(searchRadius());
-    return m === 'heat' ? t('cov.heat', { r }) : m === 'safety' ? t('cov.safety', { r }) : t('cov.both', { r });
+    return t(`cov.${asMode(m)}`, { r });
+  }
+
+  /** Honest note for flood and air: what the score cannot see, and when the map data behind it is missing. */
+  function dataGapNote(place, m) {
+    if (!place || !place[m]) return '';
+    const unknown = place[m].factors.some((f) => f.value === null && (f.key === 'river' || f.key === 'traffic') && Math.round(f.score) === 50);
+    return h('div', { class: 'banner small' }, icon('info', 'sm'), h('span', null, t(unknown ? `place.${m}Unknown` : `place.${m}Note`)));
   }
 
   /** Honest note about thin water data when the nearest drinking-water point is far or missing. */
@@ -545,7 +550,7 @@ export function mountResident(root) {
     const keys = RELIEF[mode()];
     const nearest = place ? place.nearest.filter((n) => keys.includes(n.key))
       : ctx.features ? nearestFromFeatures(ctx.features, sel.lat, sel.lon, keys) : [];
-    return h('section', null, h('h3', null, t(mode() === 'heat' ? 'place.nearHeat' : mode() === 'safety' ? 'place.nearSafety' : 'place.nearBoth')),
+    return h('section', null, h('h3', null, t(`place.near.${asMode(mode())}`)),
       nearest.length ? h('div', null, nearest.map(nearRow)) : h('p', { class: 'small muted' }, t('place.nothingNear', { r: formatDistance(searchRadius()) })));
   }
 
@@ -563,23 +568,23 @@ export function mountResident(root) {
     const band = layer.band;
     return h('div', { class: `score-box ${big ? 'active' : ''}`, title: scoreSummary(kind, layer.score, band) },
       h('div', { class: 'grow' },
-        h('div', { class: 'lbl' }, icon(kind === 'safety' ? 'moon' : 'sun', 'sm'), t(`mode.${kind}.score`),
+        h('div', { class: 'lbl' }, icon(LAYERS[kind].icon, 'sm'), t(`mode.${kind}.score`),
           infoButton(() => openScoreExplainer({ layer: kind, place, meta: ctx.grid?.grid }), `${t('explain.how')} ${t(`mode.${kind}.score`)}`)),
         h('div', { class: 'row' }, h('span', { class: 'big num' }, Math.round(layer.score)), h('span', { class: 'band', 'data-band': band }, bandText(band, kindOf(kind)))),
-        h('div', { class: 'tiny muted' }, t(kind === 'heat' ? 'explain.dir.heat' : 'explain.dir.safety')),
+        h('div', { class: 'tiny muted' }, t(`explain.dir.${kind}`)),
         h('div', { class: 'meter', 'data-band': band, style: { marginTop: '.4rem' }, role: 'presentation' }, h('span', { style: { width: `${clamp(layer.score, 0, 100)}%` } }))));
   }
 
   /** A factor of the score. Clicking it explains the factor: weight, why, data source and how many are mapped. */
   function factorRow(f, layerKey) {
     const band = bandOf(f.score, ctx.grid?.grid);
-    const valueText = f.unit === 'm' ? (f.value === null ? t('factor.none', { r: formatDistance(searchRadius()) }) : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`;
+    const valueText = f.unit === 'm' ? (f.value === null ? t(f.score === 50 && (f.key === 'river' || f.key === 'traffic') ? 'factor.unknown' : f.key === 'river' || f.key === 'traffic' ? 'factor.noneAway' : 'factor.none', { r: formatDistance(searchRadius()) }) : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`;
     const effect = layerKey === 'heat'
       ? (f.contribution > 0 ? t('explain.addsHeat', { n: Math.round(f.contribution * 10) / 10 }) : t('explain.addsNoHeat'))
-      : t('explain.addsSafety', { n: Math.round(f.contribution * 10) / 10, max: f.weight });
+      : t(layerKey === 'safety' ? 'explain.addsSafety' : `explain.adds.${layerKey}`, { n: Math.round(f.contribution * 10) / 10, max: f.weight });
     return h('button', { class: 'factor', type: 'button', title: `${t(`factor.${f.key}`)}: ${valueText} · ${effect} · ${t('explain.click')}`,
       onclick: () => openFactorExplainer(f.key, { factor: f, layer: layerKey, meta: ctx.grid?.grid }) },
-      h('span', { class: FACTOR_LAYER[f.key] === 'heat' ? 'chip heat' : 'chip safety', style: { padding: '.15rem' } }, icon(FACTOR_ICON[f.key] || 'info', 'sm')),
+      h('span', { class: `chip ${FACTOR_LAYER[f.key] || 'heat'}`, style: { padding: '.15rem' } }, icon(FACTOR_ICON[f.key] || 'info', 'sm')),
       h('div', null, h('div', { style: { fontWeight: 600 } }, t(`factor.${f.key}`)), f.nearestName ? h('div', { class: 'tiny muted truncate' }, f.nearestName) : h('div', { class: 'tiny muted' }, effect)),
       h('div', { class: 'val' }, valueText),
       h('div', { class: 'meter', 'data-band': band, role: 'presentation' }, h('span', { style: { width: `${clamp(f.score, 0, 100)}%` } })));
@@ -654,6 +659,8 @@ export function mountResident(root) {
         h('ul', { class: 'list' },
           h('li', { class: 'row' }, icon('moon'), h('span', null, t('welcome.safety'))),
           h('li', { class: 'row' }, icon('sun'), h('span', null, t('welcome.heat'))),
+          h('li', { class: 'row' }, icon('wave'), h('span', null, t('welcome.flood'))),
+          h('li', { class: 'row' }, icon('wind'), h('span', null, t('welcome.air'))),
           h('li', { class: 'row' }, icon('flag'), h('span', null, t('welcome.report'))),
           h('li', { class: 'row' }, icon('offline'), h('span', null, t('welcome.offline')))),
         h('p', { class: 'banner info small' }, icon('info'), h('span', null, t('how.notCrime')))),
@@ -664,7 +671,7 @@ export function mountResident(root) {
   // ── Boot ───────────────────────────────────────────────────────────────────
   (async function init() {
     renderView();
-    const [g, c, f, ty] = await Promise.all([peek('grid:both'), peek('conditions'), peek('features'), peek('report-types')]);
+    const [g, c, f, ty] = await Promise.all([peek('grid:all'), peek('conditions'), peek('features'), peek('report-types')]);
     if (c) { ctx.conditions = c.data; ctx.conditionsStale = true; if (!state.mode) set({ mode: asMode(c.data.suggestedMode) }); paintConditions(); }
     if (f) { ctx.features = f.data; ctx.places?.draw(); }
     if (ty) ctx.reportTypes = ty.data;

@@ -4,11 +4,10 @@ import { h, icon, clear, toast, timeAgo } from './util.js';
 import { t, getLang } from './i18n.js';
 import { P, pOn, loadReports, reportItem, staleBanner, openCellDrawer, requireOnline, dataChanged, openAlertDialog } from './planner-common.js';
 import { seedDemo, errorText } from './api.js';
+import { REPORT_LAYER, modeOfEvent } from './model.js';
 
-const TYPE_LAYER = { LightOut: 'Safety', UnsafeAtNight: 'Safety', PathHazard: 'Safety', WaterNotWorking: 'Heat', NoShade: 'Heat', HeatSpot: 'Heat' };
-
-/** The report layer the planning event shows: Heat reports for Heat, night-safety reports for Night safety, all for Both. */
-const eventLayer = () => (P.event === 'heat' ? 'Heat' : P.event === 'night' ? 'Safety' : null);
+/** The report layer the planning event shows: heat reports for Heat, night-safety reports for Night safety, and so on. */
+const eventLayer = () => modeOfEvent(P.event);
 
 export function mount(host) {
   const cleanups = [];
@@ -18,7 +17,7 @@ export function mount(host) {
   host.append(page);
 
   function matches(r) {
-    if (eventLayer() && TYPE_LAYER[r.type] !== eventLayer()) return false;
+    if (REPORT_LAYER[r.type] !== eventLayer()) return false;
     if (f.status && r.status !== f.status) return false;
     if (f.type && r.type !== f.type) return false;
     if (f.verified === 'yes' && !r.verifiedByPlanner) return false;
@@ -34,16 +33,16 @@ export function mount(host) {
     if (!res) { page.append(h('div', { class: 'skeleton', style: { height: '240px' } })); return; }
     if (res.stale) page.append(staleBanner(res.savedAt));
 
-    const types = ['LightOut', 'UnsafeAtNight', 'PathHazard', 'WaterNotWorking', 'NoShade', 'HeatSpot'];
+    const types = Object.keys(REPORT_LAYER);
     const q = h('input', { type: 'search', id: 'rep-q', value: f.q, placeholder: t('rep.search') });
     q.addEventListener('input', () => { f.q = q.value; paintList(); });
     // Every filter has a visible label above it.
     const select = (key, options) => h('label', { class: 'field filter' }, t(`rep.f.${key}`),
       h('select', { onchange: (e) => { f[key] = e.target.value; paintList(); } }, options.map(([v, l]) => h('option', { value: v, selected: f[key] === v }, l))));
     const wantedLayer = eventLayer();
-    const shownTypes = wantedLayer ? types.filter((x) => TYPE_LAYER[x] === wantedLayer) : types;
+    const shownTypes = types.filter((x) => REPORT_LAYER[x] === wantedLayer);
     page.append(h('div', { class: 'card stack tight' },
-      h('p', { class: 'small muted' }, icon('filter', 'sm'), ' ', t(wantedLayer ? `rep.showing.${P.event}` : 'rep.showing.both')),
+      h('p', { class: 'small muted' }, icon('filter', 'sm'), ' ', t(`rep.showing.${P.event}`)),
       h('div', { class: 'row wrap', style: { alignItems: 'flex-end' } },
         select('status', [['Open', t('rep.open')], ['Resolved', t('rep.resolved')], ['', t('rep.all')]]),
         select('type', [['', t('rep.allTypes')], ...shownTypes.map((x) => [x, t(`rtype.${x}`)])]),

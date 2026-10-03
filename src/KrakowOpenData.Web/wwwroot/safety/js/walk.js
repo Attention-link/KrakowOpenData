@@ -1,5 +1,5 @@
 // Walk check along real streets. Night safety mode = a night walk (lighting, night transport, open places, reports);
-// Heat mode = a cool walk (shade, water, cool places, reports); Both = the weaker of the two.
+// Heat mode = a cool walk (shade, water, cool places, reports); Flood = a walk away from the water; Air = a walk away from traffic.
 // Pick the start (A) and the destination (B) by typing an address or stop, tapping the map, or using your area.
 // The API finds the fastest street route and, when one scores clearly better, a safer / cooler / better one to compare with it.
 // Offline (or when street routing is down) the straight line between the two points is estimated from the saved map.
@@ -14,8 +14,8 @@ import { searchBox } from './search.js';
 import { addressLine, reverseLabel, coords } from './geo.js';
 import { bandText, infoButton, openScoreExplainer } from './explain.js';
 
-const SCORE_KEY = { safety: 'safety', heat: 'heat', both: 'combined' };
-const HELP_KEYS = { safety: ['openPlaces', 'aed'], heat: ['water', 'green', 'refuge', 'toilets'], both: ['water', 'green', 'openPlaces'] };
+const SCORE_KEY = { safety: 'safety', heat: 'heat', flood: 'flood', air: 'air', both: 'combined' };
+const HELP_KEYS = { safety: ['openPlaces', 'aed'], heat: ['water', 'green', 'refuge', 'toilets'], flood: ['emergency'], air: ['green', 'refuge'], both: ['water', 'green', 'openPlaces'] };
 
 export function renderWalkView(ctx, body) {
   const ws = ctx.walkState ||= { from: null, to: null, fromLabel: null, toLabel: null, pick: null, routes: null, selected: 'fastest', loading: false, error: null, offline: false, token: 0 };
@@ -115,7 +115,7 @@ export function renderWalkView(ctx, body) {
           .bindTooltip(`${t(`route.${sel.kind}`)} · ${bandText(run.band, kind)}`, { sticky: true }).addTo(layer);
       }
       const w = sel.samples[sel.weakestSampleIndex];
-      if (w && bandOf(sel.worst, ctx.grid?.grid, kind) !== 'Good') iconMarker([w.latitude, w.longitude], 'alert', mode === 'heat' ? 'heat' : 'safety', { title: t(`walk.weakest.${mode}`), z: 600 }).addTo(layer);
+      if (w && bandOf(sel.worst, ctx.grid?.grid, kind) !== 'Good') iconMarker([w.latitude, w.longitude], 'alert', mode, { title: t(`walk.weakest.${mode}`), z: 600 }).addTo(layer);
     }
     if (fit) {
       const pts = all.flatMap((route) => route.path);
@@ -157,7 +157,7 @@ export function renderWalkView(ctx, body) {
       const lat = ws.from[0] + (ws.to[0] - ws.from[0]) * f, lon = ws.from[1] + (ws.to[1] - ws.from[1]) * f;
       const c = cellOf(ctx.grid.grid, lat, lon);
       const row = ctx.gridIndex.get(`${c.row}-${c.col}`);
-      samples.push({ latitude: lat, longitude: lon, safety: row ? row[COL.safety] : 0, heat: row ? row[COL.heat] : 100, combined: row ? row[COL.combined] : 0 });
+      samples.push({ latitude: lat, longitude: lon, safety: row ? row[COL.safety] : 0, heat: row ? row[COL.heat] : 100, combined: row ? row[COL.combined] : 0, flood: row ? row[COL.flood] : 0, air: row ? row[COL.air] : 0 });
     }
     const vals = samples.map((s) => s[key]);
     const worstIdx = vals.indexOf(kind === 'heat' ? Math.max(...vals) : Math.min(...vals));

@@ -26,7 +26,9 @@ Automated tests are listed in section 14 and should pass before manual testing s
 - The planner key is a shared demo key (`demo-planner`); the planner opens without sign-in when `Safety:PlannerDemoKey` is set.
 - Agency contact is **simulated**: it records a contact but sends nothing.
 - The first API start takes 1–2 minutes while timetables and OpenStreetMap data load. Until then some endpoints answer 503 or "still loading".
-- There is **no "Both" view** any more: residents choose *Night safety* or *Heat*, planners choose *Heat warning* or *Night safety*.
+- There is **no "Both" view**: residents choose *Night safety*, *Heat*, *Flood* or *Air*; planners choose *Heat warning*, *Night safety*, *Flood* or *Air quality*.
+- **Flood and air are exposure scores, not measurements.** The flood score has no elevation or official flood-hazard map; the air score does not know traffic volume or industry. Both are "higher = better" and are adjusted by live IMGW river levels and GIOŚ PM2.5.
+- The first start downloads rivers and main roads from OpenStreetMap; until they load, the river and traffic factors read "unknown" (50) and the dashboard says datasets are still loading.
 
 ## 3. Test environment
 
@@ -130,7 +132,7 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
 | RES-01 | H | First load | Open the app | Top bar with the shield mark and **Kompas Krakowa**, a **Home page** link, an online indicator, a language selector. A map of Kraków with coloured 250 m squares, a mode switch and a menu panel | |
-| RES-02 | H | Mode switch | Click **Night safety**, then **Heat** | **Only these two** options exist. The map recolours; the score names, legend and available report types follow the mode | |
+| RES-02 | H | Mode switch | Click **Night safety**, **Heat**, **Flood**, then **Air** | **Exactly these four** options exist, in this order. The map recolours; the score names, legend and available report types follow the mode | |
 | RES-03 | H | Colours and legend | Open the colour key (layers button) in each mode | Four bands: Good (blue), Fair (light blue), Weak (light red), Critical (red), each with its score range and meaning. Heat ranges read 0–25 low heat up to 65–100 very high heat. Grey squares mean no mapped streets. Swatches have an outline and are readable | |
 | RES-04 | H | Heat direction | Tap a square in **Heat** | The card says **Higher = hotter**; a hot area shows a high number and a red band | |
 | RES-05 | M | Conditions strip | Look under the mode switch | Live conditions (time of day or sunrise for night, temperature and heat risk, air quality). If the live conditions suggest the other mode, a **Switch to …** suggestion appears and works | |
@@ -182,6 +184,19 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 
 ---
 
+### 6.6 Flood and air views
+
+| Id | Pri | Scenario | Steps | Expected result | Result |
+| --- | --- | --- | --- | --- | --- |
+| RES-50 | H | Flood map and legend | Choose **Flood**; open the colour key | The map recolours; the legend says **Flood safety score** and **Higher = safer from flooding**, with the same four bands (75–100 Good … 0–35 Critical) | |
+| RES-51 | H | Flood place card | In **Flood** tap a square near the Wisła, then one 1 km away from any river | The riverside square scores clearly lower. The card lists **Distance from rivers and streams** (with the river's name and metres), **Hospital or police nearby** and **Way out (public transport)**, with help and exits nearby and a note that the score has no ground-height or flood-map data | |
+| RES-52 | H | Air map and place card | Choose **Air**; tap a square next to a main road and one in a park | The road-side square scores lower. Factors: **Distance from main roads**, **Parks and trees**, **Indoor place to wait out bad air**. The conditions strip shows the air band and PM2.5 | |
+| RES-53 | M | Live river level | While IMGW shows a gauge above warning (or with test data) open **Flood** | The strip shows "Rivers above warning: N"; riverside squares are lower than with calm rivers; the menu suggests the Flood view | |
+| RES-54 | M | Smog | While PM2.5 averages above 45 µg/m³ open **Air** | All squares are lower than on a clean day, the strip shows PM2.5, and the menu suggests the Air view | |
+| RES-55 | M | Walk checks | In **Flood** and **Air** start a walk check between two points | A fastest route and, when clearly better, a **Safest from water** / **Cleanest air** alternative, with average and worst values and advice in the mode's words | |
+| RES-56 | M | Rivers not loaded | Start the API with no saved OpenStreetMap places and open **Flood** at once | The river factor reads "unknown (not loaded)" at 50, a note explains it, and the planner overview says datasets are still loading; after loading it shows real distances | |
+| RES-57 | M | Mode memory and fallback | Choose **Air**, reload; then set `localStorage.mode` to `both` and reload | Air is remembered; a stale value falls back to a valid tab without errors | |
+
 ## 7. Resident report flow (`REP`)
 
 Report types depend on the mode:
@@ -194,6 +209,7 @@ Report types depend on the mode:
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
 | REP-01 | H | Types follow the mode | In **Night safety** tap a square, click **Report a concern**; go back and repeat in **Heat** | Night safety offers exactly the three night types, Heat the three heat types. Each type has an icon and the layer name. A red note says to call emergency services for emergencies | |
+| REP-01a | H | Flood and air report types | Repeat REP-01 in **Flood** and **Air** | Flood offers *Flooded street or underpass*, *Blocked drain or gully*, *River or stream rising fast*; Air offers *Smoke or burning smell*, *Strong fumes or chemical smell*, *Dust cloud or construction dust*; each with its own icon and layer name | |
 | REP-02 | H | Choose a type | Click one type | The card is pressed; **Next** becomes enabled. Without a choice **Next** is disabled | |
 | REP-03 | H | Place the pin | On step 2 drag the pin; tap the map; type an address and pick a result; use **Use selected place** or **Use my area** | The address, coordinates and outlined 250 m square update each time and say what the report counts for | |
 | REP-04 | H | Add a note | Type a note | A counter shows `n/200`; typing past 200 characters is blocked; a privacy note says the note is only visible to planners | |
@@ -221,7 +237,7 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | --- | --- | --- | --- | --- | --- |
 | PLN-01 | H | Demo access | Open the planner link from the home tile | The dashboard opens directly; a **Demo access** chip is visible | |
 | PLN-02 | H | Sign-in | Empty `Safety:PlannerDemoKey`, restart, open the planner | A sign-in form. A wrong key shows an error; `demo-planner` signs in; **Sign out** returns to the form | |
-| PLN-03 | H | Event selector | Switch **Heat warning** and **Night safety** | **Only these two** options exist. Ranking, charts, map, report lists and drawers all change to the chosen event; the other event's content is hidden | |
+| PLN-03 | H | Event selector | Switch **Heat warning**, **Night safety**, **Flood** and **Air quality** | **Exactly these four** options exist. Ranking, charts, map, report lists and drawers all change to the chosen event; the other event's content is hidden | |
 | PLN-04 | M | Navigation | Click Overview, Map, Reports, Alerts, Contacts | Each page loads; the active item is marked; every page except Overview has **Back to dashboard** | |
 | PLN-05 | M | Conditions and freshness | Look at the tools bar | Live conditions chip, "Updated … ago" text, and a refresh button that reloads the data | |
 | PLN-06 | M | Switch to resident | Click **Resident view**, then back | Resident app opens; the planner can be reopened from its link | |
@@ -264,6 +280,7 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
 | PLN-40 | H | List and counts | Open **Reports** | A list of resident reports with type, area, time, supporters, note, and a verification status. A count line ("N reports") | |
+| PLN-40a | H | Flood and air dashboards | Choose **Flood**, then **Air quality** | Flood: KPIs *Within 200 m of a river*, *No hospital or police within 1 km*, *River situation*. Air: *Within 100 m of a main road*, *No park within 500 m*, *Air pollution now*. The conditions chip shows the rivers or PM2.5, the legend says Flood safety score or Clean-air score, and the area drawer lists that layer's factors, report types and suggested actions only | |
 | PLN-41 | H | Filters | Use **Status** (Open, Resolved, All), **Type**, **Verification** and **Search** | The list and the count update; a "no reports match" message appears when empty. Each filter has a visible label | |
 | PLN-42 | H | Event filter | Switch the event | Heat shows heat types only; Night safety shows night types only; the note above the list says which | |
 | PLN-43 | H | Verify | Click **Verify** on an unconfirmed report | A "Report verified" toast; the report shows verified; the score effect grows to full strength | |
@@ -312,6 +329,9 @@ This is the key integration scenario. Use **two windows**: **Resident A** (norma
 | E2E-10 | H | Planner resolves | **Planner** clicks **Resolve** with "Lamp replaced" | The toast says the score recovers; the report moves to **Resolved** with the resolution text; the open count falls by one | |
 | E2E-11 | H | Resident sees recovery | **Resident A** refreshes the square | The report no longer lowers the score; the score is back near the baseline | |
 | E2E-12 | H | Heat report round trip | Repeat E2E-01 to E2E-05 with **Heat** mode and **Overheated area, no relief nearby**, planner on **Heat warning** | Same flow. The report shows in the planner's heat view only; the **heat** score of the square is **higher** (hotter) | |
+| E2E-12a | H | Flood report round trip | Repeat E2E-01 to E2E-10 with **Flood** and *Flooded street or underpass* near a river; planner on **Flood** | Same flow. The report is listed under Flood only (not under Heat, Night safety or Air), the map marker has the flood icon, the flood-safety score of the square drops, verify and resolve work, and the score recovers | |
+| E2E-12b | H | Air report round trip | Repeat with **Air** and *Strong fumes or chemical smell*; planner on **Air quality** | Same flow for the clean-air score | |
+| E2E-12c | M | Flood alert | Planner **Alerts**, template **Flood: river rising**; resident has *my area* set in the **Flood** view | The resident sees the alert only in the Flood view (and as a general alert if sent as General); the layer shows **Flood** | |
 | E2E-13 | M | Offline report arrives | **Resident A** goes offline, sends a report (REP-13), goes online | Within about a minute (or on reconnect) the report appears on the planner Reports list with the correct time of sending | |
 | E2E-14 | M | Planner alert reaches the resident | **Resident A** sets **my area** near the report (RES-40). The **Planner** opens the drawer of that square, **Create alert**, template for the event, send and confirm | Within about a minute **Resident A** sees the alert banner (title and message in A's language) in the matching mode. After the planner cancels it (PLN-53) the banner disappears on the next check | |
 | E2E-15 | M | Report from another area is not shown in the drawer | Open a distant square's drawer | The report from E2E-01 is **not** listed there (reports affect only their own square) | |

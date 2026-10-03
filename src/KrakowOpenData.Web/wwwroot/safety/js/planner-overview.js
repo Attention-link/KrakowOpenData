@@ -5,7 +5,7 @@ import { h, icon, clear, formatDistance } from './util.js';
 import { t } from './i18n.js';
 import { P, pOn, openCellDrawer, openAlertDialog, staleBanner, loadGridFor } from './planner-common.js';
 import { histogram, hbars, tableView, bandKey } from './charts.js';
-import { bandOf, kindOf, bandRange, FACTOR_ICON, FACTOR_LAYER } from './model.js';
+import { bandOf, kindOf, bandRange, FACTOR_ICON, FACTOR_LAYER, LAYERS, modeOfEvent, REPORT_LAYER } from './model.js';
 import { openKpiExplainer, openFacts, openFactorExplainer, openMethod, bandText, explainable, infoButton, loadMethod, methodNow } from './explain.js';
 import { cachedGet, getReportTypes } from './api.js';
 
@@ -13,11 +13,12 @@ import { cachedGet, getReportTypes } from './api.js';
 const KPI_ORDER = {
   heat: ['averageScore', 'criticalCells', 'noWater500', 'noGreen500', 'openReports', 'activeAlerts', 'devicesActive'],
   night: ['averageScore', 'criticalCells', 'poorlyLit', 'noNightTransit500', 'openReports', 'activeAlerts', 'devicesActive'],
-  both: ['averageScore', 'criticalCells', 'noWater500', 'poorlyLit', 'openReports', 'activeAlerts', 'devicesActive']
+  both: ['averageScore', 'criticalCells', 'noWater500', 'poorlyLit', 'openReports', 'activeAlerts', 'devicesActive'],
+  flood: ['averageScore', 'criticalCells', 'nearRiver200', 'noEmergency1000', 'riverLevel', 'openReports', 'activeAlerts', 'devicesActive'],
+  air: ['averageScore', 'criticalCells', 'nearMainRoad100', 'noTrees500', 'airLevel', 'openReports', 'activeAlerts', 'devicesActive']
 };
 
 const DEFAULT_META = { goodFrom: 75, fairFrom: 55, weakFrom: 35 };
-const SAFETY_TYPES = ['LightOut', 'UnsafeAtNight', 'PathHazard'];
 
 export function mount(host) {
   const cleanups = [];
@@ -40,8 +41,8 @@ export function mount(host) {
     page.append(h('p', { class: 'small muted' }, icon('info', 'sm'), ' ', t('ov.clickHint')));
     page.append(kpis(s));
 
-    const kind = s.event === 'heat' ? 'heat' : 'good';
-    const evKey = s.event;   // heat | night | both
+    const kind = LAYERS[modeOfEvent(s.event)].kind;
+    const evKey = s.event;   // heat | night | flood | air
     page.append(h('div', { class: 'grid-2' },
       h('section', { class: 'card' },
         h('div', { class: 'chart-title' }, h('h2', null, t('ov.distribution')), h('span', { class: 'small muted' }, explainable(h('span', null, t('ov.cellsCount', { n: s.cells })), () => openKpiExplainer('cells', { value: s.cells }), null))),
@@ -74,7 +75,10 @@ export function mount(host) {
     else if (wantsHeat) tips.push(h('div', { class: 'banner info' }, icon('info'), h('span', null, t('ov.heatHint'))));
     if (wantsNight) tips.push(h('div', { class: 'banner info' }, icon('moon'), h('div', { class: 'grow' }, t('ov.darkHint'),
       h('div', null, h('button', { class: 'btn sm', type: 'button', style: { marginTop: '.4rem' }, onclick: () => switchEvent('night') }, t('ov.planNight'))))));
-    if (c.hydro.elevatedGauges > 0) tips.push(h('div', { class: 'banner danger' }, icon('wave'), h('span', null, t('cond.rivers', { n: c.hydro.elevatedGauges }))));
+    if (c.hydro.elevatedGauges > 0) tips.push(h('div', { class: 'banner danger' }, icon('wave'), h('div', { class: 'grow' }, t('cond.rivers', { n: c.hydro.elevatedGauges }),
+      P.event !== 'flood' ? h('div', null, h('button', { class: 'btn sm', type: 'button', style: { marginTop: '.4rem' }, onclick: () => switchEvent('flood') }, t('ov.planFlood'))) : null)));
+    if ((c.air.pm25Average ?? c.air.pm25) >= 45) tips.push(h('div', { class: 'banner danger' }, icon('wind'), h('div', { class: 'grow' }, t('ov.airHigh', { n: Math.round(c.air.pm25Average ?? c.air.pm25) }),
+      P.event !== 'air' ? h('div', null, h('button', { class: 'btn sm', type: 'button', style: { marginTop: '.4rem' }, onclick: () => switchEvent('air') }, t('ov.planAir'))) : null)));
     return tips.length ? h('div', { class: 'stack tight' }, tips) : h('div', { class: 'banner ok' }, icon('check'), h('span', null, t('ov.calm')));
   }
 
@@ -88,10 +92,10 @@ export function mount(host) {
     byKey.devicesActive = { key: 'devicesActive', value: s.devicesActive, unit: 'devices' };
     const order = KPI_ORDER[s.event] || KPI_ORDER.both;
     const go = { criticalCells: ['#/planner/map', 'ov.openMap'], openReports: ['#/planner/reports', 'ov.allReports'], activeAlerts: ['#/planner/alerts', 'pl.nav.alerts'] };
-    const FACTOR_OF = { noWater500: 'water', noGreen500: 'green', poorlyLit: 'lighting', noNightTransit500: 'nightTransit' };
+    const FACTOR_OF = { noWater500: 'water', noGreen500: 'green', poorlyLit: 'lighting', noNightTransit500: 'nightTransit', nearRiver200: 'river', noEmergency1000: 'emergency', nearMainRoad100: 'traffic', noTrees500: 'trees' };
     return h('div', { class: 'kpis', role: 'list' }, order.filter((k) => byKey[k]).map((key) => {
       const k = byKey[key];
-      const alertish = (key === 'noWater500' && k.value >= 50) || (key === 'poorlyLit' && k.value >= 50);
+      const alertish = (key === 'noWater500' && k.value >= 50) || (key === 'poorlyLit' && k.value >= 50) || ((key === 'riverLevel' || key === 'airLevel') && k.value >= 50);
       const body = [h('div', { class: 'v num' }, k.unit === '%' ? Math.round(k.value) : k.unit === 'score' ? Math.round(k.value) : k.value, k.unit === '%' ? h('small', null, '%') : k.unit === 'score' ? h('small', null, '/100') : null),
         h('div', { class: 'l' }, t(`kpi.${key}`)), h('div', { class: 'h' }, t(`kpi.${key}.help`))];
       // Every tile opens its explanation: what it is, how it is computed, the data source and the numbers behind it.
@@ -106,9 +110,9 @@ export function mount(host) {
   /** Live numbers shown in a figure's explanation, taken from the same summary the tile came from. */
   function kpiExtra(key, s, k) {
     const byKey = Object.fromEntries(s.kpis.map((x) => [x.key, x]));
-    const kindName = s.event === 'heat' ? t('explain.dir.heat') : s.event === 'night' ? t('explain.dir.safety') : t('explain.dir.both');
+    const kindName = t(`explain.dir.${modeOfEvent(s.event)}`);
     switch (key) {
-      case 'averageScore': { const kd = s.event === 'heat' ? 'heat' : 'good'; return [[t('ov.bandOfRange'), bandText(bandOf(k.value, P.grid?.grid, kd), kd)], [t('ov.reportLayer'), kindName], [t('kpi.cells'), s.cells]]; }
+      case 'averageScore': { const kd = LAYERS[modeOfEvent(s.event)].kind; return [[t('ov.bandOfRange'), bandText(bandOf(k.value, P.grid?.grid, kd), kd)], [t('ov.reportLayer'), kindName], [t('kpi.cells'), s.cells]]; }
       case 'criticalCells': return [[t('kpi.cells'), s.cells], [t('kpi.criticalCells'), k.value], [t('ov.shareOfAll'), `${s.cells ? Math.round((100 * k.value) / s.cells) : 0}%`], [t('kpi.weakCells'), byKey.weakCells?.value ?? '–']];
       case 'openReports': return s.reports.filter((r) => r.open || r.last24Hours).map((r) => [t(`rtype.${r.type}`), `${r.open} / ${r.last24Hours} / ${r.verified}`]).concat([[t('ov.reportCounts'), '']]);
       case 'activeAlerts': return [[t('kpi.activeAlerts'), s.activeAlerts]];
@@ -122,7 +126,7 @@ export function mount(host) {
     const band = bandOf(mid, meta, kind);
     const [from, to] = bandRange(band, meta, kind);
     loadMethod().catch(() => null).then((m) => {
-      const layerName = s.event === 'heat' ? 'Heat' : s.event === 'night' ? 'Safety' : null;
+      const layerName = LAYERS[modeOfEvent(s.event)].api;
       const meaning = m && layerName ? m.layers.find((l) => l.layer === layerName)?.bands.find((b) => b.band === band)?.meaning : t(`band.${band}.desc`);
       openFacts({
         title: t('ov.squaresInRange', { from: bin.from, to: bin.to }),
@@ -170,11 +174,10 @@ export function mount(host) {
             h('span', { class: 'small' }, `${t('cell.priority')} `, h('b', null, Math.round(c.priority)))),
           h('span', { class: 'meter', 'data-band': 'Critical', style: { display: 'block', margin: '.3rem 0' } }, h('span', { style: { width: `${c.priority}%`, background: 'var(--band-critical)' } })),
           h('span', { class: 'meta' },
-            h('span', { class: 'band', 'data-band': bandOf(c.safety, meta) }, `${t('mode.safety.score')} ${Math.round(c.safety)}`),
-            h('span', { class: 'band', 'data-band': bandOf(c.heat, meta, 'heat') }, `${t('mode.heat.score')} ${Math.round(c.heat)}`),
+            h('span', { class: 'band', 'data-band': bandOf(c[modeOfEvent(s.event)], meta, LAYERS[modeOfEvent(s.event)].kind) }, `${t(`mode.${modeOfEvent(s.event)}.score`)} ${Math.round(c[modeOfEvent(s.event)])}`),
             c.openReports ? h('span', { class: 'chip warn' }, icon('flag', 'sm'), c.openReports) : null,
             c.weakFactors.slice(0, 3).map((f) => h('span', { class: 'chip' }, icon(FACTOR_ICON[f] || 'info', 'sm'), t(`factor.${f}`)))))))) : h('div', { class: 'empty' }, icon('check'), h('p', null, t('ov.noPriority'))),
-      list.length ? tableView([t('ov.area'), t('cell.priority'), t('mode.safety'), t('mode.heat'), t('ov.reports')], list.map((c) => [c.cellId, Math.round(c.priority), Math.round(c.safety), Math.round(c.heat), c.openReports])) : null,
+      list.length ? tableView([t('ov.area'), t('cell.priority'), t(`mode.${modeOfEvent(s.event)}`), t('ov.reports')], list.map((c) => [c.cellId, Math.round(c.priority), Math.round(c[modeOfEvent(s.event)]), c.openReports])) : null,
       h('div', { class: 'row wrap', style: { marginTop: '.6rem' } }, h('a', { class: 'btn', href: '#/planner/map' }, icon('map', 'sm'), t('ov.openMap'))));
   }
 
@@ -191,7 +194,7 @@ export function mount(host) {
       valueNote: `${t('ov.open')}`,
       sections: [
         h('dl', { class: 'kv explain-kv' },
-          h('dt', null, t('ov.reportLayer')), h('dd', null, info ? (info.layer === 'Heat' ? t('mode.heat.score') : t('mode.safety.score')) : '–'),
+          h('dt', null, t('ov.reportLayer')), h('dd', null, info ? t(`mode.${REPORT_LAYER[info.type] || 'safety'}.score`) : '–'),
           h('dt', null, t('ov.reportWeight')), h('dd', null, info ? info.weight : '–'),
           h('dt', null, t('ov.reportHalfLife')), h('dd', null, half),
           h('dt', null, t('ov.reportCounts')), h('dd', null, `${r.open} / ${r.last24Hours} / ${r.verified}`),
@@ -202,13 +205,13 @@ export function mount(host) {
   }
 
   function reports(s) {
-    // Only the report types of the planning event: Heat shows heat reports, Night safety shows night reports.
-    const rows = s.reports.filter((r) => P.event === 'both' || (P.event === 'night') === SAFETY_TYPES.includes(r.type));
+    // Only the report types of the planning event (the API already sends just those).
+    const rows = s.reports.filter((r) => (REPORT_LAYER[r.type] || 'safety') === modeOfEvent(P.event));
     const max = Math.max(1, ...rows.map((r) => r.open));
     return h('section', { class: 'card' },
       h('div', { class: 'chart-title' }, h('h2', null, t('ov.reportsByType')), h('a', { href: '#/planner/reports', class: 'small' }, t('ov.allReports'))),
       rows.some((r) => r.open) ? hbars(rows.map((r) => ({
-        key: r.type, label: t(`rtype.${r.type}`), value: r.open, text: String(r.open), kind: r.type === 'LightOut' || r.type === 'UnsafeAtNight' || r.type === 'PathHazard' ? 'safety' : 'heat'
+        key: r.type, label: t(`rtype.${r.type}`), value: r.open, text: String(r.open), kind: REPORT_LAYER[r.type] || 'safety'
       })), { max, onClick: (k) => openReportExplainer(rows.find((x) => x.type === k)) }) : h('p', { class: 'small muted' }, t('ov.noReports')),
       tableView([t('rep.type'), t('ov.open'), t('ov.last24'), t('ov.verified')], rows.map((r) => [t(`rtype.${r.type}`), r.open, r.last24Hours, r.verified])));
   }
