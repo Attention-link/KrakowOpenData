@@ -38,3 +38,14 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch((e) => console.warn('Service worker not registered', e));
   });
 }
+
+// Tables turn into stacked cards on phones (see css/app.css): every cell shows its column title through data-label.
+function labelTableCells() {
+  app.querySelectorAll('table.t').forEach((table) => {
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    table.querySelectorAll('tbody tr').forEach((row) => {
+      [...row.children].forEach((cell, i) => { if (heads[i] && cell.getAttribute('data-label') !== heads[i]) cell.setAttribute('data-label', heads[i]); });
+    });
+  });
+}
+new MutationObserver(labelTableCells).observe(app, { childList: true, subtree: true });

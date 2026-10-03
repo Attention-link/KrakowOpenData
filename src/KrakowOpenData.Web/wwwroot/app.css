@@ -5,7 +5,7 @@
   --green: #34d399;
   --accent: #0e7490;          /* cyan, darkened for text/buttons on white */
   --tram: #1f5fbf;
-  --bus: #c26a00;
+  --bus: #9a5200;
   --other: #6b6f76;
   --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
@@ -64,7 +64,7 @@ code { font-family: var(--mono); font-size: .85em; }
 .pager { display: flex; gap: .75rem; align-items: center; justify-content: center; margin-top: 1rem; }
 .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
 .table-scroll { overflow-x: auto; max-width: 100%; }
-.table-scroll .table td, .table-scroll .table th { white-space: nowrap; }
+.table-scroll .table td, .table-scroll .table th { white-space: normal; overflow-wrap: anywhere; }
 ul.plain { list-style: none; padding: 0; margin: .25rem 0 0; display: flex; flex-direction: column; gap: .25rem; }
 
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: .6rem 1rem; background: #dc3545; color: #fff; z-index: 2000; }
@@ -72,7 +72,6 @@ ul.plain { list-style: none; padding: 0; margin: .25rem 0 0; display: flex; flex
 
 @media (max-width: 860px) {
   input:not([type=checkbox]) { min-width: 0; width: 100%; }
-  .table { display: block; overflow-x: auto; }
 }
 
 /* Home page thumbnails */
@@ -104,3 +103,50 @@ a { color: var(--accent); }
 .start-icon.bg-dark { background: var(--ink) !important; color: var(--cyan); }
 .start-icon.bg-secondary { background: #164e63 !important; }
 .start-card:hover { border-color: var(--cyan); }
+
+/* ── Accessibility: text colours with at least 4.5:1 contrast on their backgrounds ── */
+.text-muted, .muted, .lede, .source, .legend, .map-legend, .facts dt { color: #4f575f !important; }
+.btn-outline-secondary { --bs-btn-color: #495057; --bs-btn-border-color: #6c757d; }
+code { color: #9d174d; }
+.sb-sidenav-dark .sb-sidenav-menu .sb-sidenav-menu-heading { color: #9fb0c6; }
+footer .text-muted { color: #495057 !important; }
+.landmark, .landmark-label, .map-legend { fill: #4f575f; }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.sb-topnav :focus-visible, .sb-sidenav-dark :focus-visible { outline-color: #67e8f9; }
+
+/* ── Home hero: ink panel with the shield mark behind the title ── */
+.home-hero { position: relative; overflow: hidden; border-radius: .75rem; padding: 2.5rem 2rem; margin-bottom: 1.5rem; color: #e9eef6;
+  background: radial-gradient(circle at 85% 20%, rgba(34, 211, 238, .22), transparent 55%), var(--ink); }
+.home-hero::before { content: ""; position: absolute; right: -70px; top: 50%; width: min(360px, 75%); aspect-ratio: 1; transform: translateY(-50%);
+  background: url("brand/mark.svg") center / contain no-repeat; opacity: .4; pointer-events: none; }
+.home-hero > * { position: relative; }
+.home-hero h1 { color: #fff; font-size: clamp(1.75rem, 6vw, 2.75rem); }
+.home-hero .lede { color: #d3dbe7 !important; max-width: 36ch; font-size: 1.1rem; }
+
+/* ── Phones: nothing scrolls sideways. Tables become stacked cards (labels are added by js/layout.js). ── */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg { max-width: 100%; }
+.card, .alert, main { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 767.98px) {
+  main.container-fluid { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .home-hero { padding: 1.75rem 1.25rem; }
+  .toolbar, .search { flex-direction: column; align-items: stretch; }
+  .toolbar > *, .search > * { width: 100%; }
+  input.narrow { width: 100%; }
+  .btn { white-space: normal; }
+  .sb-topnav .navbar-brand { font-size: 1rem; margin-right: 0; min-width: 0; }
+  .grid { grid-template-columns: 1fr; }
+
+  table.table, table.table > tbody, table.table > tbody > tr, table.table > tbody > tr > td { display: block; width: 100%; }
+  table.table > thead { display: none; }
+  table.table { background: transparent; --bs-table-accent-bg: transparent; }
+  table.table > tbody > tr { background: #fff; border: 1px solid #dee2e6; border-radius: .5rem; margin-bottom: .75rem; padding: .25rem .9rem; }
+  table.table > tbody > tr > td { display: flex; justify-content: space-between; gap: 1rem; text-align: right; border: 0; padding: .4rem 0; overflow-wrap: anywhere; background: transparent; box-shadow: none; }
+  table.table > tbody > tr > td + td { border-top: 1px solid #eef1f4; }
+  table.table > tbody > tr > td::before { content: attr(data-label); flex: none; max-width: 45%; text-align: left; font-weight: 600; color: #343a40; }
+  table.table > tbody > tr > td:empty { display: none; }
+  .pager { flex-wrap: wrap; }
+}
+@media (max-width: 374.98px) {
+  .sb-topnav .navbar-brand span:not(.brand-mark) { display: none; }
+}
