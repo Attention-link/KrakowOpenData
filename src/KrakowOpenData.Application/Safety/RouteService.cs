@@ -83,6 +83,8 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
     {
         PlanningEvent.Heat => "coolest",
         PlanningEvent.Night => "safest",
+        PlanningEvent.Flood => "driest",
+        PlanningEvent.Air => "cleanest",
         _ => "balanced"
     };
 
@@ -165,6 +167,8 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
     {
         PlanningEvent.Heat => s.Heat,
         PlanningEvent.Night => s.Safety,
+        PlanningEvent.Flood => s.Flood,
+        PlanningEvent.Air => s.Air,
         _ => s.Combined
     };
 

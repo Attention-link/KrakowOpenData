@@ -38,6 +38,45 @@ public class SafetyPlacesParserTests
     }
 
     [Fact]
+    public void Rivers_and_main_roads_are_sampled_into_points_along_their_geometry()
+    {
+        // About 0.0045° of latitude is 500 m: one point at the start, then one about every 120 m (4 more), none for other roads.
+        const string lines = """
+        {"elements":[
+          {"type":"way","id":10,"tags":{"waterway":"river","name":"Wisła"},
+           "geometry":[{"lat":50.0000,"lon":19.9},{"lat":50.0045,"lon":19.9}]},
+          {"type":"way","id":11,"tags":{"highway":"primary"},
+           "geometry":[{"lat":50.01,"lon":19.9},{"lat":50.01,"lon":19.9005}]},
+          {"type":"way","id":12,"tags":{"highway":"residential"},
+           "geometry":[{"lat":50.02,"lon":19.9},{"lat":50.02,"lon":19.901}]},
+          {"type":"way","id":13,"tags":{"waterway":"drain"},
+           "geometry":[{"lat":50.03,"lon":19.9},{"lat":50.03,"lon":19.901}]}
+        ]}
+        """;
+
+        var places = SafetyPlacesParser.Parse(lines);
+        var river = places.Where(p => p.Kind == SafetyPlaceKind.Waterway).ToList();
+        var road = places.Where(p => p.Kind == SafetyPlaceKind.MajorRoad).ToList();
+
+        Assert.Equal(5, river.Count);                        // 0, 120, 240, 360, 480 m of a 500 m line
+        Assert.All(river, p => Assert.Equal("Wisła", p.Name));
+        Assert.Equal(50.0000, river[0].Location.Latitude, 6);
+        Assert.InRange(river[1].Location.DistanceTo(river[0].Location), 115, 125);
+        Assert.Single(road);                                 // a 35 m road: only its start
+        Assert.Equal(places.Count, river.Count + road.Count);   // residential roads and drains are ignored
+        Assert.Equal(places.Count, places.Select(p => p.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public void The_query_asks_for_waterways_and_main_roads_with_geometry()
+    {
+        var query = SafetyPlacesParser.BuildQuery("Kraków");
+        Assert.Contains("waterway", query);
+        Assert.Contains("motorway|trunk|primary", query);
+        Assert.Contains("out geom", query);
+    }
+
+    [Fact]
     public void A_pharmacy_open_around_the_clock_is_recognised()
     {
         var pharmacy = SafetyPlacesParser.Parse(Json)[0];

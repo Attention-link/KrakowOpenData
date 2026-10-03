@@ -6,7 +6,9 @@ namespace KrakowOpenData.Domain.Safety;
 public enum ScoreLayer
 {
     Safety,
-    Heat
+    Heat,
+    Flood,
+    Air
 }
 
 /// <summary>What a resident can report. Each type feeds exactly one score layer (see <c>ReportRules</c>).</summary>
@@ -17,7 +19,13 @@ public enum ReportType
     PathHazard,
     WaterNotWorking,
     NoShade,
-    HeatSpot
+    HeatSpot,
+    FloodedStreet,
+    BlockedDrain,
+    RisingWater,
+    SmokeOrBurning,
+    StrongFumes,
+    DustCloud
 }
 
 public enum ReportStatus

@@ -81,9 +81,11 @@ public sealed record PlaceScoreDto(
     IReadOnlyList<ReportDto> Reports,
     IReadOnlyList<SuggestedActionDto> Actions,
     DateTimeOffset GeneratedAt,
-    string? Label = null);
+    string? Label = null,
+    LayerScoreDto? Flood = null,
+    LayerScoreDto? Air = null);
 
-public sealed record CorridorSampleDto(double Latitude, double Longitude, double Heat, double Safety, double Combined);
+public sealed record CorridorSampleDto(double Latitude, double Longitude, double Heat, double Safety, double Combined, double Flood = 0, double Air = 0);
 
 /// <summary>Scores sampled every ~50 m along a straight line between two points (not a street route).</summary>
 public sealed record CorridorDto(
@@ -101,7 +103,7 @@ public sealed record CorridorDto(
 // ── Live conditions ──────────────────────────────────────────────────────────
 public sealed record HeatConditionDto(string Pressure, int Level, string Label, double? TemperatureC, string? WarningTitle);
 
-public sealed record AirConditionDto(string Band, double? Pm25, string? Station);
+public sealed record AirConditionDto(string Band, double? Pm25, string? Station, double? Pm25Average = null);
 
 public sealed record HydroConditionDto(int ElevatedGauges, string WorstState);
 
@@ -207,7 +209,9 @@ public sealed record PriorityCellDto(
     int OpenReports,
     IReadOnlyList<string> WeakFactors,
     IReadOnlyList<SuggestedActionDto> Actions,
-    string? Label = null);
+    string? Label = null,
+    double Flood = 0,
+    double Air = 0);
 
 public sealed record ReportCountDto(string Type, int Open, int Last24Hours, int Verified);
 

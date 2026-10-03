@@ -30,7 +30,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var c = await _client.GetFromJsonAsync<ConditionsDto>("/api/safety/conditions");
         Assert.NotNull(c);
         Assert.Equal("None", c.Heat.Pressure);
-        Assert.Contains(c.SuggestedMode, new[] { "safety", "heat", "both" });
+        Assert.Contains(c.SuggestedMode, new[] { "safety", "heat", "both", "flood", "air" });
         Assert.NotNull(c.SunsetLocal);
     }
 
@@ -106,7 +106,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var m = await _client.GetFromJsonAsync<MethodDto>("/api/safety/method");
         Assert.NotNull(m);
-        Assert.Equal(2, m.Layers.Count);
+        Assert.Equal(4, m.Layers.Count);
         Assert.All(m.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
         Assert.StartsWith("Higher = hotter", m.Layers.Single(l => l.Layer == "Heat").Direction);
         Assert.Contains(m.Kpis, k => k.Key == "noWater500");
@@ -120,7 +120,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Contains(features!, f => f.Key == "green" && f.RadiusMeters == 200);
 
         var types = await _client.GetFromJsonAsync<List<ReportTypeDto>>("/api/safety/report-types");
-        Assert.Equal(6, types!.Count);
+        Assert.Equal(12, types!.Count);
         Assert.Contains(types, t => t.Type == "NoShade" && t.Layer == "Heat");
     }
 

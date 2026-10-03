@@ -106,8 +106,18 @@ public sealed class SafetyModelProvider(
             ["openPlaces"] = PlaceFeatures(placeList, p =>
                 p.Kind is SafetyPlaceKind.Police or SafetyPlaceKind.Hospital || (p.Kind == SafetyPlaceKind.Pharmacy && p.IsOpenAllNight)),
             ["transit"] = stopList.Select(StopFeature).ToList(),
-            ["nightTransit"] = stopList.Where(s => nightIds.Contains(s.Id)).Select(StopFeature).ToList()
+            ["nightTransit"] = stopList.Where(s => nightIds.Contains(s.Id)).Select(StopFeature).ToList(),
+            ["river"] = PlaceFeatures(placeList, p => p.Kind == SafetyPlaceKind.Waterway),
+            ["traffic"] = PlaceFeatures(placeList, p => p.Kind == SafetyPlaceKind.MajorRoad),
+            ["emergency"] = PlaceFeatures(placeList, p => p.Kind is SafetyPlaceKind.Hospital or SafetyPlaceKind.Police),
+            ["evacuation"] = stopList.Select(StopFeature).ToList(),
+            ["trees"] = PlaceFeatures(placeList, p => p.Kind == SafetyPlaceKind.Park),
+            ["cleanIndoor"] = PlaceFeatures(placeList, p => p.Kind is SafetyPlaceKind.Library or SafetyPlaceKind.Pharmacy or SafetyPlaceKind.Hospital)
         };
+
+        // Rivers and main roads come with the places dataset; if it loaded without them (an old saved copy), say so.
+        if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.Waterway)) gaps.Add("rivers");
+        if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.MajorRoad)) gaps.Add("mainRoads");
 
         return new StaticSafetyModel(features, CountPerCell(lampList.Select(l => l.Location)), CountPerCell(stopList.Select(s => s.Location)), gaps, clock.UtcNow);
     }

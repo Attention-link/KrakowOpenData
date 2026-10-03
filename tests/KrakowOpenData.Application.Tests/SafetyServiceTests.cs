@@ -192,7 +192,7 @@ public class ScoreServiceTests
         var (row, col) = GridSpec.CellOf(SafetyWorld.Centre);
         Assert.Contains(grid.Cells, c => c[0] == row && c[1] == col);
         Assert.DoesNotContain(grid.Cells, c => c[0] == GridSpec.CellOf(SafetyWorld.Remote).Row);
-        Assert.Equal(["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority"], grid.Columns);
+        Assert.Equal(["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority", "flood", "air"], grid.Columns);
         Assert.All(grid.Cells, c => Assert.Equal(grid.Columns.Count, c.Length));
         Assert.Equal(75, grid.Grid.GoodFrom);
     }

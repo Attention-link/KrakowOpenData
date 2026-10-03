@@ -14,6 +14,36 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
 
     private static readonly Dictionary<string, Text> Texts = new()
     {
+        ["river"] = new(
+            "Straight-line distance to the nearest mapped river, stream or canal.",
+            "Closeness to water is the main thing that decides whether a street can flood in a river flood, so it carries the largest weight. It rises with distance: a place on the bank scores 0, one 500 m or more away scores 100.",
+            "OpenStreetMap waterways (waterway=river, stream, canal), sampled about every 120 m.",
+            "There is no elevation model or official flood-hazard map in this score, so a low-lying place away from a river, and flooding from heavy rain or blocked drains, are not seen. Citizen reports fill part of that gap."),
+        ["emergency"] = new(
+            "Walking distance to the nearest hospital or police station.",
+            "When water rises, emergency help that is close lowers the risk to people who need it, but it does not stop the flooding, so it has a medium weight.",
+            "OpenStreetMap hospitals and police stations.",
+            "Fire stations are not included, and a station on the other side of a river may not be reachable during a flood."),
+        ["evacuation"] = new(
+            "Walking distance to the nearest public transport stop.",
+            "A stop is a way to leave the area when water rises, so it carries a lower weight.",
+            "ZTP Kraków GTFS timetable (every stop).",
+            "Services may stop in a flood; this only shows that a way out is mapped."),
+        ["traffic"] = new(
+            "Straight-line distance to the nearest motorway, trunk or primary road.",
+            "Road traffic is the main local source of nitrogen dioxide and fine dust in a city, and the air is worst next to the road, so it carries the largest weight. It rises with distance: a place on the road scores 0, one 300 m or more away scores 100.",
+            "OpenStreetMap main roads (highway=motorway, trunk, primary), sampled about every 120 m.",
+            "Traffic volume is not known: a mapped main road stands in for traffic. Industry, heating and other sources are not in this score."),
+        ["trees"] = new(
+            "Walking distance to the edge of the nearest park or green area.",
+            "Trees and green areas filter and dilute polluted air and lower its concentration near them, so they carry a large weight.",
+            "OpenStreetMap parks and green areas (leisure=park).",
+            "A park is used as a stand-in for the effect of trees; there is no tree-canopy data."),
+        ["cleanIndoor"] = new(
+            "Walking distance to the nearest library, pharmacy or hospital.",
+            "On a smog day a public indoor place lets people with asthma or heart conditions get out of the polluted air, but it does not change the air outside, so it has a smaller weight.",
+            "OpenStreetMap libraries, pharmacies and hospitals.",
+            "Whether the building has filtered air and is open is not known."),
         ["green"] = new(
             "Walking distance to the edge of the nearest park or green area.",
             "Shade and vegetation are the biggest difference between a street that is bearable on a hot day and one that is not: trees and green areas lower the air and surface temperature, and they cool a whole area, not only a spot. A place with no green nearby has the largest single heat penalty.",
@@ -51,6 +81,36 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             "People and staff around, and a place to ask for help, make a street safer, but the effect is smaller than light or a way home.",
             "OpenStreetMap police stations, hospitals and 24/7 pharmacies.",
             "Only places tagged as open at night count; opening hours in OpenStreetMap may be missing or out of date."),
+        ["river"] = new(
+            "Straight-line distance to the nearest mapped river, stream or canal.",
+            "Closeness to water is the main thing that decides whether a street can flood in a river flood, so it carries the largest weight. It rises with distance: a place on the bank scores 0, one 500 m or more away scores 100.",
+            "OpenStreetMap waterways (waterway=river, stream, canal), sampled about every 120 m.",
+            "There is no elevation model or official flood-hazard map in this score, so a low-lying place away from a river, and flooding from heavy rain or blocked drains, are not seen. Citizen reports fill part of that gap."),
+        ["emergency"] = new(
+            "Walking distance to the nearest hospital or police station.",
+            "When water rises, emergency help that is close lowers the risk to people who need it, but it does not stop the flooding, so it has a medium weight.",
+            "OpenStreetMap hospitals and police stations.",
+            "Fire stations are not included, and a station on the other side of a river may not be reachable during a flood."),
+        ["evacuation"] = new(
+            "Walking distance to the nearest public transport stop.",
+            "A stop is a way to leave the area when water rises, so it carries a lower weight.",
+            "ZTP Kraków GTFS timetable (every stop).",
+            "Services may stop in a flood; this only shows that a way out is mapped."),
+        ["traffic"] = new(
+            "Straight-line distance to the nearest motorway, trunk or primary road.",
+            "Road traffic is the main local source of nitrogen dioxide and fine dust in a city, and the air is worst next to the road, so it carries the largest weight. It rises with distance: a place on the road scores 0, one 300 m or more away scores 100.",
+            "OpenStreetMap main roads (highway=motorway, trunk, primary), sampled about every 120 m.",
+            "Traffic volume is not known: a mapped main road stands in for traffic. Industry, heating and other sources are not in this score."),
+        ["trees"] = new(
+            "Walking distance to the edge of the nearest park or green area.",
+            "Trees and green areas filter and dilute polluted air and lower its concentration near them, so they carry a large weight.",
+            "OpenStreetMap parks and green areas (leisure=park).",
+            "A park is used as a stand-in for the effect of trees; there is no tree-canopy data."),
+        ["cleanIndoor"] = new(
+            "Walking distance to the nearest library, pharmacy or hospital.",
+            "On a smog day a public indoor place lets people with asthma or heart conditions get out of the polluted air, but it does not change the air outside, so it has a smaller weight.",
+            "OpenStreetMap libraries, pharmacies and hospitals.",
+            "Whether the building has filtered air and is open is not known."),
         ["aed"] = new(
             "Walking distance to the nearest public defibrillator (AED).",
             "A defibrillator does not prevent harm; it helps when a medical emergency happens, so it carries the smallest weight.",
@@ -108,8 +168,42 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             ],
             Factors(SafetyModel.SafetyFactors));
 
+        var flood = new LayerMethodDto(
+            "Flood",
+            "Flood safety score",
+            "Higher = safer. 0 is a place on a riverbank with no emergency help or way out nearby; 100 is far from any river with help and exits close.",
+            "How exposed a place is to a river flood and how well it is set up to cope: how far it is from a mapped river, stream or canal, whether a hospital or police station is near, and whether a public transport stop offers a way out. On top of that, when IMGW reports a river above its warning or alarm level, places near water lose up to 35 points. It is not a flood-hazard map: there is no elevation or official flood-zone data in it yet.",
+            "Flood safety score = Σ weight × factor score ÷ 100 over the three factors − open flood reports (up to 30 points) − live river adjustment (level × 35 × (1 − river score ÷ 100); level 0 normal, 0.5 above warning, 1 above alarm), limited to 0–100.",
+            [
+                new BandInfoDto("Good", 75, 100, "Well away from water, with help and a way out close."),
+                new BandInfoDto("Fair", 55, 75, "Some exposure: close to water or help is a little far."),
+                new BandInfoDto("Weak", 35, 55, "Exposed: near a river, or help and exits are far."),
+                new BandInfoDto("Critical", 0, 35, "Very exposed: on or next to the water, with little help or no way out nearby.")
+            ],
+            Factors(SafetyModel.FloodFactors));
+
+        var air = new LayerMethodDto(
+            "Air",
+            "Clean-air score",
+            "Higher = cleaner. 0 is a place right on a main road with no trees or indoor refuge; 100 is far from traffic, with green areas and indoor places close.",
+            "How well a place is protected from polluted air: how far it is from main roads, whether trees and parks are close, and whether there is a public indoor place to wait out bad air. On top of that, when the current GIOŚ PM2.5 readings are above 15 µg/m³ (the WHO daily guideline), every place loses points, up to 40 at 75 µg/m³ or more, and poorly protected places lose most. It does not measure the air at your door: it shows where people are more exposed.",
+            "Clean-air score = Σ weight × factor score ÷ 100 over the three factors − open air reports (up to 30 points) − live air adjustment (level × 40 × (0.5 + 0.5 × (1 − base score ÷ 100)); level = (PM2.5 − 15) ÷ 60 between 0 and 1), limited to 0–100.",
+            [
+                new BandInfoDto("Good", 75, 100, "Away from traffic, with trees and indoor places close."),
+                new BandInfoDto("Fair", 55, 75, "Mostly fine: near a busier road or short of green."),
+                new BandInfoDto("Weak", 35, 55, "Exposed: close to main roads with little green."),
+                new BandInfoDto("Critical", 0, 35, "Very exposed: next to heavy traffic with no green and no refuge nearby.")
+            ],
+            Factors(SafetyModel.AirFactors));
+
         var kpis = new List<KpiInfoDto>
         {
+            new("nearRiver200", "Within 200 m of a river", "Share of built-up area whose nearest mapped river, stream or canal is closer than 200 m.", "Σ exposure of squares with river distance < 200 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap waterways + exposure proxy"),
+            new("noEmergency1000", "No hospital or police within 1 km", "Share of built-up area where the nearest hospital or police station is more than 1 km away, or none is mapped within 1.5 km.", "Σ exposure of squares with emergency distance > 1000 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap hospitals and police stations"),
+            new("riverLevel", "River situation", "How high Kraków's rivers are right now: 0 % normal, 50 % a gauge above its warning level, 100 % above alarm.", "Worst state across IMGW river gauges in Kraków.", "IMGW-PIB river gauges"),
+            new("nearMainRoad100", "Within 100 m of a main road", "Share of built-up area whose nearest mapped motorway, trunk or primary road is closer than 100 m.", "Σ exposure of squares with main-road distance < 100 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap main roads + exposure proxy"),
+            new("noTrees500", "No park within 500 m", "Share of built-up area where the nearest mapped park or green area is more than 500 m away.", "Σ exposure of squares with park distance > 500 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap parks"),
+            new("airLevel", "Air pollution now", "How polluted the air is right now: 0 % at or below 15 µg/m³ PM2.5, 100 % at 75 µg/m³ or more.", "(average PM2.5 across Kraków GIOŚ stations − 15) ÷ 60, limited to 0–1.", "GIOŚ national air-quality network"),
             new("cells", "Squares scored", "Number of 250 m × 250 m squares that are built up (at least 3 mapped street lamps or a public transport stop) and so get a score.", "Count of grid squares with ≥ 3 mapped lamps or ≥ 1 stop.", "OpenStreetMap lamps + ZTP Kraków GTFS stops"),
             new("averageScore", "Average score", "The mean of the score of the planned event across all scored squares. For Heat this is the heat score (higher = hotter); for Night safety the safety score (higher = safer); for Both the overall score (higher = better).", "Mean of the event score over all squares (each square counts once).", "This model (SafetyModel)"),
             new("criticalCells", "Critical squares", "Squares in the worst band for the planned event: heat score of 65 or more, safety score below 35, or overall score below 35.", "Count of squares whose band is Critical.", "This model (SafetyModel)"),
@@ -130,7 +224,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
 
         return new MethodDto(
             current.GeneratedAt,
-            [safety, heat],
+            [safety, heat, flood, air],
             SafetyModelFormulas.Combined,
             $"Each open citizen report subtracts points from its own layer in its own 250 m square: 5 × type weight × decay × credibility × support, capped at {SafetyModel.MaxReportPenalty:0} points per layer. A single unconfirmed report counts at a quarter; two or more people agreeing, or a planner verifying, counts in full. Reports fade (half-life 1 to 14 days depending on type) unless confirmed again. For heat, reports raise the heat score.",
             SafetyModelFormulas.Priority,

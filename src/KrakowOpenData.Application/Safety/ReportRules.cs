@@ -39,7 +39,13 @@ public static class ReportRules
         [ReportType.PathHazard] = new(ScoreLayer.Safety, 2, 7 * 24, "Blocked or hazardous path"),
         [ReportType.WaterNotWorking] = new(ScoreLayer.Heat, 2, 3 * 24, "Water point not working"),
         [ReportType.NoShade] = new(ScoreLayer.Heat, 2, 2 * 24, "No shade, very hot spot"),
-        [ReportType.HeatSpot] = new(ScoreLayer.Heat, 3, 24, "Overheated area, no relief nearby")
+        [ReportType.HeatSpot] = new(ScoreLayer.Heat, 3, 24, "Overheated area, no relief nearby"),
+        [ReportType.FloodedStreet] = new(ScoreLayer.Flood, 3, 24, "Flooded street or underpass"),
+        [ReportType.BlockedDrain] = new(ScoreLayer.Flood, 2, 7 * 24, "Blocked drain or gully"),
+        [ReportType.RisingWater] = new(ScoreLayer.Flood, 3, 12, "River or stream rising fast"),
+        [ReportType.SmokeOrBurning] = new(ScoreLayer.Air, 3, 24, "Smoke or burning smell"),
+        [ReportType.StrongFumes] = new(ScoreLayer.Air, 2, 24, "Strong fumes or chemical smell"),
+        [ReportType.DustCloud] = new(ScoreLayer.Air, 2, 12, "Dust cloud or construction dust")
     };
 
     public static IEnumerable<(ReportType Type, ReportRule Rule)> All => Rules.Select(r => (r.Key, r.Value));

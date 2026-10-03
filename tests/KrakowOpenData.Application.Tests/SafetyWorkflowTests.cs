@@ -320,7 +320,9 @@ public class PlannerServiceTests
 
         var demo = new DemoDataService(world.Scores(), world.Store, world.Clock);
         var created = await demo.SeedAsync();
-        Assert.InRange(created, 1, 11);
+        Assert.InRange(created, 1, 19);   // 6 night + 5 heat + 4 flood + 4 air reports at most
+        Assert.Contains(await world.Store.ListReportsAsync(), r => ReportRules.For(r.Type).Layer == ScoreLayer.Flood);
+        Assert.Contains(await world.Store.ListReportsAsync(), r => ReportRules.For(r.Type).Layer == ScoreLayer.Air);
         Assert.Equal(0, await demo.SeedAsync());
         Assert.All(await world.Store.ListReportsAsync(), r => Assert.StartsWith("DEMO", r.Note));
     }

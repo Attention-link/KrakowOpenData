@@ -27,15 +27,12 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         {
             PlanningEvent.Heat => c.Heat,
             PlanningEvent.Night => c.Safety,
+            PlanningEvent.Flood => c.Flood,
+            PlanningEvent.Air => c.Air,
             _ => c.Combined
         };
 
-        var layers = evt switch
-        {
-            PlanningEvent.Heat => new[] { Layer.Heat },
-            PlanningEvent.Night => new[] { Layer.Safety },
-            _ => new[] { Layer.Heat, Layer.Safety }
-        };
+        var layers = ScoreService.LayersOf(evt);
 
         // Headline numbers.
         var kpis = new List<KpiDto>
@@ -49,7 +46,7 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         // Shares are exposure-weighted: a thinly built fringe cell counts less than a busy street grid (see SafetyModel.Exposure).
         var totalExposure = cells.Sum(c => c.Measure.Exposure);
         double Share(Func<ScoredCell, bool> predicate) => totalExposure == 0 ? 0 : Math.Round(100.0 * cells.Where(predicate).Sum(c => c.Measure.Exposure) / totalExposure, 1);
-        double? Value(ScoredCell c, string key) => c.Measure.Factors(key is "lighting" or "nightTransit" or "openPlaces" or "aed" ? Layer.Safety : Layer.Heat)
+        double? Value(ScoredCell c, string key) => c.Measure.Factors(key is "lighting" or "nightTransit" or "openPlaces" or "aed" ? Layer.Safety : key is "river" or "emergency" or "evacuation" ? Layer.Flood : key is "traffic" or "trees" or "cleanIndoor" ? Layer.Air : Layer.Heat)
             .First(f => f.Definition.Key == key).Value;
 
         if (layers.Contains(Layer.Heat))
@@ -62,6 +59,20 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         {
             kpis.Add(new KpiDto("poorlyLit", Share(c => c.Measure.Safety.First(f => f.Definition.Key == "lighting").IsWeak), "%"));
             kpis.Add(new KpiDto("noNightTransit500", Share(c => Value(c, "nightTransit") is null or > 500), "%"));
+        }
+
+        if (layers.Contains(Layer.Flood))
+        {
+            kpis.Add(new KpiDto("nearRiver200", Share(c => Value(c, "river") is { } d && d < 200), "%"));
+            kpis.Add(new KpiDto("noEmergency1000", Share(c => Value(c, "emergency") is null or > 1000), "%"));
+            kpis.Add(new KpiDto("riverLevel", Math.Round(100 * SafetyModel.FloodLevel(grid.Conditions.Hydro.WorstState)), "%"));
+        }
+
+        if (layers.Contains(Layer.Air))
+        {
+            kpis.Add(new KpiDto("nearMainRoad100", Share(c => Value(c, "traffic") is { } d && d < 100), "%"));
+            kpis.Add(new KpiDto("noTrees500", Share(c => Value(c, "trees") is null or > 500), "%"));
+            kpis.Add(new KpiDto("airLevel", Math.Round(100 * SafetyModel.AirLevel(grid.Conditions.Air.Pm25Average ?? grid.Conditions.Air.Pm25)), "%"));
         }
 
         var openReports = cells.Sum(c => c.OpenReports);
@@ -106,7 +117,9 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
                 layers.SelectMany(c.Measure.Factors).Where(f => f.IsWeak).OrderByDescending(f => f.Definition.Weight * (100 - f.Score))
                     .Select(f => f.Definition.Key).ToList(),
                 SuggestedActions.For(c.Measure, c, evt),
-                grid.Model.LabelFor(c.Measure.Point)))
+                grid.Model.LabelFor(c.Measure.Point),
+                Math.Round(c.Flood),
+                Math.Round(c.Air)))
             .ToList();
 
         // Reports and alerts.
@@ -127,6 +140,8 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         var waterPoints = grid.Model.FeatureCount("water");
         if (waterPoints < 300)
             notes.Add($"Only {waterPoints} drinking fountains and taps are mapped in OpenStreetMap for a city of about 800,000 people, so many areas score low for water partly because points are missing from the map, not only because water is absent. Adding them in OpenStreetMap, or a list from the water utility or the city, would improve the heat score.");
+        if (evt == PlanningEvent.Flood) notes.Add("Flood scores use distance from mapped rivers and streams, emergency services and exits, plus live IMGW river levels. There is no elevation or official flood-hazard map in this model yet, so low-lying areas away from a river are not flagged.");
+        if (evt == PlanningEvent.Air) notes.Add("Air scores use distance from mapped main roads, trees and parks, indoor places, plus live GIOŚ PM2.5 readings. Traffic volume and industrial sources are not known.");
         if (grid.Model.DataGaps.Count > 0) notes.Add("Some datasets are still loading, so scores may be incomplete: " + string.Join(", ", grid.Model.DataGaps) + ".");
 
         return new PlannerSummaryDto(

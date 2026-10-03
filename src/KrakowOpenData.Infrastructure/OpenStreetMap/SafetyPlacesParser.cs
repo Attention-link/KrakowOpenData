@@ -24,7 +24,10 @@ public static class SafetyPlacesParser
         $"area[\"name\"=\"{areaName}\"][\"admin_level\"=\"8\"]->.a;(" +
         "nwr[\"amenity\"~\"^(police|hospital|pharmacy|library)$\"](area.a);" +
         "nwr[\"leisure\"=\"park\"](area.a);" +
-        ");out bb tags;";
+        ");out bb tags;" +
+        // Rivers, streams, canals and main roads are lines: their geometry is sampled into points (flood and air layers).
+        "(way[\"waterway\"~\"^(river|stream|canal)$\"](area.a);" +
+        "way[\"highway\"~\"^(motorway|trunk|primary)$\"](area.a););out geom tags;";
 
     public static IReadOnlyList<SafetyPlace> Parse(string json)
     {
@@ -38,6 +41,14 @@ public static class SafetyPlacesParser
             var type = e.TryGetProperty("type", out var t) ? t.GetString() : null;
             var osmId = e.TryGetProperty("id", out var i) ? i.GetRawText() : null;
             if (type is null || osmId is null) continue;
+
+            if (LineKind(tags) is { } lineKind && e.TryGetProperty("geometry", out var geometry) && geometry.ValueKind == JsonValueKind.Array)
+            {
+                var n = 0;
+                foreach (var point in SampleLine(geometry))
+                    places.Add(new SafetyPlace($"osm-{type[0]}{osmId}-{n++}", lineKind, Tag(tags, "name"), point, null, 0, SourceName));
+                continue;
+            }
 
             var kind = (Tag(tags, "amenity"), Tag(tags, "leisure")) switch
             {
@@ -62,6 +73,50 @@ public static class SafetyPlacesParser
         }
 
         return places;
+    }
+
+    /// <summary>Distance between samples along a river or road.</summary>
+    public const double LineSampleMeters = 120;
+
+    private static SafetyPlaceKind? LineKind(JsonElement tags) =>
+        Tag(tags, "waterway") is "river" or "stream" or "canal" ? SafetyPlaceKind.Waterway
+        : Tag(tags, "highway") is "motorway" or "trunk" or "primary" ? SafetyPlaceKind.MajorRoad
+        : null;
+
+    /// <summary>Points along a way's geometry (an array of {lat, lon}): the first one, then one about every <see cref="LineSampleMeters"/>.</summary>
+    private static IEnumerable<GeoPoint> SampleLine(JsonElement geometry)
+    {
+        GeoPoint? previous = null;
+        var carried = 0.0;
+        var first = true;
+        foreach (var node in geometry.EnumerateArray())
+        {
+            if (!node.TryGetProperty("lat", out var lat) || !node.TryGetProperty("lon", out var lon) ||
+                lat.ValueKind != JsonValueKind.Number || lon.ValueKind != JsonValueKind.Number) continue;
+
+            var current = new GeoPoint(lat.GetDouble(), lon.GetDouble());
+            if (first)
+            {
+                first = false;
+                previous = current;
+                yield return current;
+                continue;
+            }
+
+            var segment = previous!.Value.DistanceTo(current);
+            var travelled = LineSampleMeters - carried;
+            while (travelled <= segment)
+            {
+                var t = segment == 0 ? 0 : travelled / segment;
+                yield return new GeoPoint(
+                    previous.Value.Latitude + (current.Latitude - previous.Value.Latitude) * t,
+                    previous.Value.Longitude + (current.Longitude - previous.Value.Longitude) * t);
+                travelled += LineSampleMeters;
+            }
+
+            carried = segment - (travelled - LineSampleMeters);
+            previous = current;
+        }
     }
 
     /// <summary>A node's own position; otherwise the middle of the bounding box (<c>out bb</c> gives no separate centre).</summary>
