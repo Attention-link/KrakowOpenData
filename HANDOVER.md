@@ -22,7 +22,7 @@ dotnet run --project src/KrakowOpenData.Web      # http://localhost:5090
 - Residents: http://localhost:5090/safety/  · Planners: http://localhost:5090/safety/planner (key `demo-planner`)
 - Planner key = `Safety:PlannerKey` (API appsettings), default `demo-planner`. Demo data: planner → Reports → "Add demo reports".
 - Rebuild/stop both apps before building tests (running apps lock DLLs). Tests: `dotnet test KrakowOpenData.sln` (all green at last run: Domain 69, Application 128, Api 62, Web 767, Infrastructure 82).
-- Environment notes: no Node/Python on the machine, so JS has no linter or unit tests; the in-app browser cannot run **service workers**. The OSM primary Overpass server was unreachable from this machine (mirror `maps.mail.ru` worked for small queries).
+- Environment notes: Node.js 24 was installed with winget for the React front end (restart the shell for PATH); the in-app browser cannot run **service workers**. The OSM primary Overpass server was unreachable from this machine (mirror `maps.mail.ru` worked for small queries).
 - Bash heredocs containing quotes failed repeatedly in this environment; use the Write/Edit tools for files.
 
 ## Architecture and where things are
@@ -35,10 +35,10 @@ dotnet run --project src/KrakowOpenData.Web      # http://localhost:5090
 | DTOs | `src/KrakowOpenData.Contracts/SafetyDtos.cs` (includes `GeocodeResultDto`) |
 | Endpoints | `src/KrakowOpenData.Api/Endpoints/SafetyEndpoints.cs` (`/api/safety/*`, planner endpoints need `X-Planner-Key`), `GeoEndpoints.cs` (`/api/geo/search`, `/api/geo/reverse`) |
 | Infrastructure | `Infrastructure/Safety/` (JSON-file store, simulated agency gateway), `OpenStreetMap/SafetyPlaces*` (parks, libraries, pharmacies, hospitals, police), `Geocoding/PhotonGeocoder.cs`, night-service stops in `Repositories/GtfsScheduleRepository.cs` |
-| Front end (no build step) | `src/KrakowOpenData.Web/wwwroot/safety/`: `index.html`, `sw.js`, `manifest.webmanifest`, `css/app.css`, `js/` |
+| Front end (React + TypeScript, branch `react-frontend`) | `frontend/` (source, tests) builds into `src/KrakowOpenData.Web/wwwroot/safety/` (committed build output) |
 | Web host bits | `KrakowOpenData.Web/Program.cs`: `/safety/config.js` (API address for the browser), `/safety` and `/safety/planner` redirects, no-cache for `/safety` files; nav links in `NavMenu.razor` |
 
-Front-end modules (`wwwroot/safety/js`): `main.js` (router), `resident.js`, `report.js`, `walk.js`, `alerts.js`, `search.js` (autocomplete), `geo.js` (addresses), `map.js` (Leaflet from cdnjs, grid canvas, map info/coverage), `api.js` (client + offline cache), `db.js` (IndexedDB), `chrome.js` (top bar, status pill, outbox, how-it-works), `planner*.js`, `charts.js`, `i18n.js` + `strings-resident.js`, `strings-resident-v2.js` (later keys override earlier ones), `strings-planner.js`.
+Front-end source: `frontend/src` — `lib/` (api, store, i18n, model, outbox, route), `resident/`, `planner/`, `components/` (ui, chrome, explain), `map/` (Leaflet layers as components), `i18n/` (texts).
 
 Key behaviours to preserve:
 - Offline: API answers cached in IndexedDB (`cachedGet`), reports queued in an outbox and sent on reconnect, saved grid/features give place cards and walk estimates offline.
@@ -87,3 +87,12 @@ Done in this session (all tests green: Domain 69, Application 145, Api 64, Web 7
 
 Not verified: mobile layout of the new route cards, legend and dialogs; Polish/Ukrainian wording of the new strings (Ukrainian falls back to English in places; the long method text from the API is English only); the service worker (needs Chrome/Edge; bumped to cache `v2`).
 Known limit: about 30 % of squares score 90–100 on heat mostly because only ~75 drinking-water points are mapped.
+
+## Update: React front end (branch `react-frontend`)
+
+The whole front end was rebuilt in React + TypeScript (Vite) with the same features and a cleaner layout (`frontend/`). The old vanilla files in `wwwroot/safety` are replaced by the build output; `npm run build` regenerates it (commit the result).
+
+- Run: `cd frontend && npm install && npm run dev` (API on 5080; Development CORS allows 5173). Tests: `npm test` (126 Vitest/Testing Library tests: api + offline cache, outbox, store, i18n and key coverage, score bands and route colouring, search box, explanations, charts, map layers). CI: `.github/workflows/frontend.yml`.
+- Bugs found while porting and fixed: a walk computed for one view stayed on screen after switching view (now recomputed); a stray map tap left the walk view (now ignored unless picking); the resident screen reloaded data twice on start; markers and lines were rebuilt on every render (icons are cached, options compared by value); `getBounds` on a circle that is not on the map threw; the planner kept showing the old event's data under the new event (queries drop the old key's data).
+- Design notes: dialogs and toasts live in zustand stores (`components/ui.tsx`) so they can be opened from anywhere; the planner store (`planner/store.ts`) holds the event summary, the area drawer and a "data changed" counter that makes pages reload. Layers draw inside `<MapView>` through the map context; the resident panel is wrapped in the same context so its views can add markers.
+- Not verified: the service worker (needs Chrome or Edge), real touch dragging of the bottom sheet, Polish/Ukrainian wording.

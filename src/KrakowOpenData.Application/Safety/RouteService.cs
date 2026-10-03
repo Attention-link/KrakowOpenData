@@ -1,4 +1,4 @@
-﻿using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Application.Abstractions;
 using KrakowOpenData.Contracts;
 using KrakowOpenData.Domain.Common;
 
@@ -11,7 +11,7 @@ namespace KrakowOpenData.Application.Safety;
 /// alternatives. Because those alternatives are often near-identical, a few more candidates are made by routing through a "via" point
 /// pushed to the left and right of the middle of the straight line (a 15 % and a 30 % bend). Every candidate is scored every 50 m with the same
 /// model as the map. A candidate is eligible when it is at most 30 % (and at least 300 m) longer than the fastest route. The winner maximises
-/// <c>0.7 Ã— average + 0.3 Ã— worst</c> of the mode's "goodness" (night: safety score; heat: 100 âˆ’ heat score; both: overall score).
+/// <c>0.7 x average + 0.3 x worst</c> of the mode's "goodness" (night: safety score; heat: 100 minus the heat score; both: overall score).
 /// It is shown only when it beats the fastest route by at least <see cref="MinGain"/> points on average; otherwise the fastest is also the best.</para>
 ///
 /// <para>Scores come from mapped lighting, night transport, open places, shade, water and citizen reports, not from crime or measured
@@ -168,7 +168,7 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
         _ => s.Combined
     };
 
-    /// <summary>Same value turned around so that higher is always better (heat 100 â†’ 0).</summary>
+    /// <summary>Same value turned around so that higher is always better (heat 100 becomes 0).</summary>
     private static double Goodness(double value, PlanningEvent mode) => mode == PlanningEvent.Heat ? 100 - value : value;
 
     private static int WorstIndex(IReadOnlyList<double> values, PlanningEvent mode)

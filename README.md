@@ -160,6 +160,24 @@ This one command starts both apps.
 Not needed to run the apps. From the solution folder: `dotnet test`, or **Test → Run All Tests** in
 Visual Studio. The tests replace every public source with in-memory fakes, so they need no internet.
 
+
+### Front end (React)
+
+The Kompas Krakowa app is a React + TypeScript single-page app in [`frontend/`](frontend). It needs **Node.js 20 or newer** only to
+change or rebuild it; running the .NET apps does not need Node because the built files are committed under
+`src/KrakowOpenData.Web/wwwroot/safety`.
+
+```bash
+cd frontend
+npm install
+npm run dev        # http://localhost:5173 with hot reload; talks to the API on http://localhost:5080
+npm test           # unit and component tests (Vitest, Testing Library)
+npm run typecheck
+npm run build      # type-checks, then writes the production build into src/KrakowOpenData.Web/wwwroot/safety
+```
+
+Run the API first (`dotnet run --project src/KrakowOpenData.Api`). In development the API allows the Vite origin
+(`appsettings.Development.json`). After a change, run `npm run build` and commit the generated files, so `dotnet run` and Docker keep working without Node.
 ## Kompas Krakowa app: heat and night safety
 
 A web app and API that combine the open data above into two scores for any place in Kraków, and let residents and city
@@ -328,11 +346,12 @@ All under `/api/safety` (see Swagger for schemas). Planner endpoints need the `X
 src/KrakowOpenData.Application/Safety/   scoring model, grid, reports, alerts, planner summary, agencies (all documented)
 src/KrakowOpenData.Infrastructure/Safety/ JSON-file store, simulated agency gateway;  OpenStreetMap/SafetyPlaces*  (parks, libraries, …)
 src/KrakowOpenData.Api/Endpoints/SafetyEndpoints.cs
-src/KrakowOpenData.Web/wwwroot/safety/   the web app: index.html, sw.js (offline), manifest, css/, js/ (no build step)
-  js/resident.js report.js walk.js alerts.js      resident view
-  js/planner*.js charts.js                        planner dashboard
-  js/api.js db.js chrome.js                       API client + offline cache, IndexedDB, outbox
-  js/strings-*.js                                 Polish / English / Ukrainian texts
+frontend/                                the React front end (Vite + TypeScript); `npm run build` writes it to the folder below
+  src/lib/        API client + offline cache (IndexedDB), store, i18n, score model helpers, outbox, route helpers
+  src/resident/   map, place card, report flow, walk check, alerts       src/planner/   dashboard, area drawer, alert form, dialogs
+  src/components/ shared UI, explanations ("?" panels, legend), search box     src/map/   Leaflet layers as React components
+  src/i18n/       Polish / English / Ukrainian texts
+src/KrakowOpenData.Web/wwwroot/safety/   the BUILT front end served at /safety/ (generated: edit frontend/, then rebuild)
 ```
 
 ### Known limits (read before relying on it)
