@@ -7,23 +7,23 @@
 <div class="toolbar">
     <form class="search" @onsubmit="SearchAsync" @onsubmit:preventDefault>
         <input placeholder="@T["stops.placeholder"]" @bind="_query" />
-        <button class="btn" type="submit">@T["common.search"]</button>
+        <button class="btn btn-primary" type="submit">@T["common.search"]</button>
     </form>
     <div class="search">
         <input class="narrow" @bind="_lat" placeholder="@T["stops.latitude"]" aria-label="@T["stops.latitude"]" />
         <input class="narrow" @bind="_lon" placeholder="@T["stops.longitude"]" aria-label="@T["stops.longitude"]" />
-        <button class="btn btn-ghost" @onclick="NearbyAsync">@T["stops.near"]</button>
+        <button class="btn btn-outline-secondary" @onclick="NearbyAsync">@T["stops.near"]</button>
     </div>
 </div>
 
 @if (_coordsInvalid)
 {
-    <div class="callout callout-error">@T["stops.coordsError"]</div>
+    <div class="alert alert-danger">@T["stops.coordsError"]</div>
 }
 
 <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_stops.Count == 0" EmptyText="@T["stops.none"]">
     <p class="muted small">@(_nearbyMode ? T.F("stops.nearCount", _stops.Count) : T.F("stops.count", _paged?.TotalCount ?? 0))</p>
-    <table class="table">
+    <table class="table table-striped table-hover align-middle">
         <thead>
             <tr><th>@T["col.name"]</th><th>@T["col.id"]</th><th>@T["col.feed"]</th><th>@T["col.stepFree"]</th><th>@T["col.distance"]</th><th></th></tr>
         </thead>
@@ -36,7 +36,7 @@
                     <td>@s.Feed</td>
                     <td>@T.YesNo(s.WheelchairAccessible)</td>
                     <td>@(s.DistanceMeters is null ? "" : $"{s.DistanceMeters:0} m")</td>
-                    <td><a class="btn btn-small" href="@($"mobility/stops/{Uri.EscapeDataString(s.Id)}")">@T["stops.departures"]</a></td>
+                    <td><a class="btn btn-sm btn-outline-primary" href="@($"mobility/stops/{Uri.EscapeDataString(s.Id)}")">@T["stops.departures"]</a></td>
                 </tr>
             }
         </tbody>
@@ -44,9 +44,9 @@
     @if (!_nearbyMode && _paged is not null && _paged.TotalPages > 1)
     {
         <div class="pager">
-            <button class="btn btn-ghost btn-small" disabled="@(_page <= 1)" @onclick="() => GoToAsync(_page - 1)">@T["pager.previous"]</button>
+            <button class="btn btn-outline-secondary btn-sm" disabled="@(_page <= 1)" @onclick="() => GoToAsync(_page - 1)">@T["pager.previous"]</button>
             <span>@T.F("pager.page", _paged.Page, _paged.TotalPages)</span>
-            <button class="btn btn-ghost btn-small" disabled="@(_page >= _paged.TotalPages)" @onclick="() => GoToAsync(_page + 1)">@T["pager.next"]</button>
+            <button class="btn btn-outline-secondary btn-sm" disabled="@(_page >= _paged.TotalPages)" @onclick="() => GoToAsync(_page + 1)">@T["pager.next"]</button>
         </div>
     }
 </LoadState>

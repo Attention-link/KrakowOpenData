@@ -60,7 +60,7 @@ export const residentStringsV2 = {
 
   // ── Place card ──
   'place.nothingNear': ['Nothing mapped within {r}.', 'Nic zmapowanego w promieniu {r}.', 'Нічого в радіусі {r}.'],
-  'place.waterGap': ['Only {n} drinking-water points are mapped in Kraków, so a fountain may exist here that is missing from the map.', 'W Krakowie zmapowano tylko {n} punktów z wodą pitną, więc tu może być źródło, którego brakuje na mapie.', 'У Кракові нанесено лише {n} пунктів питної води, тож тут може бути джерело, якого немає на мапі.'],
+  'place.waterGap': ['Only {n} drinking fountains and taps are mapped in Kraków, so a fountain may exist here that is missing from the map.', 'W Krakowie zmapowano tylko {n} poidełek i punktów poboru wody, więc tu może być źródło, którego brakuje na mapie.', 'У Кракові нанесено лише {n} питних фонтанчиків і кранів, тож тут може бути джерело, якого немає на мапі.'],
   'place.walkTo.safety': ['Walk here at night', 'Nocny spacer tutaj', 'Нічна прогулянка сюди'],
   'place.walkTo.heat': ['Cool walk here', 'Chłodny spacer tutaj', 'Прохолодна прогулянка сюди'],
   'place.walkTo.both': ['Walk here', 'Spacer tutaj', 'Прогулянка сюди'],
@@ -78,7 +78,7 @@ export const residentStringsV2 = {
   'walk.title.heat': ['Cool walk check', 'Sprawdzenie chłodnego spaceru', 'Перевірка прохолодної прогулянки'],
   'walk.title.both': ['Walk check', 'Sprawdzenie spaceru', 'Перевірка прогулянки'],
   'walk.intro.safety': ['Choose a start and a destination. We score the way between them for lighting, night transport, places open at night and resident reports.', 'Wybierz start i cel. Ocenimy drogę między nimi pod kątem oświetlenia, transportu nocnego, miejsc otwartych nocą i zgłoszeń mieszkańców.', 'Оберіть початок і ціль. Ми оцінимо шлях між ними за освітленням, нічним транспортом, місцями, відкритими вночі, та звітами мешканців.'],
-  'walk.intro.heat': ['Choose a start and a destination. We score the way between them for drinking water, shade, cool places, toilets and resident reports.', 'Wybierz start i cel. Ocenimy drogę między nimi pod kątem wody pitnej, cienia, chłodnych miejsc, toalet i zgłoszeń mieszkańców.', 'Оберіть початок і ціль. Ми оцінимо шлях між ними за питною водою, тінню, прохолодними місцями, туалетами та звітами мешканців.'],
+  'walk.intro.heat': ['Choose a start and a destination. We score the way between them for drinking fountains, shade, cool places, toilets and resident reports.', 'Wybierz start i cel. Ocenimy drogę między nimi pod kątem poidełek, cienia, chłodnych miejsc, toalet i zgłoszeń mieszkańców.', 'Оберіть початок і ціль. Ми оцінимо шлях між ними за питними фонтанчиками, тінню, прохолодними місцями, туалетами та звітами мешканців.'],
   'walk.intro.both': ['Choose a start and a destination. We score the way for both heat and night safety and show the weaker of the two.', 'Wybierz start i cel. Ocenimy drogę pod kątem upału i bezpieczeństwa nocą i pokażemy słabszy wynik.', 'Оберіть початок і ціль. Ми оцінимо шлях за спекою та безпекою вночі й покажемо слабший результат.'],
   'walk.fromPlaceholder': ['Start: address, street or stop…', 'Start: adres, ulica lub przystanek…', 'Початок: адреса, вулиця або зупинка…'],
   'walk.toPlaceholder': ['Destination: address, street or stop…', 'Cel: adres, ulica lub przystanek…', 'Ціль: адреса, вулиця або зупинка…'],

@@ -17,7 +17,8 @@ import { startAlerts } from './alerts.js';
 import { searchBox } from './search.js';
 import { addressLine, coords } from './geo.js';
 
-const MODES = [['safety', 'moon'], ['heat', 'sun'], ['both', 'both']];
+const MODES = [['safety', 'moon'], ['heat', 'sun']];
+const asMode = (m) => (m === 'heat' || m === 'safety' ? m : 'safety');
 
 /** Which score layers a view shows. Heat and Night safety never mix. */
 export const layersOf = (mode) => (mode === 'heat' ? ['heat'] : mode === 'safety' ? ['safety'] : ['safety', 'heat']);
@@ -141,7 +142,7 @@ export function mountResident(root) {
   });
 
   // ── Mode ───────────────────────────────────────────────────────────────────
-  const mode = () => state.mode || 'both';
+  const mode = () => state.mode || 'safety';
   ctx.mode = mode;
 
   function paintModes() {
@@ -226,7 +227,7 @@ export function mountResident(root) {
       const { data, stale } = await cachedGet('conditions', getConditions);
       ctx.conditions = data;
       ctx.conditionsStale = stale;
-      if (!state.mode) set({ mode: data.suggestedMode || 'both' });
+      if (!state.mode) set({ mode: asMode(data.suggestedMode) });
       paintConditions();
       if (ctx.view === 'home') softRender();
     } catch { /* conditions are optional */ }
@@ -664,11 +665,11 @@ export function mountResident(root) {
   (async function init() {
     renderView();
     const [g, c, f, ty] = await Promise.all([peek('grid:both'), peek('conditions'), peek('features'), peek('report-types')]);
-    if (c) { ctx.conditions = c.data; ctx.conditionsStale = true; if (!state.mode) set({ mode: c.data.suggestedMode || 'both' }); paintConditions(); }
+    if (c) { ctx.conditions = c.data; ctx.conditionsStale = true; if (!state.mode) set({ mode: asMode(c.data.suggestedMode) }); paintConditions(); }
     if (f) { ctx.features = f.data; ctx.places?.draw(); }
     if (ty) ctx.reportTypes = ty.data;
     if (g) applyGrid(g.data, g.savedAt, true);
-    if (!state.mode) set({ mode: 'both' });
+    if (!state.mode) set({ mode: 'safety' });
     renderView();
     await Promise.all([loadConditions(), loadGrid(), loadFeatures(), loadTypes()]);
     if (!state.welcomed) welcome();

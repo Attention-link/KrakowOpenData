@@ -5,7 +5,7 @@
             Description="@T["pr.lede"]" Source="@T["pr.source"]" />
 
 <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" OnRetry="LoadAsync">
-    <table class="table">
+    <table class="table table-striped table-hover align-middle">
         <thead><tr><th>@T["col.name"]</th><th>@T["col.address"]</th><th>@T["col.capacity"]</th><th>@T["col.evChargers"]</th><th>@T["col.bikeSpaces"]</th><th>@T["col.hours"]</th><th>@T["col.notes"]</th></tr></thead>
         <tbody>
             @foreach (var p in _items)

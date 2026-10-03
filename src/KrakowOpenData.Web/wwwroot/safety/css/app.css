@@ -272,7 +272,7 @@ dialog .dlg-foot { display: flex; gap: .5rem; justify-content: flex-end; padding
 .map-btns .btn { box-shadow: var(--shadow-1); background: var(--surface); }
 .legend { position: absolute; left: .6rem; bottom: .6rem; z-index: 800; background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .45rem .6rem; font-size: .75rem; box-shadow: var(--shadow-1); max-width: 70vw; }
 .legend .items { display: flex; gap: .55rem; flex-wrap: wrap; align-items: center; }
-.legend i { display: inline-block; width: .8rem; height: .8rem; border-radius: 3px; margin-right: .25rem; vertical-align: -1px; }
+.legend i { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .4); display: inline-block; width: .8rem; height: .8rem; border-radius: 3px; margin-right: .25rem; vertical-align: -1px; }
 .map-note { position: absolute; left: 50%; transform: translateX(-50%); top: .6rem; z-index: 800; max-width: 80%; }
 .pin { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--accent); color: #fff; box-shadow: var(--shadow-1); border: 2px solid #fff; }
 .pin > svg { transform: rotate(45deg); }

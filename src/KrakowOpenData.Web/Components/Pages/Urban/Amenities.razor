@@ -14,13 +14,13 @@
         </select>
         <input class="narrow" placeholder="50.0617,19.9373" aria-label="@T["amen.near"]" title="@T["amen.near"]" @bind="_near" />
         <input class="narrow" type="number" min="50" step="50" aria-label="@T["amen.radius"]" title="@T["amen.radius"]" @bind="_radius" />
-        <button class="btn" type="submit">@T["common.search"]</button>
+        <button class="btn btn-primary" type="submit">@T["common.search"]</button>
     </form>
     <span class="muted small">@T.F("amen.count", _items.Count)</span>
 </div>
 
 <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["amen.none"]" OnRetry="LoadAsync">
-    <table class="table">
+    <table class="table table-striped table-hover align-middle">
         <thead><tr><th>@T["col.name"]</th><th>@T["col.position"]</th><th>@T["col.distance"]</th><th>@T["amen.details"]</th><th></th></tr></thead>
         <tbody>
             @foreach (var a in _items.Take(500))

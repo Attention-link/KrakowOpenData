@@ -1,9 +1,9 @@
-<div class="lang-switch" role="group" aria-label="@T["lang.label"]">
+<div class="btn-group btn-group-sm" role="group" aria-label="@T["lang.label"]">
     @foreach (var language in AppLanguages.All)
     {
         var current = language == T.Language;
         <button type="button"
-                class="lang-option @(current ? "active" : null)"
+                class="btn @(current ? "btn-light" : "btn-outline-light")"
                 aria-pressed="@(current ? "true" : "false")"
                 title="@language.NativeName()"
                 lang="@language.Code()"

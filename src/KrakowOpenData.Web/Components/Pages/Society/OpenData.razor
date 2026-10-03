@@ -58,7 +58,7 @@
                     · @_rows.Source
                 </p>
                 <div class="table-scroll">
-                    <table class="table">
+                    <table class="table table-striped table-hover align-middle">
                         <thead><tr>@foreach (var c in _rows.Columns) { <th>@c</th> }</tr></thead>
                         <tbody>
                             @foreach (var row in visible.Take(DisplayLimit))

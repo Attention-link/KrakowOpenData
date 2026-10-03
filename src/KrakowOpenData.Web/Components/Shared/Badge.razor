@@ -1,7 +1,16 @@
-<span class="badge @Tone">@ChildContent</span>
+<span class="badge rounded-pill @Css">@ChildContent</span>
 
 @code {
     /// <summary>neutral | good | warn | bad | info</summary>
     [Parameter] public string Tone { get; set; } = "neutral";
+
+    private string Css => Tone switch
+    {
+        "good" => "text-bg-success",
+        "warn" => "text-bg-warning",
+        "bad" => "text-bg-danger",
+        "info" => "text-bg-info",
+        _ => "text-bg-secondary"
+    };
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

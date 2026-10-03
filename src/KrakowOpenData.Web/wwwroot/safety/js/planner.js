@@ -17,7 +17,7 @@ const PAGES = [
   ['contacts', 'phone', 'pl.nav.contacts']
 ];
 
-const EVENTS = [['heat', 'sun'], ['night', 'moon'], ['both', 'both']];
+const EVENTS = [['heat', 'sun'], ['night', 'moon']];
 let autoKeyRejected = false;   // the configured demo key was refused by the API: show the sign-in form instead of looping
 
 export function mountPlanner(root, page) {

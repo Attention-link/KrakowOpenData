@@ -5,7 +5,7 @@
             Description="@T["air.lede"]" Source="@T["air.source"]" />
 
 <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" OnRetry="LoadAsync">
-    <table class="table">
+    <table class="table table-striped table-hover align-middle">
         <thead><tr><th>@T["col.station"]</th><th>PM2.5</th><th>PM10</th><th>NO₂</th><th>@T["col.band"]</th><th>@T["air.officialIndex"]</th><th>@T["col.measured"]</th></tr></thead>
         <tbody>
             @foreach (var a in _items)

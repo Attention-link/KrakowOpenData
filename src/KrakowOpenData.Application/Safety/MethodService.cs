@@ -20,9 +20,9 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             "OpenStreetMap parks and green areas (leisure=park, garden).",
             "There is no tree-canopy or surface-temperature data, so a park is used as a stand-in for shade; a shaded street without a park is not seen."),
         ["water"] = new(
-            "Walking distance to the nearest public drinking-water point.",
-            "Drinking water matters for safety in a heatwave, but a person can carry a bottle, so it is weighted below shade.",
-            "OpenStreetMap drinking-water points (amenity=drinking_water).",
+            "Walking distance to the nearest public drinking fountain or tap.",
+            "Cool drinking water matters for safety in a heatwave, but a person can carry a bottle, so it is weighted below shade.",
+            "OpenStreetMap drinking fountains and taps (amenity=drinking_water: public fountains, taps and springs).",
             "Only a small number of fountains is mapped for the whole city, so some areas score badly partly because points are missing from the map."),
         ["refuge"] = new(
             "Walking distance to the nearest indoor public place that is likely to be cooler: library, pharmacy or hospital.",
@@ -114,7 +114,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             new("averageScore", "Average score", "The mean of the score of the planned event across all scored squares. For Heat this is the heat score (higher = hotter); for Night safety the safety score (higher = safer); for Both the overall score (higher = better).", "Mean of the event score over all squares (each square counts once).", "This model (SafetyModel)"),
             new("criticalCells", "Critical squares", "Squares in the worst band for the planned event: heat score of 65 or more, safety score below 35, or overall score below 35.", "Count of squares whose band is Critical.", "This model (SafetyModel)"),
             new("weakCells", "Weak squares", "Squares in the second worst band: heat score 45 to 65, safety or overall score 35 to 55.", "Count of squares whose band is Weak.", "This model (SafetyModel)"),
-            new("noWater500", "No drinking water within 500 m", "Share of built-up area where the nearest mapped drinking-water point is more than 500 m away, or none is mapped within 1.5 km.", "Σ exposure of squares with water distance > 500 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap drinking-water points"),
+            new("noWater500", "No drinking fountain within 500 m", "Share of built-up area where the nearest mapped drinking fountain or tap is more than 500 m away, or none is mapped within 1.5 km.", "Σ exposure of squares with water distance > 500 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap drinking-water points"),
             new("noGreen500", "No park within 500 m", "Share of built-up area where the nearest mapped park or green area is more than 500 m away.", "Σ exposure of squares with park distance > 500 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap parks"),
             new("poorlyLit", "Poorly lit", "Share of built-up area where the lighting factor scores below 35 (fewer than about 165 mapped lamps per km²).", "Σ exposure of squares with lighting factor < 35 ÷ Σ exposure of all squares × 100.", "OpenStreetMap street lamps"),
             new("noNightTransit500", "No night transport within 500 m", "Share of built-up area where the nearest stop with departures between 23:00 and 04:30 is more than 500 m away.", "Σ exposure of squares with night-stop distance > 500 m ÷ Σ exposure of all squares × 100.", "ZTP Kraków GTFS timetable"),

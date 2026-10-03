@@ -11,7 +11,7 @@
 </div>
 
 <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["rivers.none"]" OnRetry="LoadAsync">
-    <table class="table">
+    <table class="table table-striped table-hover align-middle">
         <thead><tr><th>@T["col.state"]</th><th>@T["col.river"]</th><th>@T["col.station"]</th><th>@T["col.level"]</th><th>@T["col.thresholds"]</th><th>@T["col.measured"]</th><th>@T["col.source"]</th></tr></thead>
         <tbody>
             @foreach (var g in _items)
