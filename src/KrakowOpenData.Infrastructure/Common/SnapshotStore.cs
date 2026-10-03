@@ -24,14 +24,16 @@ public sealed class FileSnapshotStore(IOptions<KrakowDataOptions> options, ILogg
         var path = PathFor(name);
         try
         {
-            if (!File.Exists(path)) return null;
-            return (await File.ReadAllTextAsync(path, ct), new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero));
+            if (File.Exists(path))
+                return (await File.ReadAllTextAsync(path, ct), new DateTimeOffset(File.GetLastWriteTimeUtc(path), TimeSpan.Zero));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(ex, "Could not read cached {Name}", name);
-            return null;
         }
+
+        // Nothing saved on this machine yet: start from the snapshot that ships with the app.
+        return await SeedSnapshots.LoadAsync(name, ct);
     }
 
     public async Task SaveAsync(string name, string content, CancellationToken ct)

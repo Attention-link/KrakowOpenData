@@ -83,8 +83,11 @@ If a source is down, its endpoints answer **503** and the rest keep working; cac
 The OpenStreetMap datasets (street lights, amenities, P+R, parks and other places) are large, so the API downloads them **in the background**
 when it starts and once a day, trying mirror servers if the main one is busy. The last download is saved to
 `%LOCALAPPDATA%\KrakowOpenData\cache` (change with `KrakowData:CacheDirectory`), so after a restart they are available
-immediately. On the very first start they take a minute or two; until then their endpoints answer 503 "Data is still
-loading" with a `Retry-After` header.
+immediately. **A snapshot of these datasets ships inside the app** (`src/KrakowOpenData.Infrastructure/Seed/*.json`, embedded in the assembly),
+so a machine that has never downloaded them, or cannot reach Overpass, starts from the snapshot at once and works from the first request;
+a fresh download replaces it as soon as the source answers. Nothing depends on what happens to be cached on one person's computer:
+a clean checkout needs only the required tools and an internet connection for the live sources (ZTP timetables, IMGW, GIOŚ, and for
+Kompas Krakowa address search and street routing). To refresh the snapshots, copy the files from the cache folder into `Seed/` and commit.
 
 ## Structure
 

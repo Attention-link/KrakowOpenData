@@ -16,6 +16,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      Seed snapshots of the OpenStreetMap downloads (street lamps, amenities, parks and other places). They are the starting data on a
+      machine that has never downloaded them (or cannot reach Overpass), so the app works from the first start. Fresh downloads replace them.
+      Refresh with: copy the files from the cache folder (see KrakowData:CacheDirectory) into Seed/ and commit.
+    -->
+    <EmbeddedResource Include="Seed\*.json" LogicalName="Seed.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="KrakowOpenData.Infrastructure.Tests" />
     <InternalsVisibleTo Include="KrakowOpenData.Api.Tests" />
   </ItemGroup>
