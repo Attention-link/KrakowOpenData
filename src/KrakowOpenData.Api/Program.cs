@@ -50,7 +50,9 @@ app.UseSwaggerUI(o =>
 });
 
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
-app.MapGet("/health", () => Results.Ok(new { status = "ok", time = DateTimeOffset.UtcNow })).ExcludeFromDescription();
+// startedAt lets the deploy workflow tell a freshly started container from the one it replaces.
+var startedAt = DateTimeOffset.UtcNow;
+app.MapGet("/health", () => Results.Ok(new { status = "ok", time = DateTimeOffset.UtcNow, startedAt })).ExcludeFromDescription();
 
 var api = app.MapGroup("/api").AddEndpointFilter<UpstreamUnavailableFilter>();
 api.MapCatalogEndpoints();
