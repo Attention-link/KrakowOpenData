@@ -2,22 +2,22 @@
 
 @if (Error is not null)
 {
-    <div class="callout callout-error">
+    <div class="alert alert-danger d-flex flex-wrap align-items-center gap-2">
         <strong>@T["load.error"]</strong>
         <span>@Error</span>
         @if (OnRetry.HasDelegate)
         {
-            <button class="btn btn-small" @onclick="OnRetry">@T["load.retry"]</button>
+            <button class="btn btn-sm btn-outline-danger" @onclick="OnRetry">@T["load.retry"]</button>
         }
     </div>
 }
 else if (IsLoading)
 {
-    <div class="loading"><span class="spinner"></span> @T["load.loading"]</div>
+    <div class="d-flex align-items-center gap-2 text-muted py-4"><span class="spinner-border spinner-border-sm" role="status"></span> @T["load.loading"]</div>
 }
 else if (IsEmpty)
 {
-    <div class="callout">@(EmptyText ?? T["load.empty"])</div>
+    <div class="alert alert-secondary">@(EmptyText ?? T["load.empty"])</div>
 }
 else
 {

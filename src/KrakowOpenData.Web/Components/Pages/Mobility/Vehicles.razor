@@ -8,8 +8,8 @@
 <div class="toolbar">
     <div class="search">
         <input class="narrow" placeholder="@T["veh.routePlaceholder"]" aria-label="@T["veh.routePlaceholder"]" @bind="_routeId" />
-        <button class="btn" @onclick="LoadAsync">@T["veh.filter"]</button>
-        <button class="btn btn-ghost" @onclick="ClearAsync">@T["veh.all"]</button>
+        <button class="btn btn-primary" @onclick="LoadAsync">@T["veh.filter"]</button>
+        <button class="btn btn-outline-secondary" @onclick="ClearAsync">@T["veh.all"]</button>
     </div>
     <span class="muted small">@T.F("veh.count", _vehicles.Count, Format.Time(_updated))</span>
 </div>
@@ -35,7 +35,7 @@
         <div class="map-legend"><span class="dot tram"></span> @T.Mode("Tram") <span class="dot bus"></span> @T.Mode("Bus") <span class="dot other"></span> @T.Mode("Other")</div>
     </div>
 
-    <table class="table">
+    <table class="table table-striped table-hover align-middle">
         <thead><tr><th>@T["col.line"]</th><th>@T["col.vehicle"]</th><th>@T["col.mode"]</th><th>@T["col.position"]</th><th>@T["col.speed"]</th><th>@T["col.stepFree"]</th><th>@T["col.reported"]</th></tr></thead>
         <tbody>
             @foreach (var v in _vehicles.OrderBy(v => v.RouteShortName).Take(200))

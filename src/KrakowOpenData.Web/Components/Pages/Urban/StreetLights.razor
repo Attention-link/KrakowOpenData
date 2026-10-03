@@ -15,7 +15,7 @@
                 <option value="@tech">@T["tech." + tech]</option>
             }
         </select>
-        <button class="btn" type="submit">@T["common.search"]</button>
+        <button class="btn btn-primary" type="submit">@T["common.search"]</button>
     </form>
 </div>
 
@@ -48,7 +48,7 @@
         </div>
         <p class="muted small">@T.F("lights.coverage", _summary.WithKnownTechnology, _summary.Total)</p>
 
-        <table class="table">
+        <table class="table table-striped table-hover align-middle">
             <thead><tr><th>@T["col.distance"]</th><th>@T["lights.technology"]</th><th>@T["lights.mount"]</th><th>@T["lights.height"]</th><th>@T["lights.operator"]</th><th>@T["lights.reference"]</th><th></th></tr></thead>
             <tbody>
                 @foreach (var l in _lights.Take(300))

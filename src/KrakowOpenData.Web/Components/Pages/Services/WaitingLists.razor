@@ -8,26 +8,26 @@
     <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
         <input placeholder="@T["nfz.placeholder"]" aria-label="@T["common.search"]" @bind="_benefit" />
         <label class="check"><input type="checkbox" @bind="_urgent" /> @T["nfz.urgent"]</label>
-        <button class="btn" type="submit">@T["common.search"]</button>
+        <button class="btn btn-primary" type="submit">@T["common.search"]</button>
     </form>
 </div>
 
 <div class="chips">
     @foreach (var example in Examples)
     {
-        <button class="btn btn-ghost btn-small" @onclick="() => SearchForAsync(example)">@example</button>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="() => SearchForAsync(example)">@example</button>
     }
 </div>
 
 @if (!_searched)
 {
-    <div class="callout">@T["nfz.hint"]</div>
+    <div class="alert alert-secondary">@T["nfz.hint"]</div>
 }
 else
 {
     <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["nfz.none"]" OnRetry="LoadAsync">
         <p class="muted small">@T.F("nfz.count", _items.Count)</p>
-        <table class="table">
+        <table class="table table-striped table-hover align-middle">
             <thead>
                 <tr>
                     <th>@T["nfz.provider"]</th><th>@T["nfz.benefit"]</th><th>@T["col.address"]</th>

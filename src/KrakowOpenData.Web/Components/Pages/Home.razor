@@ -33,7 +33,7 @@
                             <a href="@d.SourceUrl" target="_blank" rel="noopener">@d.Publisher</a>
                             @if (UiRoutes.TryGetValue(d.Key, out var route))
                             {
-                                <a class="btn btn-small" href="@route">@T["home.open"]</a>
+                                <a class="btn btn-sm btn-outline-primary" href="@route">@T["home.open"]</a>
                             }
                         </div>
                         @if (d.ApiRoute is not null)
