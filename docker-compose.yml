@@ -19,6 +19,7 @@ services:
       dockerfile: src/KrakowOpenData.Web/Dockerfile
     environment:
       - Api__BaseUrl=http://api:8080/
+      - Safety__PublicApiBaseUrl=http://localhost:5080/
     ports:
       - "5090:8080"
     depends_on:

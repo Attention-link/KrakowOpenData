@@ -33,7 +33,7 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 {
     if (allowedOrigins.Length == 0) p.AllowAnyOrigin();
     else p.WithOrigins(allowedOrigins);
-    p.AllowAnyHeader().WithMethods("GET");
+    p.AllowAnyHeader().WithMethods("GET", "POST", "DELETE");
 }));
 
 var app = builder.Build();
@@ -60,6 +60,8 @@ api.MapClimateCrisisEndpoints();
 api.MapUrbanSpaceEndpoints();
 api.MapPublicServicesEndpoints();
 api.MapOpenDataPortalEndpoints();
+api.MapSafetyEndpoints();
+api.MapGeoEndpoints();
 
 app.Run();
 

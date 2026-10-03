@@ -14,4 +14,10 @@ public interface ITransitScheduleRepository
     Task<TransitTrip?> GetTripAsync(string tripId, CancellationToken cancellationToken = default);
 
     Task<bool> IsServiceActiveAsync(string serviceId, DateOnly date, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ids of stops that have at least one scheduled departure at night (23:00–04:30, on any service day).
+    /// Used by the night-safety score to find stops that are still served after dark.
+    /// </summary>
+    Task<IReadOnlySet<string>> GetNightServiceStopIdsAsync(CancellationToken cancellationToken = default);
 }

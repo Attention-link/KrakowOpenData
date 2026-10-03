@@ -25,6 +25,26 @@ public sealed class GtfsScheduleRepository(IGtfsDatasetProvider provider) : ITra
         return dataset.Trips.GetValueOrDefault(tripId);
     }
 
+    private (GtfsDataset Dataset, IReadOnlySet<string> Stops)? _night;
+
+    /// <summary>Night = departing from 23:00 to 04:30 (GTFS times past 24:00 count for the same service day).</summary>
+    public async Task<IReadOnlySet<string>> GetNightServiceStopIdsAsync(CancellationToken cancellationToken = default)
+    {
+        var dataset = await provider.GetAsync(cancellationToken);
+        if (_night is { } cached && ReferenceEquals(cached.Dataset, dataset)) return cached.Stops;
+
+        var from = TimeSpan.FromHours(23);
+        var until = TimeSpan.FromHours(28.5);
+        var earlyUntil = TimeSpan.FromHours(4.5);
+        var stops = dataset.StopTimesByStop
+            .Where(kv => kv.Value.Any(s => (s.Departure >= from && s.Departure < until) || s.Departure < earlyUntil))
+            .Select(kv => kv.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+        _night = (dataset, stops);
+        return stops;
+    }
+
     public async Task<bool> IsServiceActiveAsync(string serviceId, DateOnly date, CancellationToken cancellationToken = default)
     {
         var dataset = await provider.GetAsync(cancellationToken);

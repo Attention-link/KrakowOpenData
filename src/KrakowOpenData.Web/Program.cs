@@ -17,7 +17,27 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
-app.UseStaticFiles();
+// The Kompas Krakowa app files are revalidated on every load (ETag), so a new version is never hidden by the browser cache.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        if (ctx.Context.Request.Path.StartsWithSegments("/safety")) ctx.Context.Response.Headers.CacheControl = "no-cache";
+    }
+});
+
+// Kompas Krakowa progressive web app (static files in wwwroot/safety). It calls the API from the browser, so it needs the
+// API address as the browser sees it, which can differ from the one this server uses (e.g. inside Docker).
+var publicApi = builder.Configuration["Safety:PublicApiBaseUrl"] ?? builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5080/";
+// Demo convenience: when Safety:PlannerDemoKey is set, the planner dashboard signs in with it so the menu link opens it directly.
+// It is the same shared demo key the API checks (Safety:PlannerKey). Leave it empty outside demos: the planner then asks for the key.
+var plannerAutoKey = builder.Configuration["Safety:PlannerDemoKey"] ?? string.Empty;
+app.MapGet("/safety/config.js", () => Results.Text(
+    $"window.KRK_CONFIG = {{ apiBase: {System.Text.Json.JsonSerializer.Serialize(publicApi.TrimEnd('/'))}, plannerAutoKey: {System.Text.Json.JsonSerializer.Serialize(plannerAutoKey)} }};",
+    "application/javascript"));
+// One route covers /safety and /safety/ (two would clash and answer 500).
+app.MapGet("/safety", () => Results.Redirect("/safety/index.html"));
+app.MapGet("/safety/planner", () => Results.Redirect("/safety/index.html#/planner"));
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();

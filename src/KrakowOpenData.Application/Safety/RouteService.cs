@@ -1,0 +1,200 @@
+﻿using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Contracts;
+using KrakowOpenData.Domain.Common;
+
+namespace KrakowOpenData.Application.Safety;
+
+/// <summary>
+/// Walking routes along real streets, so a walker can compare the fastest way with a safer or cooler one.
+///
+/// <para><b>How the better route is found.</b> The street router (OpenStreetMap, foot profile) gives the fastest route and its own
+/// alternatives. Because those alternatives are often near-identical, a few more candidates are made by routing through a "via" point
+/// pushed to the left and right of the middle of the straight line (a 15 % and a 30 % bend). Every candidate is scored every 50 m with the same
+/// model as the map. A candidate is eligible when it is at most 30 % (and at least 300 m) longer than the fastest route. The winner maximises
+/// <c>0.7 Ã— average + 0.3 Ã— worst</c> of the mode's "goodness" (night: safety score; heat: 100 âˆ’ heat score; both: overall score).
+/// It is shown only when it beats the fastest route by at least <see cref="MinGain"/> points on average; otherwise the fastest is also the best.</para>
+///
+/// <para>Scores come from mapped lighting, night transport, open places, shade, water and citizen reports, not from crime or measured
+/// temperature. If the street router cannot be reached, only a straight-line corridor check is returned.</para>
+/// </summary>
+public sealed class RouteService(ScoreService scores, IWalkingRouter router)
+{
+    public const double MaxStraightMeters = 5000;
+    public const double MinGain = 3;
+    public const double MaxExtraShare = 0.30;
+    public const double MinExtraMeters = 300;
+
+    public async Task<RoutesDto> GetRoutesAsync(GeoPoint from, GeoPoint to, PlanningEvent mode, CancellationToken ct = default)
+    {
+        var straight = GridSpec.Distance(from, to);
+        if (straight > MaxStraightMeters)
+            throw new SafetyValidationException("to", $"Routes are limited to {MaxStraightMeters / 1000:0} km between the two points.");
+
+        IReadOnlyList<RoutePath> candidates;
+        try
+        {
+            candidates = await CandidatesAsync(from, to, straight, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not SafetyValidationException)
+        {
+            candidates = [];
+        }
+
+        if (candidates.Count == 0)
+        {
+            var line = new RoutePath([from, to], straight);
+            var only = await DescribeAsync("fastest", line, mode, ct);
+            return new RoutesDto(ScoreService.EventName(mode), "straight-line", only, null, "none", 0, 0, 0,
+                "Street routing is unavailable right now, so this is a straight-line check, not a route. Try again shortly.");
+        }
+
+        var scored = new List<(RoutePath Path, RouteOptionDto Option)>();
+        foreach (var path in candidates) scored.Add((path, await DescribeAsync("candidate", path, mode, ct)));
+
+        var fastest = scored.MinBy(c => c.Path.DistanceMeters);   // shortest walk = fastest at a constant walking speed
+        var limit = fastest.Path.DistanceMeters + Math.Max(MinExtraMeters, fastest.Path.DistanceMeters * MaxExtraShare);
+        var best = scored
+            .Where(c => !ReferenceEquals(c.Path, fastest.Path) && c.Path.DistanceMeters <= limit)
+            .OrderByDescending(c => Objective(c.Option, mode))
+            .Select(c => ((RoutePath, RouteOptionDto)?)c)
+            .FirstOrDefault();
+
+        var fastestOption = fastest.Option with { Kind = "fastest" };
+        var kind = BetterKind(mode);
+        var gain = best is { } b ? Gain(b.Item2, fastest.Option, mode) : 0;
+        var hasBetter = best is not null && gain >= MinGain;
+        var betterOption = hasBetter ? best!.Value.Item2 with { Kind = kind } : null;
+
+        return new RoutesDto(
+            ScoreService.EventName(mode),
+            "street",
+            fastestOption,
+            betterOption,
+            hasBetter ? kind : "none",
+            hasBetter ? Math.Round(gain, 1) : 0,
+            hasBetter ? Math.Round(betterOption!.LengthMeters - fastestOption.LengthMeters) : 0,
+            hasBetter ? betterOption!.WalkingMinutes - fastestOption.WalkingMinutes : 0,
+            hasBetter
+                ? "The route is longer but scores better on average along the way."
+                : "No street route nearby scores clearly better, so the fastest route is also the best option.");
+    }
+
+    public static string BetterKind(PlanningEvent mode) => mode switch
+    {
+        PlanningEvent.Heat => "coolest",
+        PlanningEvent.Night => "safest",
+        _ => "balanced"
+    };
+
+    /// <summary>The fastest route (with the router's alternatives) plus via-point candidates, without duplicates.</summary>
+    private async Task<IReadOnlyList<RoutePath>> CandidatesAsync(GeoPoint from, GeoPoint to, double straight, CancellationToken ct)
+    {
+        var direct = await router.RouteAsync([from, to], true, ct);
+        if (direct.Count == 0) return [];
+
+        var all = new List<RoutePath>(direct);
+        if (straight > 150)
+        {
+            var vias = ViaPoints(from, to, straight).Select(v => TryRouteAsync([from, v, to], ct)).ToList();
+            foreach (var routes in await Task.WhenAll(vias)) all.AddRange(routes);
+        }
+
+        // Drop near-duplicates: same length (within 25 m) as a route already kept.
+        var unique = new List<RoutePath>();
+        foreach (var p in all.OrderBy(p => p.DistanceMeters))
+            if (!unique.Any(u => Math.Abs(u.DistanceMeters - p.DistanceMeters) < 25)) unique.Add(p);
+        return unique;
+    }
+
+    private async Task<IReadOnlyList<RoutePath>> TryRouteAsync(IReadOnlyList<GeoPoint> waypoints, CancellationToken ct)
+    {
+        try
+        {
+            return await router.RouteAsync(waypoints, false, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>Four points to bend the route through: left and right of the middle of the straight line, at 15 % and 30 % of its length.</summary>
+    public static IReadOnlyList<GeoPoint> ViaPoints(GeoPoint from, GeoPoint to, double straightMeters)
+    {
+        var mid = new GeoPoint((from.Latitude + to.Latitude) / 2, (from.Longitude + to.Longitude) / 2);
+        // Perpendicular direction in metres (x east, y north), then back to degrees.
+        const double mLat = 111_320;
+        var mLon = mLat * Math.Cos(mid.Latitude * Math.PI / 180);
+        var dx = (to.Longitude - from.Longitude) * mLon;
+        var dy = (to.Latitude - from.Latitude) * mLat;
+        var len = Math.Sqrt(dx * dx + dy * dy);
+        if (len < 1) return [];
+        var px = -dy / len;
+        var py = dx / len;
+
+        var result = new List<GeoPoint>();
+        foreach (var share in new[] { 0.15, 0.30 })
+        {
+            var offset = Math.Clamp(straightMeters * share, 120, 900);
+            foreach (var side in new[] { 1, -1 })
+                result.Add(new GeoPoint(mid.Latitude + side * py * offset / mLat, mid.Longitude + side * px * offset / mLon));
+        }
+
+        return result;
+    }
+
+    private async Task<RouteOptionDto> DescribeAsync(string kind, RoutePath path, PlanningEvent mode, CancellationToken ct)
+    {
+        var (samples, reports) = await scores.SamplePathAsync(path.Points, ct);
+        var values = samples.Select(s => ModeValue(s, mode)).ToList();
+        var worstIndex = WorstIndex(values, mode);
+        return new RouteOptionDto(
+            kind,
+            Math.Round(path.DistanceMeters),
+            (int)Math.Ceiling(path.DistanceMeters / SafetyModel.WalkMetersPerMinute),
+            Simplify(path.Points),
+            samples,
+            Math.Round(values.Average(), 1),
+            values[worstIndex],
+            worstIndex,
+            reports);
+    }
+
+    /// <summary>The value of a sample in the scale of the mode: safety, heat (higher = hotter) or overall.</summary>
+    public static double ModeValue(CorridorSampleDto s, PlanningEvent mode) => mode switch
+    {
+        PlanningEvent.Heat => s.Heat,
+        PlanningEvent.Night => s.Safety,
+        _ => s.Combined
+    };
+
+    /// <summary>Same value turned around so that higher is always better (heat 100 â†’ 0).</summary>
+    private static double Goodness(double value, PlanningEvent mode) => mode == PlanningEvent.Heat ? 100 - value : value;
+
+    private static int WorstIndex(IReadOnlyList<double> values, PlanningEvent mode)
+    {
+        var worst = 0;
+        for (var i = 1; i < values.Count; i++)
+            if (Goodness(values[i], mode) < Goodness(values[worst], mode)) worst = i;
+        return worst;
+    }
+
+    private static double Objective(RouteOptionDto o, PlanningEvent mode) =>
+        0.7 * Goodness(o.Average, mode) + 0.3 * Goodness(o.Worst, mode);
+
+    private static double Gain(RouteOptionDto better, RouteOptionDto fastest, PlanningEvent mode) =>
+        Goodness(better.Average, mode) - Goodness(fastest.Average, mode);
+
+    /// <summary>Keeps the drawn path light: at most about 400 points, rounded to 5 decimals (about 1 m).</summary>
+    private static IReadOnlyList<double[]> Simplify(IReadOnlyList<GeoPoint> points)
+    {
+        var step = Math.Max(1, points.Count / 400);
+        var result = new List<double[]>();
+        for (var i = 0; i < points.Count; i += step) result.Add([Math.Round(points[i].Latitude, 5), Math.Round(points[i].Longitude, 5)]);
+        var last = points[^1];
+        if (result[^1][0] != Math.Round(last.Latitude, 5) || result[^1][1] != Math.Round(last.Longitude, 5))
+            result.Add([Math.Round(last.Latitude, 5), Math.Round(last.Longitude, 5)]);
+        return result;
+    }
+}
+

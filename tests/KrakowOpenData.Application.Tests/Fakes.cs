@@ -41,4 +41,9 @@ public sealed class FakeScheduleRepository : ITransitScheduleRepository
 
     public Task<bool> IsServiceActiveAsync(string serviceId, DateOnly date, CancellationToken cancellationToken = default) =>
         Task.FromResult(ActiveDays.Contains((serviceId, date)));
+
+    public HashSet<string> NightStops { get; } = [];
+
+    public Task<IReadOnlySet<string>> GetNightServiceStopIdsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlySet<string>>(NightStops);
 }

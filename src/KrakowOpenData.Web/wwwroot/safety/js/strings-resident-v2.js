@@ -1,0 +1,108 @@
+// Strings for the second round of resident features: addresses and coverage on every map, address search with filters,
+// back buttons, and walk checks that follow the chosen view. Entries here override older ones with the same key. [en, pl, uk]
+export const residentStringsV2 = {
+  // ── Navigation ──
+  'nav.backMenu': ['Back to menu', 'Wróć do menu', 'Назад до меню'],
+  'nav.backDashboard': ['Back to dashboard', 'Wróć do panelu', 'Назад до панелі'],
+
+  // ── Address and coverage shown on every map ──
+  'addr.loading': ['Finding the address…', 'Szukam adresu…', 'Шукаю адресу…'],
+  'addr.unknown': ['No address mapped here', 'Brak adresu w tym miejscu', 'Тут немає адреси'],
+  'cov.radius': ['Radius covered: {r}', 'Zasięg: {r}', 'Охоплений радіус: {r}'],
+  'cov.circle': ['Help is searched within {r} of here', 'Pomocy szukamy w promieniu {r} stąd', 'Допомогу шукаємо в радіусі {r} звідси'],
+  'cov.heat': ['Looks for water, shade and cool places within {r} (dashed circle on the map).', 'Szukamy wody, cienia i chłodnych miejsc w promieniu {r} (przerywane koło na mapie).', 'Шукаємо воду, тінь і прохолодні місця в радіусі {r} (пунктирне коло на мапі).'],
+  'cov.safety': ['Lighting within about 375 m; night transport and open places within {r} (dashed circle on the map).', 'Oświetlenie w promieniu ok. 375 m; transport nocny i miejsca otwarte nocą w promieniu {r} (przerywane koło na mapie).', 'Освітлення в радіусі бл. 375 м; нічний транспорт і відкриті місця в радіусі {r} (пунктирне коло на мапі).'],
+  'cov.both': ['Lighting within about 375 m; help of both kinds within {r} (dashed circle on the map).', 'Oświetlenie w promieniu ok. 375 m; pomoc obu rodzajów w promieniu {r} (przerywane koło na mapie).', 'Освітлення в радіусі бл. 375 м; допомога обох видів у радіусі {r} (пунктирне коло на мапі).'],
+  'cov.report': ['The report counts for the 250 m square around the pin (outlined on the map).', 'Zgłoszenie dotyczy kwadratu 250 m wokół pinezki (zaznaczony na mapie).', 'Звіт стосується квадрата 250 м навколо позначки (обведено на мапі).'],
+  'cov.square': ['Square scored: {r} × {r}', 'Oceniany kwadrat: {r} × {r}', 'Оцінений квадрат: {r} × {r}'],
+  'cov.squares': ['The city is scored in squares of {r}', 'Miasto oceniamy w kwadratach {r}', 'Місто оцінюється квадратами {r}'],
+  'cov.walk': ['Scored every 50 m along the line; help searched within {r} of each point.', 'Ocena co 50 m wzdłuż linii; pomoc szukana w promieniu {r} od każdego punktu.', 'Оцінка кожні 50 м вздовж лінії; допомога шукається в радіусі {r} від кожної точки.'],
+  'cov.alertArea': ['Alert area', 'Obszar alertu', 'Район сповіщення'],
+  'pm.wholeCity': ['Whole city', 'Całe miasto', 'Усе місто'],
+
+  // ── Search (with visible filters) ──
+  'home.searchPlaceholder': ['Address, street or stop…', 'Adres, ulica lub przystanek…', 'Адреса, вулиця або зупинка…'],
+  'search.results': ['Search results', 'Wyniki wyszukiwania', 'Результати пошуку'],
+  'search.filter': ['Filter the results', 'Filtruj wyniki', 'Фільтр результатів'],
+  'search.show': ['Show:', 'Pokaż:', 'Показати:'],
+  'search.all': ['All', 'Wszystko', 'Усе'],
+  'search.addresses': ['Addresses', 'Adresy', 'Адреси'],
+  'search.stops': ['Stops', 'Przystanki', 'Зупинки'],
+  'search.address': ['Address', 'Adres', 'Адреса'],
+  'search.stop': ['Stop', 'Przystanek', 'Зупинка'],
+  'search.stopDetail': ['Public transport stop', 'Przystanek komunikacji miejskiej', 'Зупинка громадського транспорту'],
+  'search.searching': ['Searching…', 'Szukam…', 'Шукаю…'],
+  'search.none': ['Nothing found. Try another spelling.', 'Nic nie znaleziono. Spróbuj innej pisowni.', 'Нічого не знайдено. Спробуйте інше написання.'],
+  'search.error': ['Search is not available right now. You can still tap the map.', 'Wyszukiwanie jest teraz niedostępne. Nadal możesz dotknąć mapy.', 'Пошук зараз недоступний. Можна торкнутися мапи.'],
+  'search.offline': ['Search needs a connection. You can still tap the map.', 'Wyszukiwanie wymaga połączenia. Nadal możesz dotknąć mapy.', 'Пошук потребує зв’язку. Можна торкнутися мапи.'],
+
+  // ── Menu ──
+  'home.title': ['Menu', 'Menu', 'Меню'],
+  'home.searchLabel': ['Find an address or stop', 'Znajdź adres lub przystanek', 'Знайти адресу або зупинку'],
+  'home.tapHint': ['Or tap anywhere on the map to see how that place scores.', 'Albo dotknij dowolnego miejsca na mapie, aby zobaczyć jego wynik.', 'Або торкніться будь-якого місця на мапі, щоб побачити його оцінку.'],
+  'home.myArea': ['My area', 'Moja okolica', 'Мій район'],
+  'home.clearArea': ['Remove my area', 'Usuń moją okolicę', 'Видалити мій район'],
+  'home.walk.safety': ['Check a night walk', 'Sprawdź nocny spacer', 'Перевірити нічну прогулянку'],
+  'home.walk.heat': ['Check a cool walk', 'Sprawdź chłodny spacer', 'Перевірити прохолодну прогулянку'],
+  'home.walk.both': ['Check a walk', 'Sprawdź spacer', 'Перевірити прогулянку'],
+  'home.walkHelp.safety': ['Scores the way between two places for lighting, night transport and open places.', 'Ocenia drogę między dwoma miejscami pod kątem oświetlenia, transportu nocnego i otwartych miejsc.', 'Оцінює шлях між двома місцями за освітленням, нічним транспортом і відкритими місцями.'],
+  'home.walkHelp.heat': ['Scores the way between two places for water, shade and cool places.', 'Ocenia drogę między dwoma miejscami pod kątem wody, cienia i chłodnych miejsc.', 'Оцінює шлях між двома місцями за водою, тінню та прохолодними місцями.'],
+  'home.walkHelp.both': ['Scores the way between two places for both heat and night safety.', 'Ocenia drogę między dwoma miejscami pod kątem upału i bezpieczeństwa nocą.', 'Оцінює шлях між двома місцями за спекою та безпекою вночі.'],
+
+  // ── Notifications (there is no settings screen: the switch lives with the alerts) ──
+  'notify.on': ['Notifications on', 'Powiadomienia włączone', 'Сповіщення ввімкнено'],
+  'notify.off': ['Notify me on this device', 'Powiadamiaj mnie na tym urządzeniu', 'Сповіщати мене на цьому пристрої'],
+  'notify.unsupported': ['This browser does not support notifications.', 'Ta przeglądarka nie obsługuje powiadomień.', 'Цей браузер не підтримує сповіщення.'],
+  'notify.granted': ['Notifications are on.', 'Powiadomienia włączone.', 'Сповіщення ввімкнено.'],
+  'notify.denied': ['Notifications are blocked in your browser.', 'Powiadomienia są zablokowane w przeglądarce.', 'Сповіщення заблоковано в браузері.'],
+
+  // ── Place card ──
+  'place.nothingNear': ['Nothing mapped within {r}.', 'Nic zmapowanego w promieniu {r}.', 'Нічого в радіусі {r}.'],
+  'place.waterGap': ['Only {n} drinking-water points are mapped in Kraków, so a fountain may exist here that is missing from the map.', 'W Krakowie zmapowano tylko {n} punktów z wodą pitną, więc tu może być źródło, którego brakuje na mapie.', 'У Кракові нанесено лише {n} пунктів питної води, тож тут може бути джерело, якого немає на мапі.'],
+  'place.walkTo.safety': ['Walk here at night', 'Nocny spacer tutaj', 'Нічна прогулянка сюди'],
+  'place.walkTo.heat': ['Cool walk here', 'Chłodny spacer tutaj', 'Прохолодна прогулянка сюди'],
+  'place.walkTo.both': ['Walk here', 'Spacer tutaj', 'Прогулянка сюди'],
+  'factor.none': ['none within {r}', 'brak w promieniu {r}', 'немає в радіусі {r}'],
+
+  // ── Report ──
+  'report.intro.safety': ['What did you notice about night safety? Reports from several people count most.', 'Co zauważyłeś/aś w kwestii bezpieczeństwa nocą? Najwięcej znaczą zgłoszenia od kilku osób.', 'Що ви помітили щодо безпеки вночі? Найбільше важать звіти від кількох людей.'],
+  'report.intro.heat': ['What did you notice about heat? Reports from several people count most.', 'Co zauważyłeś/aś w kwestii upału? Najwięcej znaczą zgłoszenia od kilku osób.', 'Що ви помітили щодо спеки? Найбільше важать звіти від кількох людей.'],
+  'report.intro.both': ['What did you notice? Reports from several people count most.', 'Co zauważyłeś/aś? Najwięcej znaczą zgłoszenia od kilku osób.', 'Що ви помітили? Найбільше важать звіти від кількох людей.'],
+  'report.searchLabel': ['Find the place by address', 'Znajdź miejsce po adresie', 'Знайти місце за адресою'],
+  'report.searchPlaceholder': ['Address, street or stop…', 'Adres, ulica lub przystanek…', 'Адреса, вулиця або зупинка…'],
+
+  // ── Walk check: night walk, cool walk, or both ──
+  'walk.title.safety': ['Night walk check', 'Sprawdzenie nocnego spaceru', 'Перевірка нічної прогулянки'],
+  'walk.title.heat': ['Cool walk check', 'Sprawdzenie chłodnego spaceru', 'Перевірка прохолодної прогулянки'],
+  'walk.title.both': ['Walk check', 'Sprawdzenie spaceru', 'Перевірка прогулянки'],
+  'walk.intro.safety': ['Choose a start and a destination. We score the way between them for lighting, night transport, places open at night and resident reports.', 'Wybierz start i cel. Ocenimy drogę między nimi pod kątem oświetlenia, transportu nocnego, miejsc otwartych nocą i zgłoszeń mieszkańców.', 'Оберіть початок і ціль. Ми оцінимо шлях між ними за освітленням, нічним транспортом, місцями, відкритими вночі, та звітами мешканців.'],
+  'walk.intro.heat': ['Choose a start and a destination. We score the way between them for drinking water, shade, cool places, toilets and resident reports.', 'Wybierz start i cel. Ocenimy drogę między nimi pod kątem wody pitnej, cienia, chłodnych miejsc, toalet i zgłoszeń mieszkańców.', 'Оберіть початок і ціль. Ми оцінимо шлях між ними за питною водою, тінню, прохолодними місцями, туалетами та звітами мешканців.'],
+  'walk.intro.both': ['Choose a start and a destination. We score the way for both heat and night safety and show the weaker of the two.', 'Wybierz start i cel. Ocenimy drogę pod kątem upału i bezpieczeństwa nocą i pokażemy słabszy wynik.', 'Оберіть початок і ціль. Ми оцінимо шлях за спекою та безпекою вночі й покажемо слабший результат.'],
+  'walk.fromPlaceholder': ['Start: address, street or stop…', 'Start: adres, ulica lub przystanek…', 'Початок: адреса, вулиця або зупинка…'],
+  'walk.toPlaceholder': ['Destination: address, street or stop…', 'Cel: adres, ulica lub przystanek…', 'Ціль: адреса, вулиця або зупинка…'],
+  'walk.weakest.safety': ['Weakest spot at night', 'Najsłabsze miejsce nocą', 'Найслабше місце вночі'],
+  'walk.weakest.heat': ['Least cool spot', 'Najmniej chłodne miejsce', 'Найменш прохолодне місце'],
+  'walk.weakest.both': ['Weakest spot', 'Najsłabsze miejsce', 'Найслабше місце'],
+  'walk.weakAt.safety': ['Safe places near the weakest spot', 'Bezpieczne miejsca przy najsłabszym punkcie', 'Безпечні місця біля найслабшого місця'],
+  'walk.weakAt.heat': ['Relief near the least cool spot', 'Ulga przy najmniej chłodnym punkcie', 'Полегшення біля найменш прохолодного місця'],
+  'walk.weakAt.both': ['Help near the weakest spot', 'Pomoc przy najsłabszym punkcie', 'Допомога біля найслабшого місця'],
+  'walk.noHelp': ['No saved help point within 600 m of that spot.', 'Brak zapisanego punktu pomocy w promieniu 600 m od tego miejsca.', 'Немає збереженого пункту допомоги в радіусі 600 м від цього місця.'],
+  'walk.advice.safety.good': ['The whole way scores well at night. Normal precautions apply.', 'Cała trasa ma dobry wynik nocą. Wystarczą zwykłe środki ostrożności.', 'Увесь шлях має хорошу оцінку вночі. Достатньо звичайних запобігань.'],
+  'walk.advice.safety.fair': ['Mostly fine at night, with one weaker stretch. Stay on main streets there.', 'W większości w porządku nocą, jest jeden słabszy odcinek. Tam trzymaj się głównych ulic.', 'Здебільшого добре вночі, є слабша ділянка. Там тримайтеся головних вулиць.'],
+  'walk.advice.safety.weak': ['Part of this way scores low at night. Consider a different route, going with someone, or a night bus.', 'Część trasy ma niski wynik nocą. Rozważ inną trasę, drogę w towarzystwie lub autobus nocny.', 'Частина шляху має низьку оцінку вночі. Подумайте про інший маршрут, супровід або нічний автобус.'],
+  'walk.advice.heat.good': ['Water, shade or cool places are close all along the way.', 'Woda, cień lub chłodne miejsca są blisko na całej trasie.', 'Вода, тінь або прохолодні місця поруч на всьому шляху.'],
+  'walk.advice.heat.fair': ['Mostly fine, with one stretch with little water or shade. Plan a stop before it and carry water.', 'W większości w porządku, jest odcinek z małą ilością wody lub cienia. Zaplanuj przystanek przed nim i zabierz wodę.', 'Здебільшого добре, є ділянка з малою кількістю води чи тіні. Заплануйте зупинку перед нею й візьміть воду.'],
+  'walk.advice.heat.weak': ['A long stretch has little water, shade or cool places. Avoid midday, carry water, or take public transport for that part.', 'Długi odcinek ma mało wody, cienia lub chłodnych miejsc. Unikaj południa, zabierz wodę lub przejedź ten fragment komunikacją.', 'Довга ділянка має мало води, тіні чи прохолодних місць. Уникайте полудня, візьміть воду або проїдьте цю частину транспортом.'],
+  'walk.advice.both.good': ['The whole way scores well for both heat and night. Normal precautions apply.', 'Cała trasa ma dobry wynik zarówno dla upału, jak i nocy. Wystarczą zwykłe środki ostrożności.', 'Увесь шлях має хорошу оцінку і для спеки, і для ночі. Достатньо звичайних запобігань.'],
+  'walk.advice.both.fair': ['Mostly fine, with one weaker stretch. Take care there.', 'W większości w porządku, jest jeden słabszy odcinek. Zachowaj tam ostrożność.', 'Здебільшого добре, є слабша ділянка. Там будьте обережні.'],
+  'walk.advice.both.weak': ['Part of this way scores low. Consider another route or time of day.', 'Część trasy ma niski wynik. Rozważ inną trasę lub porę dnia.', 'Частина шляху має низьку оцінку. Подумайте про інший маршрут або час доби.'],
+
+  // ── Planner additions ──
+  'al.searchLabel': ['Find the centre by address', 'Znajdź środek po adresie', 'Знайти центр за адресою'],
+  'al.searchPlaceholder': ['Address, street or stop…', 'Adres, ulica lub przystanek…', 'Адреса, вулиця або зупинка…'],
+  'al.radiusHelp': ['everyone inside the circle sees the alert', 'wszyscy w kole zobaczą alert', 'усі в колі побачать сповіщення'],
+  'rep.f.search': ['Search', 'Szukaj', 'Пошук'],
+  'rep.showing.heat': ['Showing heat reports only (planning for heat).', 'Pokazuję tylko zgłoszenia dotyczące upału (planowanie na upał).', 'Показано лише звіти про спеку (планування на спеку).'],
+  'rep.showing.night': ['Showing night-safety reports only (planning for night safety).', 'Pokazuję tylko zgłoszenia dotyczące bezpieczeństwa nocą (planowanie na noc).', 'Показано лише звіти про безпеку вночі (планування на ніч).'],
+  'rep.showing.both': ['Showing all reports (planning for both).', 'Pokazuję wszystkie zgłoszenia (planowanie dla obu).', 'Показано всі звіти (планування для обох).']
+};
