@@ -29,21 +29,27 @@ The MVP proves the model on **heat and night safety**:
 
 ## Quick start
 
-Needs the .NET 8 SDK and an internet connection. Two terminals in the repository folder:
+Needs the .NET 8 SDK, Node.js 20 or newer, and an internet connection. Two terminals in the repository folder:
 
 ```bash
+# Terminal 1: the API (port 5080)
 dotnet run --project src/KrakowOpenData.Api
-dotnet run --project src/KrakowOpenData.Web
+
+# Terminal 2: the React front end (port 5173, with hot reload)
+cd frontend
+npm install
+npm run dev
 ```
 
-The first start takes 1–2 minutes while the timetable and OpenStreetMap data download.
+The first start of the API takes 1–2 minutes while the timetable and OpenStreetMap data download.
 
 | Who | Address |
 | --- | --- |
-| Residents | http://localhost:5090/safety/ |
-| City planners | http://localhost:5090/safety/#/planner (also the "Planner dashboard" menu link; opens directly in demo mode) |
+| Residents | http://localhost:5173/ |
+| City planners | http://localhost:5173/#/planner (the "City planner dashboard" link on the home page; opens directly in demo mode) |
 | API documentation | http://localhost:5080/swagger |
 
+The Blazor web project (`KrakowOpenData.Web`) is **not needed** to run Kompas Krakowa: it only hosts the older dataset pages and can serve the *built* React app at `/safety/` (see [Front end (React)](#front-end-react)).
 For Visual Studio, Docker and tests see [How to run](#how-to-run). Demo planner data: **Reports → Add demo reports**.
 
 ## What it does
@@ -114,8 +120,8 @@ Dependencies point inwards: Web → Client → Contracts; Api → Infrastructure
 
 ## How to run
 
-The solution has **two apps that must both be running**: the API (port 5080) and the web UI (port 5090).
-The UI only shows data while the API is up. The first request takes up to a minute while the timetables download.
+**Kompas Krakowa** needs the API (port 5080) and the React front end (port 5173): see [Quick start](#quick-start). The text below is about the .NET side: the API and the optional Blazor dataset pages (port 5090).
+The Blazor pages only show data while the API is up. The first request takes up to a minute while the timetables download.
 
 There are **three ways** to start them: **Visual Studio**, the **command line** or **Docker**.
 Pick **one**; you don't need to do all three.
@@ -131,13 +137,13 @@ You only do steps 2–3 once; after that, F5 starts both.
 
 ### Option B: Command line
 
-Needs two terminals, both opened in the solution folder.
+Needs one or two terminals, opened in the solution folder (the second is optional, see below).
 
 1. **Terminal 1** – start the API and leave it running:
    ```bash
    dotnet run --project src/KrakowOpenData.Api
    ```
-2. **Terminal 2** – start the UI and leave it running:
+2. **Terminal 2** (optional, only for the Blazor dataset pages; Kompas Krakowa does not need it) – start the Blazor UI and leave it running:
    ```bash
    dotnet run --project src/KrakowOpenData.Web
    ```
@@ -189,12 +195,12 @@ planners act on them.
 Both are 0–100, computed for every ~250 m square of the built-up city. They are **environmental scores built from
 mapped infrastructure and resident reports, not crime statistics** (Kraków publishes no open, geolocated incident data).
 
-**Open the app** (start the API and the Web app as described in [How to run](#how-to-run)):
+**Open the app** (start the API and the React front end as described in the [Quick start](#quick-start)):
 
 | Who | Where |
 | --- | --- |
-| Residents | http://localhost:5090/safety/ |
-| City planners | http://localhost:5090/safety/#/planner, also the **Planner dashboard** link in the site menu. It opens directly: the Web app signs in with the demo key (`Safety:PlannerDemoKey`; empty it to require the key on the sign-in screen) |
+| Residents | http://localhost:5173/ (or http://localhost:5090/safety/ when the Blazor web project serves the built app) |
+| City planners | http://localhost:5173/#/planner, also the **City planner dashboard** link on the home page. It opens directly in demo mode: the host hands the front end a demo key (the Vite dev server in development; the Blazor web project's `Safety:PlannerDemoKey` when it serves the built app). Empty that setting to require the key on the sign-in screen |
 
 ### Residents
 
