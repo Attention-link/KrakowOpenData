@@ -1,0 +1,103 @@
+# Production stack for https://opendata.al.mt, deployed by Dockhand as a Git stack on the OCI cloud-docker host.
+#
+# Flow: a merge to master runs .github/workflows/deploy.yml, which runs the tests and then calls this stack's
+# Dockhand webhook. Dockhand syncs this repo and deploys with its "--build" deploy option ON, so both images are
+# built on the host from the Dockerfiles in this repo (build contexts below are relative to this file, i.e. the
+# repository root). No registry is involved.
+#
+# Single origin: Traefik sends the API's paths (/api/*, plus /health and /swagger at the root) to the API container
+# and everything else to the web app, so the browser-side app's API base is just the site root.
+#
+# Reached through Attention-Link's "main" Cloudflare tunnel -> cloud-traefik -> the shared "tron" network, the same
+# path as safewalk.al.mt (see Attention-link/infra tunnel.tf and dnsconfig.js). Public demo: no Authentik middleware.
+#
+# To roll back, revert the commit on master; the revert's merge redeploys the previous code.
+
+services:
+  opendata-api:
+    build:
+      context: ..
+      dockerfile: src/KrakowOpenData.Api/Dockerfile
+    image: krakow-opendata-api:local
+    container_name: attention-link-opendata-api
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1536m
+    cpus: "1.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      # Same origin, so CORS is not exercised; set to the real origin rather than left at the localhost defaults.
+      - Cors__AllowedOrigins__0=https://${PUBLIC_HOST:-opendata.al.mt}
+      # Reports, alerts and contacts, plus the open-data snapshot cache, live on the volume and survive redeploys.
+      - Safety__StorePath=/data/safety-store.json
+      - KrakowData__CacheDirectory=/data/cache
+      # DEMO ONLY shared key (see SafetyOptions.PlannerKey). Must match the web app's Safety__PlannerDemoKey below.
+      - Safety__PlannerKey=${PLANNER_KEY:-demo-planner}
+    volumes:
+      - opendata-data:/data
+    labels:
+      traefik.enable: "true"
+      # Label keys are literal (Compose does not interpolate keys); only values take ${...}.
+      traefik.http.routers.opendata-api.rule: "Host(`${PUBLIC_HOST:-opendata.al.mt}`) && (PathPrefix(`/api`) || Path(`/health`) || PathPrefix(`/swagger`))"
+      # Explicit priority so /api always beats the web catch-all below.
+      traefik.http.routers.opendata-api.priority: "100"
+      traefik.http.routers.opendata-api.entrypoints: attnlink
+      traefik.http.services.opendata-api.loadbalancer.server.port: "8080"
+      traefik.docker.network: tron
+    networks:
+      - tron
+      - internal
+
+  opendata-web:
+    build:
+      context: ..
+      dockerfile: src/KrakowOpenData.Web/Dockerfile
+    image: krakow-opendata-web:local
+    container_name: attention-link-opendata-web
+    restart: unless-stopped
+    depends_on:
+      - opendata-api
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      # Server-side calls go straight to the API container over the stack's private network.
+      - Api__BaseUrl=http://opendata-api:8080/
+      # The API as the browser sees it: same origin (the browser app requests /api/..., /health and /swagger itself).
+      - Safety__PublicApiBaseUrl=https://${PUBLIC_HOST:-opendata.al.mt}/
+      # Signs the planner dashboard in automatically - a public demo. Set PLANNER_KEY_AUTO to "" to require the key.
+      - Safety__PlannerDemoKey=${PLANNER_KEY_AUTO-${PLANNER_KEY:-demo-planner}}
+    labels:
+      traefik.enable: "true"
+      # Catch-all for the host; the API router (priority 100) takes /api, /health and /swagger. Blazor Server's WebSocket works through
+      # Traefik without extra config.
+      traefik.http.routers.opendata-web.rule: "Host(`${PUBLIC_HOST:-opendata.al.mt}`)"
+      traefik.http.routers.opendata-web.priority: "10"
+      traefik.http.routers.opendata-web.entrypoints: attnlink
+      traefik.http.services.opendata-web.loadbalancer.server.port: "8080"
+      traefik.docker.network: tron
+    networks:
+      - tron
+      - internal
+
+volumes:
+  opendata-data:
+
+networks:
+  tron:
+    name: tron
+    external: true
+  # Web -> API traffic stays on this stack's own network, so the short service name can't collide with another
+  # stack's container on the shared tron network.
+  internal:
