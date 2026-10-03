@@ -1,0 +1,66 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject LanguageState Language
+@inject IJSRuntime JS
+
+@* Cascades the current translator to every page and component (see LocalizedComponentBase). *@
+<CascadingValue Value="Language.Current">
+    <div class="shell">
+        <aside class="sidebar">
+            <a class="brand" href="/">
+                <span class="brand-mark">K</span>
+                <span>
+                    <strong>@Language.Current["brand.title"]</strong>
+                    <small>@Language.Current["brand.subtitle"]</small>
+                </span>
+            </a>
+            <LanguageSwitcher OnSelect="SelectAsync" />
+            <NavMenu />
+        </aside>
+        <main class="content">
+            @Body
+        </main>
+    </div>
+
+    <div id="blazor-error-ui">
+        @Language.Current["app.errorBar"] <a href="" class="reload">@Language.Current["app.reload"]</a>
+    </div>
+</CascadingValue>
+
+@code {
+    protected override void OnInitialized() => Language.Changed += OnLanguageChanged;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            // Saved choice, or the browser's language on a first visit.
+            var code = await JS.InvokeAsync<string?>("krakowLanguage.get");
+            var language = AppLanguages.TryParse(code) ?? AppLanguages.Default;
+            Language.Set(language);
+            await JS.InvokeVoidAsync("krakowLanguage.set", language.Code());
+        }
+        catch (JSException)
+        {
+            // Script missing or storage blocked: keep the default language.
+        }
+    }
+
+    private async Task SelectAsync(AppLanguage language)
+    {
+        Language.Set(language);
+        try
+        {
+            await JS.InvokeVoidAsync("krakowLanguage.set", language.Code());
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private void OnLanguageChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Language.Changed -= OnLanguageChanged;
+}

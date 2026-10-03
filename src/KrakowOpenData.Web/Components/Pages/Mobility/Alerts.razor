@@ -1,0 +1,56 @@
+@page "/mobility/alerts"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.Mobility"]" Title="@T["alerts.title"]"
+            Description="@T["alerts.lede"]" Source="@T["alerts.source"]" />
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_alerts.Count == 0" EmptyText="@T["alerts.none"]" OnRetry="LoadAsync">
+    <div class="stack">
+        @foreach (var a in _alerts)
+        {
+            <article class="card wide">
+                <div class="card-top">
+                    <Badge Tone="warn">@T.Or("effect." + a.Effect, a.Effect)</Badge>
+                    <Badge>@T.Or("cause." + a.Cause, a.Cause)</Badge>
+                    <span class="muted small">@Format.DateTime(a.ActiveFrom) → @Format.DateTime(a.ActiveTo)</span>
+                </div>
+                <h3>@a.Header</h3>
+                @if (!string.IsNullOrWhiteSpace(a.Description))
+                {
+                    <p class="pre">@a.Description</p>
+                }
+                <p class="small">
+                    @if (a.RouteIds.Count > 0)
+                    {
+                        <span>@T.F("alerts.lines", string.Join(", ", a.RouteIds))</span>
+                    }
+                    @if (a.StopIds.Count > 0)
+                    {
+                        <span> · @T.F("alerts.stops", string.Join(", ", a.StopIds.Take(12)) + (a.StopIds.Count > 12 ? "…" : ""))</span>
+                    }
+                </p>
+                @if (a.Url is not null)
+                {
+                    <a href="@a.Url" target="_blank" rel="noopener">@T["alerts.more"]</a>
+                }
+            </article>
+        }
+    </div>
+</LoadState>
+
+@code {
+    private List<AlertDto> _alerts = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _alerts = await Api.GetAlertsAsync() ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}

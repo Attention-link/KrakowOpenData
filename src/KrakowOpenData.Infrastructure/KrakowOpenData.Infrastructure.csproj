@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Infrastructure: repository implementations and data-source adapters (GTFS, GTFS-RT, IMGW, seed files).
+    Uses only the ASP.NET Core shared framework (HttpClientFactory, Options, Logging, DI) – no NuGet packages.
+  -->
+  <PropertyGroup>
+    <RootNamespace>KrakowOpenData.Infrastructure</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KrakowOpenData.Application\KrakowOpenData.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Curated seed files and clearly-labelled sample data travel inside the assembly. -->
+    <EmbeddedResource Include="Seed\Data\*.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KrakowOpenData.Infrastructure.Tests" />
+  </ItemGroup>
+</Project>

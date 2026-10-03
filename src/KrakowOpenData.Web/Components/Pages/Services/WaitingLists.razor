@@ -1,0 +1,103 @@
+@page "/services/waiting-lists"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.PublicServices"]" Title="@T["nfz.title"]" PageTitleText="@T["nav.waitingLists"]"
+            Description="@T["nfz.lede"]" Source="@T["nfz.source"]" />
+
+<div class="toolbar">
+    <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <input placeholder="@T["nfz.placeholder"]" aria-label="@T["common.search"]" @bind="_benefit" />
+        <label class="check"><input type="checkbox" @bind="_urgent" /> @T["nfz.urgent"]</label>
+        <button class="btn" type="submit">@T["common.search"]</button>
+    </form>
+</div>
+
+<div class="chips">
+    @foreach (var example in Examples)
+    {
+        <button class="btn btn-ghost btn-small" @onclick="() => SearchForAsync(example)">@example</button>
+    }
+</div>
+
+@if (!_searched)
+{
+    <div class="callout">@T["nfz.hint"]</div>
+}
+else
+{
+    <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["nfz.none"]" OnRetry="LoadAsync">
+        <p class="muted small">@T.F("nfz.count", _items.Count)</p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>@T["nfz.provider"]</th><th>@T["nfz.benefit"]</th><th>@T["col.address"]</th>
+                    <th>@T["nfz.averageWait"]</th><th>@T["nfz.waiting"]</th><th>@T["col.stepFree"]</th><th>@T["nfz.updated"]</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var w in _items)
+                {
+                    <tr>
+                        <td><strong>@w.Provider</strong><div class="muted small">@w.Place</div></td>
+                        <td class="small">@w.Benefit</td>
+                        <td class="small">@(w.Address)@(w.Phone is null ? "" : " · " + w.Phone)</td>
+                        <td>
+                            @if (w.AverageWaitDays is { } days)
+                            {
+                                <Badge Tone="@WaitTone(days)">@T.F("nfz.days", days)</Badge>
+                            }
+                            else
+                            {
+                                <span class="muted">–</span>
+                            }
+                        </td>
+                        <td>@(w.PeopleWaiting?.ToString(CultureInfo.InvariantCulture) ?? "–")</td>
+                        <td>@T.YesNo(w.StepFree)</td>
+                        <td class="small">@(w.StatisticsUpdated ?? "–")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </LoadState>
+}
+
+@code {
+    // NFZ benefit names are Polish; the API matches on part of the name.
+    private static readonly string[] Examples =
+    [
+        "PORADNIA ORTOPEDYCZNA", "PORADNIA KARDIOLOGICZNA", "PORADNIA ENDOKRYNOLOGICZNA",
+        "PORADNIA NEUROLOGICZNA", "PORADNIA OKULISTYCZNA", "REZONANS MAGNETYCZNY", "TOMOGRAFIA KOMPUTEROWA"
+    ];
+
+    private string? _benefit;
+    private bool _urgent;
+    private bool _searched;
+    private List<WaitingListDto> _items = [];
+    private bool _loading;
+    private string? _error;
+
+    private Task SearchForAsync(string benefit)
+    {
+        _benefit = benefit;
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_benefit) || _benefit.Trim().Length < 3) return;
+
+        _searched = true;
+        _loading = true;
+        _error = null;
+        try { _items = await Api.SearchWaitingListsAsync(_benefit.Trim(), _urgent) ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private static string WaitTone(int days) => days switch
+    {
+        <= 30 => "good",
+        <= 90 => "warn",
+        _ => "bad"
+    };
+}

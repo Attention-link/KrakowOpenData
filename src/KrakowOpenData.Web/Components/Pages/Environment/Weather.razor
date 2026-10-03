@@ -1,0 +1,47 @@
+@page "/environment/weather"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.Environment"]" Title="@T["weather.title"]"
+            Description="@T["weather.lede"]" Source="@T["weather.source"]" />
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" OnRetry="LoadAsync">
+    <div class="grid">
+        @foreach (var w in _items)
+        {
+            <article class="card">
+                <div class="card-top">
+                    <span class="muted small">@w.StationName · @Format.DateTime(w.ObservedAt)</span>
+                    @if (w.IsHot)
+                    {
+                        <Badge Tone="bad">@T["weather.hot"]</Badge>
+                    }
+                </div>
+                <div class="big-number">@Format.Number(w.TemperatureC, " °C")</div>
+                <dl class="facts">
+                    <dt>@T["weather.wind"]</dt><dd>@Format.Number(w.WindSpeedMs, " m/s") @(w.WindDirectionDegrees is null ? "" : T.F("weather.windFrom", w.WindDirectionDegrees))</dd>
+                    <dt>@T["weather.humidity"]</dt><dd>@Format.Number(w.RelativeHumidityPercent, " %", 0)</dd>
+                    <dt>@T["weather.precipitation"]</dt><dd>@Format.Number(w.PrecipitationMm, " mm")</dd>
+                    <dt>@T["weather.pressure"]</dt><dd>@Format.Number(w.PressureHPa, " hPa")</dd>
+                </dl>
+                <p class="muted small">@w.Source</p>
+            </article>
+        }
+    </div>
+</LoadState>
+
+@code {
+    private List<WeatherDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _items = await Api.GetWeatherAsync() ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}

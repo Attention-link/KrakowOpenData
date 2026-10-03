@@ -1,0 +1,18 @@
+<div class="lang-switch" role="group" aria-label="@T["lang.label"]">
+    @foreach (var language in AppLanguages.All)
+    {
+        var current = language == T.Language;
+        <button type="button"
+                class="lang-option @(current ? "active" : null)"
+                aria-pressed="@(current ? "true" : "false")"
+                title="@language.NativeName()"
+                lang="@language.Code()"
+                @onclick="() => OnSelect.InvokeAsync(language)">
+            @language.ShortLabel()
+        </button>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<AppLanguage> OnSelect { get; set; }
+}

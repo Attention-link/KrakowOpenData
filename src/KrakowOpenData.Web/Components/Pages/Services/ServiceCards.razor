@@ -1,0 +1,67 @@
+@page "/services/cards"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.PublicServices"]" Title="@T["cards.title"]" PageTitleText="@T["nav.serviceCards"]"
+            Description="@T["cards.lede"]" Source="@T["cards.source"]" />
+
+<div class="toolbar">
+    <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <input placeholder="@T["cards.placeholder"]" aria-label="@T["common.search"]" @bind="_query" />
+        <button class="btn" type="submit">@T["common.search"]</button>
+    </form>
+</div>
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["cards.none"]" OnRetry="LoadAsync">
+    <div class="stack">
+        @foreach (var c in _items)
+        {
+            <article class="card wide">
+                <div class="card-top">
+                    <code>@c.Id</code>
+                    <span class="muted small">@c.Topic</span>
+                    @if (c.Relevance > 0)
+                    {
+                        <Badge Tone="info">@T.F("cards.score", c.Relevance)</Badge>
+                    }
+                </div>
+                <h3>@c.Title</h3>
+                <p>@c.Summary</p>
+                @if (c.Steps.Count > 0)
+                {
+                    <ol class="steps">
+                        @foreach (var step in c.Steps)
+                        {
+                            <li>@step</li>
+                        }
+                    </ol>
+                }
+                <dl class="facts">
+                    @if (c.Office is not null) { <dt>@T["cards.office"]</dt><dd>@c.Office</dd> }
+                    @if (c.Address is not null) { <dt>@T["cards.address"]</dt><dd>@c.Address</dd> }
+                    @if (c.OpeningHours is not null) { <dt>@T["cards.hours"]</dt><dd>@c.OpeningHours</dd> }
+                    @if (c.Phone is not null) { <dt>@T["cards.phone"]</dt><dd>@c.Phone</dd> }
+                    @if (c.Fee is not null) { <dt>@T["cards.fee"]</dt><dd>@c.Fee</dd> }
+                </dl>
+                <a href="@c.SourceUrl" target="_blank" rel="noopener">@T["cards.officialSource"]</a>
+            </article>
+        }
+    </div>
+</LoadState>
+
+@code {
+    private string? _query;
+    private List<ServiceCardDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _items = await Api.SearchServiceCardsAsync(_query) ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}

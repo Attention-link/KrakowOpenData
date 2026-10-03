@@ -1,0 +1,4 @@
+// SAMPLE – used only when KrakowData:UseSampleData is true. Shape matches what the IMGW synop mapping produces.
+[
+  { "id": "12566", "stationName": "Kraków (SAMPLE)", "observedAt": "2026-10-03T05:00:00Z", "temperatureC": 9.4, "windSpeedMs": 2.0, "windDirectionDegrees": 250, "relativeHumidityPercent": 87.0, "precipitationMm": 0.0, "pressureHPa": 1018.2, "source": "SAMPLE (not real)" }
+]

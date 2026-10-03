@@ -1,0 +1,11 @@
+// HISTORICAL readings published by the City of Kraków on 15 Sep 2024 at 07:45 during the storm,
+// used to replay a real event in demos. Thresholds were not published, so the reported state is stored.
+// Source: https://krakow.pl/aktualnosci/286595,26,komunikat,intensywne_deszcze_w_krakowie____zobacz_aktualne_informacje.html
+[
+  { "id": "city-serafa-popieluszki", "stationName": "ul. Popiełuszki", "river": "Serafa", "location": null, "waterLevelCm": 118, "measuredAt": "2024-09-15T07:45:00+02:00", "warningLevelCm": null, "alarmLevelCm": null, "reportedState": "AboveWarning", "source": "City of Kraków (historical, 2024-09-15)" },
+  { "id": "city-rozrywka-strzelcow", "stationName": "ul. Strzelców", "river": "Potok Rozrywka", "location": null, "waterLevelCm": 54, "measuredAt": "2024-09-15T07:45:00+02:00", "warningLevelCm": null, "alarmLevelCm": null, "reportedState": "Normal", "source": "City of Kraków (historical, 2024-09-15)" },
+  { "id": "city-koscielnicki-stopki", "stationName": "ul. Stopki", "river": "Potok Kościelnicki", "location": null, "waterLevelCm": 223, "measuredAt": "2024-09-15T07:45:00+02:00", "warningLevelCm": null, "alarmLevelCm": null, "reportedState": "AboveAlarm", "source": "City of Kraków (historical, 2024-09-15)" },
+  { "id": "city-dlubnia-okulickiego", "stationName": "ul. Okulickiego", "river": "Dłubnia", "location": null, "waterLevelCm": 118, "measuredAt": "2024-09-15T07:45:00+02:00", "warningLevelCm": null, "alarmLevelCm": null, "reportedState": "Normal", "source": "City of Kraków (historical, 2024-09-15)" },
+  { "id": "city-drwinka-udzieli", "stationName": "ul. Udzieli", "river": "Potok Drwinka", "location": null, "waterLevelCm": 37, "measuredAt": "2024-09-15T07:45:00+02:00", "warningLevelCm": null, "alarmLevelCm": null, "reportedState": "Normal", "source": "City of Kraków (historical, 2024-09-15)" },
+  { "id": "city-bibiczanka-witkowicka", "stationName": "ul. Witkowicka", "river": "Potok Bibiczanka", "location": null, "waterLevelCm": 33, "measuredAt": "2024-09-15T07:45:00+02:00", "warningLevelCm": null, "alarmLevelCm": null, "reportedState": "Normal", "source": "City of Kraków (historical, 2024-09-15)" }
+]

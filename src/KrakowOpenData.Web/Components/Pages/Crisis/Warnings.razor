@@ -1,0 +1,43 @@
+@page "/crisis/warnings"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.ClimateAndCrisis"]" Title="@T["warnings.title"]" PageTitleText="@T["nav.warnings"]"
+            Description="@T["warnings.lede"]" Source="@T["warnings.source"]" />
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["warnings.none"]" OnRetry="LoadAsync">
+    <div class="stack">
+        @foreach (var w in _items)
+        {
+            <article class="card wide">
+                <div class="card-top">
+                    <Badge Tone="@(w.Level >= 3 ? "bad" : w.Level == 2 ? "warn" : "info")">@T.F("warnings.level", w.Level)</Badge>
+                    @if (w.ProbabilityPercent is not null)
+                    {
+                        <span class="muted small">@T.F("warnings.probability", w.ProbabilityPercent)</span>
+                    }
+                    <span class="muted small">@Format.DateTime(w.ValidFrom) → @Format.DateTime(w.ValidTo)</span>
+                </div>
+                <h3>@w.EventName</h3>
+                <p class="pre">@w.Content</p>
+                <p class="muted small">@w.Source</p>
+            </article>
+        }
+    </div>
+</LoadState>
+
+@code {
+    private List<WarningDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _items = await Api.GetWarningsAsync() ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}

@@ -1,0 +1,58 @@
+@page "/crisis/rivers"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.ClimateAndCrisis"]" Title="@T["rivers.title"]"
+            Description="@T["rivers.lede"]" Source="@T["rivers.source"]" />
+
+<div class="toolbar">
+    <label class="check">
+        <input type="checkbox" @bind="_elevatedOnly" @bind:after="LoadAsync" /> @T["rivers.elevatedOnly"]
+    </label>
+</div>
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["rivers.none"]" OnRetry="LoadAsync">
+    <table class="table">
+        <thead><tr><th>@T["col.state"]</th><th>@T["col.river"]</th><th>@T["col.station"]</th><th>@T["col.level"]</th><th>@T["col.thresholds"]</th><th>@T["col.measured"]</th><th>@T["col.source"]</th></tr></thead>
+        <tbody>
+            @foreach (var g in _items)
+            {
+                <tr>
+                    <td><Badge Tone="@Tone(g.State)">@T.Or("state." + g.State, g.State)</Badge></td>
+                    <td><strong>@g.River</strong></td>
+                    <td>@g.StationName</td>
+                    <td>@Format.Number(g.WaterLevelCm, " cm", 0)</td>
+                    <td>@Format.Number(g.WarningLevelCm, "", 0) / @Format.Number(g.AlarmLevelCm, "", 0)</td>
+                    <td>@Format.DateTime(g.MeasuredAt)</td>
+                    <td class="small muted">@g.Source</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</LoadState>
+
+@code {
+    private bool _elevatedOnly;
+    private List<RiverGaugeDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _items = await Api.GetRiverGaugesAsync(_elevatedOnly) ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private static string Tone(string state) => state switch
+    {
+        "AboveAlarm" => "bad",
+        "AboveWarning" => "warn",
+        "Normal" => "good",
+        _ => "neutral"
+    };
+
+}

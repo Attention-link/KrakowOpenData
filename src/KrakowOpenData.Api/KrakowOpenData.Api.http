@@ -1,0 +1,50 @@
+# Quick manual checks (VS / Rider / VS Code REST Client). Run the API first.
+@api = http://localhost:5080
+
+### Catalog grouped by category
+GET {{api}}/api/catalog
+
+### Mobility
+GET {{api}}/api/mobility/stops?q=rondo&page=1&pageSize=20
+###
+GET {{api}}/api/mobility/stops/nearby?lat=50.0614&lon=19.9372&radius=600
+###
+# Sample-mode stop id; live ids look like T:123 or A:456 (URL-encode the colon as %3A if needed)
+GET {{api}}/api/mobility/stops/S:3/departures?limit=10&windowMinutes=60
+###
+GET {{api}}/api/mobility/routes?mode=tram
+###
+GET {{api}}/api/mobility/vehicles
+###
+GET {{api}}/api/mobility/trip-updates?minDelaySeconds=180
+###
+GET {{api}}/api/mobility/alerts
+###
+GET {{api}}/api/mobility/park-and-ride
+
+### Environment
+GET {{api}}/api/environment/weather
+###
+GET {{api}}/api/environment/air-quality
+
+### Climate & crisis
+GET {{api}}/api/crisis/river-gauges?elevatedOnly=true
+###
+GET {{api}}/api/crisis/warnings?teryt=1261
+
+### Urban space
+GET {{api}}/api/urban/districts
+
+### Public services
+GET {{api}}/api/services/cards?q=msip
+###
+GET {{api}}/api/services/waiting-lists?benefit=ortoped&urgent=false
+
+### City Open Data portal (api.um.krakow.pl)
+GET {{api}}/api/open-data/tables
+###
+GET {{api}}/api/open-data/tables?category=Society
+###
+GET {{api}}/api/open-data/tables/nurseries-public?limit=100
+###
+GET {{api}}/api/open-data/tables/lost-property?q=telefon

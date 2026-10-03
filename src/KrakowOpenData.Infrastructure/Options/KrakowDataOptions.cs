@@ -1,0 +1,92 @@
+namespace KrakowOpenData.Infrastructure.Options;
+
+/// <summary>Configuration section "KrakowData" in appsettings.json.</summary>
+public sealed class KrakowDataOptions
+{
+    public const string SectionName = "KrakowData";
+
+    /// <summary>
+    /// When true, nothing is downloaded: transit, weather and warnings come from built-in sample data.
+    /// Use it for offline demos and tests.
+    /// </summary>
+    public bool UseSampleData { get; set; }
+
+    /// <summary>GTFS feeds to merge. ZTP Kraków publishes A (bus), T (tram) and M (agglomeration).</summary>
+    public List<GtfsFeedOptions> GtfsFeeds { get; set; } = [];
+
+    public string ImgwBaseUrl { get; set; } = "https://danepubliczne.imgw.pl/api/data/";
+
+    /// <summary>Synoptic station name used in /synop/station/{name}.</summary>
+    public string ImgwSynopStation { get; set; } = "krakow";
+
+    /// <summary>Hydro stations whose name contains any of these (case-insensitive) are kept.</summary>
+    public List<string> ImgwHydroStationNameFilters { get; set; } = ["KRAK"];
+
+    /// <summary>Explicit IMGW hydro station ids to keep in addition to the name filter.</summary>
+    public List<string> ImgwHydroStationIds { get; set; } = [];
+
+    /// <summary>
+    /// Hydro stations inside this box are kept too. The default covers Kraków and the streams
+    /// flowing into it (Wisła, Rudawa, Prądnik, Wilga).
+    /// </summary>
+    public GeoBoxOptions ImgwHydroArea { get; set; } = new();
+
+    /// <summary>GIOŚ air quality API (no key).</summary>
+    public string GiosBaseUrl { get; set; } = "https://api.gios.gov.pl/pjp-api/v1/rest/";
+
+    /// <summary>Stations whose "Nazwa miasta" equals this are used.</summary>
+    public string GiosCity { get; set; } = "Kraków";
+
+    /// <summary>City of Kraków Open Data API (no key).</summary>
+    public string OpenDataApiBaseUrl { get; set; } = "https://api.um.krakow.pl/";
+
+    /// <summary>NFZ waiting lists API (no key).</summary>
+    public string NfzBaseUrl { get; set; } = "https://api.nfz.gov.pl/app-itl-api/";
+
+    /// <summary>NFZ province code; 06 = małopolskie.</summary>
+    public string NfzProvince { get; set; } = "06";
+
+    public string NfzLocality { get; set; } = "KRAKÓW";
+
+    /// <summary>NFZ pages (25 rows each) to read per search.</summary>
+    public int NfzMaxPages { get; set; } = 4;
+
+    public int AirQualityRefreshMinutes { get; set; } = 20;
+
+    public int OpenDataRefreshMinutes { get; set; } = 360;
+
+    public int StaticRefreshMinutes { get; set; } = 360;
+
+    public int RealtimeRefreshSeconds { get; set; } = 20;
+
+    public int ApiRefreshMinutes { get; set; } = 10;
+
+    public int HttpTimeoutSeconds { get; set; } = 60;
+}
+
+public sealed class GtfsFeedOptions
+{
+    /// <summary>Short key used to prefix ids, e.g. "T" makes stop "123" become "T:123".</summary>
+    public string Key { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string StaticUrl { get; set; } = string.Empty;
+
+    public string? VehiclePositionsUrl { get; set; }
+
+    public string? TripUpdatesUrl { get; set; }
+
+    public string? ServiceAlertsUrl { get; set; }
+}
+
+public sealed class GeoBoxOptions
+{
+    public double MinLatitude { get; set; } = 49.95;
+    public double MaxLatitude { get; set; } = 50.20;
+    public double MinLongitude { get; set; } = 19.70;
+    public double MaxLongitude { get; set; } = 20.30;
+
+    public bool Contains(double latitude, double longitude) =>
+        latitude >= MinLatitude && latitude <= MaxLatitude && longitude >= MinLongitude && longitude <= MaxLongitude;
+}

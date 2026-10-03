@@ -1,0 +1,92 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{F523A358-E314-5AE4-ABDC-FEFD47085DE8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0FFD9F83-E619-5973-BA49-B9D857CAB985}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Domain", "src\KrakowOpenData.Domain\KrakowOpenData.Domain.csproj", "{E2EFB22C-EECF-577F-A911-2146F247A834}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Application", "src\KrakowOpenData.Application\KrakowOpenData.Application.csproj", "{75BC5BC3-9370-5514-A917-A27875D0421B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Infrastructure", "src\KrakowOpenData.Infrastructure\KrakowOpenData.Infrastructure.csproj", "{17AC31EC-9041-53F2-AB8D-4DA73932DB25}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Api", "src\KrakowOpenData.Api\KrakowOpenData.Api.csproj", "{29F9B89E-B4E2-56AD-93A8-D145409D96E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Web", "src\KrakowOpenData.Web\KrakowOpenData.Web.csproj", "{892071FB-2B06-588E-AC94-5CBB4EFA994F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Domain.Tests", "tests\KrakowOpenData.Domain.Tests\KrakowOpenData.Domain.Tests.csproj", "{39C2492F-9EF7-5E7B-9EA5-27752290F645}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Application.Tests", "tests\KrakowOpenData.Application.Tests\KrakowOpenData.Application.Tests.csproj", "{FA73EA81-6D34-5FFD-A5B6-C3B99C57BBBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Infrastructure.Tests", "tests\KrakowOpenData.Infrastructure.Tests\KrakowOpenData.Infrastructure.Tests.csproj", "{2A150EFA-DFCE-5F3F-990D-8B639EC0F0C4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Api.Tests", "tests\KrakowOpenData.Api.Tests\KrakowOpenData.Api.Tests.csproj", "{C7D45379-A5D3-506F-8D12-E793A05FB06D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Web.Tests", "tests\KrakowOpenData.Web.Tests\KrakowOpenData.Web.Tests.csproj", "{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E2EFB22C-EECF-577F-A911-2146F247A834}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2EFB22C-EECF-577F-A911-2146F247A834}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2EFB22C-EECF-577F-A911-2146F247A834}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2EFB22C-EECF-577F-A911-2146F247A834}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75BC5BC3-9370-5514-A917-A27875D0421B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75BC5BC3-9370-5514-A917-A27875D0421B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75BC5BC3-9370-5514-A917-A27875D0421B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75BC5BC3-9370-5514-A917-A27875D0421B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{17AC31EC-9041-53F2-AB8D-4DA73932DB25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{17AC31EC-9041-53F2-AB8D-4DA73932DB25}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{17AC31EC-9041-53F2-AB8D-4DA73932DB25}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{17AC31EC-9041-53F2-AB8D-4DA73932DB25}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29F9B89E-B4E2-56AD-93A8-D145409D96E6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29F9B89E-B4E2-56AD-93A8-D145409D96E6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29F9B89E-B4E2-56AD-93A8-D145409D96E6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29F9B89E-B4E2-56AD-93A8-D145409D96E6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{892071FB-2B06-588E-AC94-5CBB4EFA994F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{892071FB-2B06-588E-AC94-5CBB4EFA994F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{892071FB-2B06-588E-AC94-5CBB4EFA994F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{892071FB-2B06-588E-AC94-5CBB4EFA994F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{39C2492F-9EF7-5E7B-9EA5-27752290F645}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{39C2492F-9EF7-5E7B-9EA5-27752290F645}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{39C2492F-9EF7-5E7B-9EA5-27752290F645}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{39C2492F-9EF7-5E7B-9EA5-27752290F645}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FA73EA81-6D34-5FFD-A5B6-C3B99C57BBBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FA73EA81-6D34-5FFD-A5B6-C3B99C57BBBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FA73EA81-6D34-5FFD-A5B6-C3B99C57BBBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FA73EA81-6D34-5FFD-A5B6-C3B99C57BBBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A150EFA-DFCE-5F3F-990D-8B639EC0F0C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A150EFA-DFCE-5F3F-990D-8B639EC0F0C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A150EFA-DFCE-5F3F-990D-8B639EC0F0C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A150EFA-DFCE-5F3F-990D-8B639EC0F0C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7D45379-A5D3-506F-8D12-E793A05FB06D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7D45379-A5D3-506F-8D12-E793A05FB06D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7D45379-A5D3-506F-8D12-E793A05FB06D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7D45379-A5D3-506F-8D12-E793A05FB06D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
+		{E2EFB22C-EECF-577F-A911-2146F247A834} = {F523A358-E314-5AE4-ABDC-FEFD47085DE8}
+		{75BC5BC3-9370-5514-A917-A27875D0421B} = {F523A358-E314-5AE4-ABDC-FEFD47085DE8}
+		{17AC31EC-9041-53F2-AB8D-4DA73932DB25} = {F523A358-E314-5AE4-ABDC-FEFD47085DE8}
+		{29F9B89E-B4E2-56AD-93A8-D145409D96E6} = {F523A358-E314-5AE4-ABDC-FEFD47085DE8}
+		{892071FB-2B06-588E-AC94-5CBB4EFA994F} = {F523A358-E314-5AE4-ABDC-FEFD47085DE8}
+		{39C2492F-9EF7-5E7B-9EA5-27752290F645} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
+		{FA73EA81-6D34-5FFD-A5B6-C3B99C57BBBB} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
+		{2A150EFA-DFCE-5F3F-990D-8B639EC0F0C4} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
+		{C7D45379-A5D3-506F-8D12-E793A05FB06D} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
+	EndGlobalSection
+EndGlobal

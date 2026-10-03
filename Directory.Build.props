@@ -1,0 +1,14 @@
+<Project>
+  <!-- Shared build settings for every project in the solution. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Pinned so newer SDKs (C# 14 first-class spans etc.) don't change overload resolution. -->
+    <LangVersion>12</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Lets the apps run on a newer runtime (e.g. .NET 9/10) if .NET 8 isn't installed. -->
+    <RollForward>Major</RollForward>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,4 @@
+// SAMPLE – used only when KrakowData:UseSampleData is true. A long-lived warning so the UI has something to show.
+[
+  { "id": "sample-1", "eventName": "SAMPLE: Intensywne opady deszczu", "level": 2, "probabilityPercent": 80, "validFrom": "2026-01-01T00:00:00Z", "validTo": "2099-12-31T00:00:00Z", "content": "Sample warning for demos. Real warnings come from IMGW warningsmeteo / warningshydro.", "terytCodes": [ "1261" ], "source": "SAMPLE (not real)" }
+]

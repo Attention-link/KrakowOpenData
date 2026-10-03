@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "live": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "api/catalog",
+      "applicationUrl": "http://localhost:5080",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "sample-data": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "api/catalog",
+      "applicationUrl": "http://localhost:5080",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "KrakowData__UseSampleData": "true"
+      }
+    }
+  }
+}

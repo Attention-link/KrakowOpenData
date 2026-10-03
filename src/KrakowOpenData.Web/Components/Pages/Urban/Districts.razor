@@ -1,0 +1,39 @@
+@page "/urban/districts"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.UrbanSpace"]" Title="@T["districts.title"]" PageTitleText="@T["nav.districts"]"
+            Description="@T["districts.lede"]" Source="@T["districts.source"]" />
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" OnRetry="LoadAsync">
+    <table class="table">
+        <thead><tr><th>@T["col.number"]</th><th>@T["col.name"]</th><th>@T["col.residents"]</th><th>@T["col.note"]</th></tr></thead>
+        <tbody>
+            @foreach (var d in _items)
+            {
+                <tr>
+                    <td>@d.Id</td>
+                    <td><strong>@d.Name</strong></td>
+                    <td>@(d.RegisteredPopulation?.ToString("N0", CultureInfo.InvariantCulture) ?? "–")</td>
+                    <td class="small muted">@d.PopulationNote</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</LoadState>
+
+@code {
+    private List<DistrictDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _items = await Api.GetDistrictsAsync() ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Domain: entities and pure business rules. No dependencies on other projects or packages. -->
+  <PropertyGroup>
+    <RootNamespace>KrakowOpenData.Domain</RootNamespace>
+  </PropertyGroup>
+</Project>

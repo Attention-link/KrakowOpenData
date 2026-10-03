@@ -1,0 +1,37 @@
+@* Shows a spinner, an error, an empty message, or the content. Every page uses it the same way. *@
+
+@if (Error is not null)
+{
+    <div class="callout callout-error">
+        <strong>@T["load.error"]</strong>
+        <span>@Error</span>
+        @if (OnRetry.HasDelegate)
+        {
+            <button class="btn btn-small" @onclick="OnRetry">@T["load.retry"]</button>
+        }
+    </div>
+}
+else if (IsLoading)
+{
+    <div class="loading"><span class="spinner"></span> @T["load.loading"]</div>
+}
+else if (IsEmpty)
+{
+    <div class="callout">@(EmptyText ?? T["load.empty"])</div>
+}
+else
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public bool IsEmpty { get; set; }
+
+    /// <summary>Already-translated message; defaults to "No records." in the current language.</summary>
+    [Parameter] public string? EmptyText { get; set; }
+
+    [Parameter] public EventCallback OnRetry { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

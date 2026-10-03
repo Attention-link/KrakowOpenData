@@ -1,0 +1,8 @@
+// SAMPLE VALUES – NOT REAL MEASUREMENTS. Station names are real Kraków monitoring locations;
+// coordinates are approximate. Replace with GIOŚ or WAQI data before using in a pitch.
+[
+  { "id": "sample-krasinskiego", "stationName": "Kraków, al. Krasińskiego", "location": { "latitude": 50.0577, "longitude": 19.9265 }, "measuredAt": "2026-10-03T06:00:00+02:00", "pm10": 32.0, "pm25": 21.0, "no2": 48.0, "source": "SAMPLE (not real)" },
+  { "id": "sample-dietla", "stationName": "Kraków, ul. Dietla", "location": { "latitude": 50.0573, "longitude": 19.9461 }, "measuredAt": "2026-10-03T06:00:00+02:00", "pm10": 28.0, "pm25": 17.0, "no2": 41.0, "source": "SAMPLE (not real)" },
+  { "id": "sample-piastow", "stationName": "Kraków, os. Piastów", "location": { "latitude": 50.0991, "longitude": 20.0185 }, "measuredAt": "2026-10-03T06:00:00+02:00", "pm10": 18.0, "pm25": 11.0, "no2": 19.0, "source": "SAMPLE (not real)" },
+  { "id": "sample-bujaka", "stationName": "Kraków, ul. Bujaka", "location": { "latitude": 50.0109, "longitude": 19.9496 }, "measuredAt": "2026-10-03T06:00:00+02:00", "pm10": 22.0, "pm25": 14.0, "no2": 23.0, "source": "SAMPLE (not real)" }
+]

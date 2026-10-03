@@ -1,0 +1,59 @@
+// City procedures. BIP disallows automated crawling, so copy cards here by hand.
+// GD-35 is transcribed from https://bip.krakow.pl/uslugi/GD-35. The P+R and SCT entries summarise
+// official pages and are marked with their source; verify before relying on them.
+[
+  {
+    "id": "GD-35",
+    "title": "Pobieranie otwartych danych przestrzennych z portalu MSIP (Download open spatial data from MSIP)",
+    "topic": "Geodezja / dane przestrzenne",
+    "summary": "Export open data published in the MSIP portal as SHP, DXF or JSON, directly in the browser, without an application or fees.",
+    "steps": [
+      "Open the MSIP portal (msip.krakow.pl).",
+      "Search the data catalogue (Katalog danych → Otwarte Dane) or use the download widget in a map composition.",
+      "Choose the layer and format (SHP, DXF, JSON) and download."
+    ],
+    "office": "Wydział Geodezji, Referat ds. Miejskiego Systemu Informacji Przestrzennej",
+    "address": "ul. Grunwaldzka 8, 31-526 Kraków",
+    "openingHours": "Mon–Fri 07:40–15:30",
+    "phone": "12 616 9693, 12 616 9745",
+    "fee": "None",
+    "sourceUrl": "https://bip.krakow.pl/uslugi/GD-35",
+    "keywords": [ "msip", "mapa", "map", "gis", "shp", "geojson", "dane przestrzenne", "spatial data", "open data" ]
+  },
+  {
+    "id": "ZTP-PR",
+    "title": "Korzystanie z parkingów P+R (Using Park and Ride car parks)",
+    "topic": "Transport / parkowanie",
+    "summary": "P+R car parks are linked to public transport. Closed car parks have barriers: enter with a valid city card, a QR code from the app, or by collecting a ticket, and pay any fee before leaving.",
+    "steps": [
+      "Drive to a P+R car park at a tram or bus loop.",
+      "Enter with a Kraków City Card / Kraków Card, a QR code generated in the app, or take a ticket.",
+      "If you entered on a parking ticket, pay according to the car park's price list before you exit."
+    ],
+    "office": "Zarząd Transportu Publicznego w Krakowie",
+    "address": null,
+    "openingHours": null,
+    "phone": null,
+    "fee": "Depends on the car park and ticket type",
+    "sourceUrl": "https://ztp.krakow.pl/en/park-and-ride/pr-car-parks",
+    "keywords": [ "p+r", "park and ride", "parking", "parkuj i jedz", "car park", "kkm" ]
+  },
+  {
+    "id": "ZTP-SCT",
+    "title": "Strefa Czystego Transportu – wjazd i opłaty (Clean Transport Zone – entry and fees)",
+    "topic": "Transport / środowisko",
+    "summary": "Since 1 Jan 2026 the zone covers about 60% of the city, inside the fourth ring road. Petrol cars from 2005 or Euro 4, and diesels younger than 12 years, enter free; others pay 2.50 zł/hour, 5 zł/day or 100 zł/month in 2026, with exemptions. Rules are under legal review and may change.",
+    "steps": [
+      "Check whether your vehicle meets the zone's emission rules.",
+      "If it does not, check exemptions or buy an hourly, daily or monthly permit.",
+      "Follow official ZTP announcements: the city has announced a correction of the rules."
+    ],
+    "office": "Zarząd Transportu Publicznego w Krakowie",
+    "address": null,
+    "openingHours": null,
+    "phone": null,
+    "fee": "2026: 2.50 zł/h, 5 zł/day, 100 zł/month (non-compliant vehicles)",
+    "sourceUrl": "https://tvn24.pl/krakow/krakow-nowe-zasady-wjazdu-do-miasta-strefa-czystego-transportu-obejmie-60-proc-miasta-st8798163",
+    "keywords": [ "sct", "strefa czystego transportu", "clean transport zone", "low emission zone", "lez", "euro", "diesel" ]
+  }
+]

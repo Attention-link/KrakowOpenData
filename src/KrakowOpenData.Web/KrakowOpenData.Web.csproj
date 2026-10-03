@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!--
+    Blazor Web App (interactive server). Talks to KrakowOpenData.Api over HTTP and only references
+    Application for the shared DTO contracts – it never touches Infrastructure.
+  -->
+  <PropertyGroup>
+    <RootNamespace>KrakowOpenData.Web</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KrakowOpenData.Application\KrakowOpenData.Application.csproj" />
+  </ItemGroup>
+</Project>

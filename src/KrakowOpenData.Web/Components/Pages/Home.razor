@@ -1,0 +1,104 @@
+@page "/"
+@inject KrakowApiClient Api
+
+<PageHeader Title="@T["home.title"]" PageTitleText="@T["home.pageTitle"]" Description="@T["home.lede"]" />
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_categories.Count == 0" OnRetry="LoadAsync">
+    <div class="legend">
+        @foreach (var access in AccessKinds)
+        {
+            <span class="legend-item"><Badge Tone="@AccessTone(access)">@T.Or("access." + access, access)</Badge> @T.Or("legend." + access, "")</span>
+        }
+    </div>
+
+    @foreach (var category in _categories)
+    {
+        <section class="category">
+            <div class="category-head">
+                <h2>@T.Or("cat." + category.Key, category.Key)</h2>
+                <span class="muted">@T.Or("cat." + category.Key + ".desc", category.Description)</span>
+            </div>
+            <div class="grid">
+                @foreach (var d in category.Datasets)
+                {
+                    <article class="card">
+                        <div class="card-top">
+                            <Badge Tone="@AccessTone(d.Access)">@T.Or("access." + d.Access, d.Access)</Badge>
+                            <span class="muted small">@d.Format</span>
+                        </div>
+                        @* Dataset text comes from the API in English; translated here by dataset key. *@
+                        <h3>@T.Or("ds." + d.Key, d.Title)</h3>
+                        <p class="small">@T.Or("ds." + d.Key + ".notes", d.Notes)</p>
+                        <div class="card-foot">
+                            <a href="@d.SourceUrl" target="_blank" rel="noopener">@d.Publisher</a>
+                            @if (UiRoutes.TryGetValue(d.Key, out var route))
+                            {
+                                <a class="btn btn-small" href="@route">@T["home.open"]</a>
+                            }
+                        </div>
+                        @if (d.ApiRoute is not null)
+                        {
+                            <code class="route">GET @d.ApiRoute</code>
+                        }
+                    </article>
+                }
+            </div>
+        </section>
+    }
+</LoadState>
+
+@code {
+    private static readonly string[] AccessKinds = ["LiveFeed", "Api", "Download", "Seed", "Sample", "Planned"];
+
+    // Which sample page shows which dataset. Presentation concern, so it lives in the UI.
+    private static readonly Dictionary<string, string> UiRoutes = new()
+    {
+        ["transit-stops"] = "mobility/stops",
+        ["transit-departures"] = "mobility/stops",
+        ["vehicle-positions"] = "mobility/vehicles",
+        ["trip-updates"] = "mobility/vehicles",
+        ["service-alerts"] = "mobility/alerts",
+        ["park-and-ride"] = "mobility/park-and-ride",
+        ["weather-observations"] = "environment/weather",
+        ["air-quality"] = "environment/air-quality",
+        ["river-gauges"] = "crisis/rivers",
+        ["weather-warnings"] = "crisis/warnings",
+        ["districts"] = "urban/districts",
+        ["service-cards"] = "services/cards",
+        ["nfz-waiting-lists"] = "services/waiting-lists",
+        ["open-data-portal"] = "open-data"
+    };
+
+    private List<CategoryDto> _categories = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            _categories = await Api.GetCatalogAsync() ?? [];
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string AccessTone(string access) => access switch
+    {
+        "LiveFeed" => "good",
+        "Api" or "Download" => "info",
+        "Sample" => "warn",
+        "Planned" => "bad",
+        _ => "neutral"
+    };
+}

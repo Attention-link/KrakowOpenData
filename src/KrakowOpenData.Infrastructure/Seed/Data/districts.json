@@ -1,0 +1,22 @@
+// Kraków's 18 districts (dzielnice). Registered permanent residents are filled in only where the
+// city published them: end of 2025, BIP Kraków (https://www.bip.krakow.pl/?mmi=97).
+[
+  { "id": "I", "number": 1, "name": "Stare Miasto", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "II", "number": 2, "name": "Grzegórzki", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "III", "number": 3, "name": "Prądnik Czerwony", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "IV", "number": 4, "name": "Prądnik Biały", "registeredPopulation": 74105, "populationNote": "Registered permanent residents, end of 2025 (largest district)", "source": "BIP Kraków" },
+  { "id": "V", "number": 5, "name": "Krowodrza", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "VI", "number": 6, "name": "Bronowice", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "VII", "number": 7, "name": "Zwierzyniec", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "VIII", "number": 8, "name": "Dębniki", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "IX", "number": 9, "name": "Łagiewniki-Borek Fałęcki", "registeredPopulation": 15168, "populationNote": "Registered permanent residents, end of 2025 (smallest district)", "source": "BIP Kraków" },
+  { "id": "X", "number": 10, "name": "Swoszowice", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XI", "number": 11, "name": "Podgórze Duchackie", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XII", "number": 12, "name": "Bieżanów-Prokocim", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XIII", "number": 13, "name": "Podgórze", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XIV", "number": 14, "name": "Czyżyny", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XV", "number": 15, "name": "Mistrzejowice", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XVI", "number": 16, "name": "Bieńczyce", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XVII", "number": 17, "name": "Wzgórza Krzesławickie", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
+  { "id": "XVIII", "number": 18, "name": "Nowa Huta", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" }
+]

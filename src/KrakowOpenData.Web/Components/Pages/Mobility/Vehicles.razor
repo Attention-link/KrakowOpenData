@@ -1,0 +1,124 @@
+@page "/mobility/vehicles"
+@implements IDisposable
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.Mobility"]" Title="@T["veh.title"]"
+            Description="@T["veh.lede"]" Source="@T["veh.source"]" />
+
+<div class="toolbar">
+    <div class="search">
+        <input class="narrow" placeholder="@T["veh.routePlaceholder"]" aria-label="@T["veh.routePlaceholder"]" @bind="_routeId" />
+        <button class="btn" @onclick="LoadAsync">@T["veh.filter"]</button>
+        <button class="btn btn-ghost" @onclick="ClearAsync">@T["veh.all"]</button>
+    </div>
+    <span class="muted small">@T.F("veh.count", _vehicles.Count, Format.Time(_updated))</span>
+</div>
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_vehicles.Count == 0" EmptyText="@T["veh.none"]" OnRetry="LoadAsync">
+    <div class="map-frame">
+        <svg viewBox="0 0 @Width @Height" role="img" aria-label="@T["veh.mapLabel"]">
+            <rect x="0" y="0" width="@Width" height="@Height" class="map-bg" />
+            @* Reference points so the frame is readable without tiles *@
+            @foreach (var (name, lat, lon) in Landmarks)
+            {
+                <circle cx="@F(X(lon))" cy="@F(Y(lat))" r="3" class="landmark" />
+                @* Razor reserves the SVG label tag name, so the label is built in SvgLabel(). *@
+                @SvgLabel(X(lon) + 6, Y(lat) + 4, name)
+            }
+            @foreach (var v in _vehicles)
+            {
+                <circle cx="@F(X(v.Longitude))" cy="@F(Y(v.Latitude))" r="4" class="vehicle @v.Mode.ToLowerInvariant()">
+                    <title>@(v.RouteShortName ?? v.RouteId) · @v.Label</title>
+                </circle>
+            }
+        </svg>
+        <div class="map-legend"><span class="dot tram"></span> @T.Mode("Tram") <span class="dot bus"></span> @T.Mode("Bus") <span class="dot other"></span> @T.Mode("Other")</div>
+    </div>
+
+    <table class="table">
+        <thead><tr><th>@T["col.line"]</th><th>@T["col.vehicle"]</th><th>@T["col.mode"]</th><th>@T["col.position"]</th><th>@T["col.speed"]</th><th>@T["col.stepFree"]</th><th>@T["col.reported"]</th></tr></thead>
+        <tbody>
+            @foreach (var v in _vehicles.OrderBy(v => v.RouteShortName).Take(200))
+            {
+                <tr>
+                    <td><span class="line @v.Mode.ToLowerInvariant()">@(v.RouteShortName ?? "?")</span></td>
+                    <td>@v.Label <span class="muted small">@v.Id</span></td>
+                    <td>@T.Mode(v.Mode)</td>
+                    <td class="small">@v.Latitude.ToString("F5", CultureInfo.InvariantCulture), @v.Longitude.ToString("F5", CultureInfo.InvariantCulture)</td>
+                    <td>@(v.SpeedKmh is null ? "–" : v.SpeedKmh.Value.ToString("0", CultureInfo.InvariantCulture) + " " + T["veh.speedUnit"])</td>
+                    <td>@T.YesNo(v.WheelchairAccessible)</td>
+                    <td>@Format.Time(v.Timestamp)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</LoadState>
+
+@code {
+    // Rough bounding box of Kraków.
+    private const double MinLat = 49.97, MaxLat = 50.13, MinLon = 19.79, MaxLon = 20.22;
+    private const double Width = 860, Height = 520;
+
+    private static readonly (string Name, double Lat, double Lon)[] Landmarks =
+    [
+        ("Rynek Główny", 50.0617, 19.9373),
+        ("Dworzec Główny", 50.0662, 19.9455),
+        ("Nowa Huta", 50.0717, 20.0378),
+        ("Bronowice", 50.0812, 19.8925),
+        ("Kurdwanów", 50.0119, 19.9540)
+    ];
+
+    private string? _routeId;
+    private List<VehicleDto> _vehicles = [];
+    private bool _loading = true;
+    private string? _error;
+    private DateTimeOffset? _updated;
+    private Timer? _timer;
+
+    private static double X(double lon) => (lon - MinLon) / (MaxLon - MinLon) * Width;
+
+    private static double Y(double lat) => (MaxLat - lat) / (MaxLat - MinLat) * Height;
+
+    private static string F(double value) => value.ToString("F1", CultureInfo.InvariantCulture);
+
+    // Razor treats a literal SVG "text" tag as its own keyword (even inside strings in this file),
+    // so the tag name is assembled at runtime.
+    private const string SvgTextTag = "te" + "xt";
+
+    private static MarkupString SvgLabel(double x, double y, string label) =>
+        new("<" + SvgTextTag + " x=\"" + F(x) + "\" y=\"" + F(y) + "\" class=\"landmark-label\">" +
+            System.Net.WebUtility.HtmlEncode(label) + "</" + SvgTextTag + ">");
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        _timer = new Timer(_ => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }), null,
+            TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(20));
+    }
+
+    private Task ClearAsync()
+    {
+        _routeId = null;
+        return LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _error = null;
+        try
+        {
+            _vehicles = await Api.GetVehiclesAsync(_routeId) ?? [];
+            _updated = DateTimeOffset.Now;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

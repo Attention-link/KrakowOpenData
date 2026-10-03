@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Application: use cases, repository interfaces, DTOs. Depends only on Domain. -->
+  <PropertyGroup>
+    <RootNamespace>KrakowOpenData.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KrakowOpenData.Domain\KrakowOpenData.Domain.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,74 @@
+@page "/environment/air-quality"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.Environment"]" Title="@T["air.title"]"
+            Description="@T["air.lede"]" Source="@T["air.source"]" />
+
+@if (_items.Any(a => a.Source.Contains("SAMPLE", StringComparison.OrdinalIgnoreCase)))
+{
+    <div class="callout callout-warn">@T["air.sampleWarning"]</div>
+}
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" OnRetry="LoadAsync">
+    <table class="table">
+        <thead><tr><th>@T["col.station"]</th><th>PM2.5</th><th>PM10</th><th>NO₂</th><th>@T["col.band"]</th><th>@T["air.officialIndex"]</th><th>@T["col.measured"]</th></tr></thead>
+        <tbody>
+            @foreach (var a in _items)
+            {
+                <tr>
+                    <td><strong>@a.StationName</strong></td>
+                    <td>@Format.Number(a.Pm25, " µg/m³", 0)</td>
+                    <td>@Format.Number(a.Pm10, " µg/m³", 0)</td>
+                    <td>@Format.Number(a.No2, " µg/m³", 0)</td>
+                    <td><Badge Tone="@Tone(a.Band)">@T.Or("band." + a.Band, a.Band)</Badge></td>
+                    <td>
+                        @if (a.OfficialIndex is { } index)
+                        {
+                            <Badge Tone="@IndexTone(index)">@T.Or("aqi." + index, index)</Badge>
+                        }
+                        else
+                        {
+                            <span class="muted">–</span>
+                        }
+                    </td>
+                    <td>@Format.DateTime(a.MeasuredAt)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <p class="muted small">@T["air.note"]</p>
+</LoadState>
+
+@code {
+    private List<AirQualityDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _items = await Api.GetAirQualityAsync() ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private static string Tone(string band) => band switch
+    {
+        "Good" => "good",
+        "Moderate" => "warn",
+        "Poor" or "VeryPoor" => "bad",
+        _ => "neutral"
+    };
+
+    // GIOŚ publishes the index name in Polish.
+    private static string IndexTone(string index) => index.ToLowerInvariant() switch
+    {
+        "bardzo dobry" or "dobry" => "good",
+        "umiarkowany" or "dostateczny" => "warn",
+        "zły" or "bardzo zły" => "bad",
+        _ => "neutral"
+    };
+}

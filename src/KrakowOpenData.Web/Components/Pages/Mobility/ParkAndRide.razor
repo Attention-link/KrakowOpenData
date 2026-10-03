@@ -1,0 +1,42 @@
+@page "/mobility/park-and-ride"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.Mobility"]" Title="@T["pr.title"]" PageTitleText="@T["pr.pageTitle"]"
+            Description="@T["pr.lede"]" Source="@T["pr.source"]" />
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" OnRetry="LoadAsync">
+    <table class="table">
+        <thead><tr><th>@T["col.name"]</th><th>@T["col.address"]</th><th>@T["col.capacity"]</th><th>@T["col.evChargers"]</th><th>@T["col.bikeSpaces"]</th><th>@T["col.hours"]</th><th>@T["col.notes"]</th></tr></thead>
+        <tbody>
+            @foreach (var p in _items)
+            {
+                <tr>
+                    <td><strong>@p.Name</strong></td>
+                    <td>@p.Address</td>
+                    <td>@(p.Capacity?.ToString() ?? "–")</td>
+                    <td>@(p.EvChargers?.ToString() ?? "–")</td>
+                    <td>@(p.BikeSpaces?.ToString() ?? "–")</td>
+                    <td>@(p.OpeningHours ?? "–")</td>
+                    <td class="small">@p.Notes <span class="muted">(@p.Source)</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</LoadState>
+
+@code {
+    private List<ParkAndRideDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try { _items = await Api.GetParkAndRideAsync() ?? []; }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}

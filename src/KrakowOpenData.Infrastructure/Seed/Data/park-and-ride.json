@@ -1,0 +1,11 @@
+// P+R car parks run by ZTP Kraków. Only facts found on official pages are filled in; unknown values are null.
+// Sources: https://krakow.pl (Parkingi dla samochodów), https://ztp.krakow.pl/en/park-and-ride/pr-car-parks,
+// EU project pages (mapadotacji.gov.pl) for Mały Płaszów and Nowy Bieżanów.
+[
+  { "id": "pr-czerwone-maki", "name": "Czerwone Maki P+R", "address": "ul. Czerwone Maki, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": "At the Czerwone Maki P+R tram and bus loop.", "source": "krakow.pl" },
+  { "id": "pr-kurdwanow", "name": "Kurdwanów P+R", "address": "ul. por. Halszki 1a, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": null, "source": "krakow.pl" },
+  { "id": "pr-maly-plaszow", "name": "Mały Płaszów P+R", "address": "ul. Bagrowa (loop at ul. Lipska), Kraków", "location": null, "capacity": 165, "evChargers": 2, "bikeSpaces": 20, "openingHours": "Daily 04:30–02:30", "notes": "7 spaces for disabled drivers.", "source": "mapadotacji.gov.pl" },
+  { "id": "pr-mydlniki-wapiennik", "name": "Mydlniki Wapiennik P+R", "address": "ul. Brzezińskiego, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": null, "source": "krakow.pl" },
+  { "id": "pr-nowy-biezanow", "name": "Nowy Bieżanów P+R", "address": "Entrance from ul. Barbary, Kraków", "location": null, "capacity": 110, "evChargers": 2, "bikeSpaces": 20, "openingHours": "Daily 04:30–02:30", "notes": "At the Nowy Bieżanów P+R tram loop.", "source": "mapadotacji.gov.pl" },
+  { "id": "pr-suche-stawy", "name": "Suche Stawy P+R", "address": "ul. Tadeusza Ptaszyckiego, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": "Closed system with barriers (ZDMK tender, 2021).", "source": "zdmk.krakow.pl" }
+]

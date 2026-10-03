@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- API host: minimal-API endpoints grouped by data category. No NuGet packages required. -->
+  <PropertyGroup>
+    <RootNamespace>KrakowOpenData.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KrakowOpenData.Infrastructure\KrakowOpenData.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

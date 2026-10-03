@@ -1,0 +1,112 @@
+@page "/mobility/stops"
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.Mobility"]" Title="@T["stops.title"]" PageTitleText="@T["stops.pageTitle"]"
+            Description="@T["stops.lede"]" Source="@T["stops.source"]" />
+
+<div class="toolbar">
+    <form class="search" @onsubmit="SearchAsync" @onsubmit:preventDefault>
+        <input placeholder="@T["stops.placeholder"]" @bind="_query" />
+        <button class="btn" type="submit">@T["common.search"]</button>
+    </form>
+    <div class="search">
+        <input class="narrow" @bind="_lat" placeholder="@T["stops.latitude"]" aria-label="@T["stops.latitude"]" />
+        <input class="narrow" @bind="_lon" placeholder="@T["stops.longitude"]" aria-label="@T["stops.longitude"]" />
+        <button class="btn btn-ghost" @onclick="NearbyAsync">@T["stops.near"]</button>
+    </div>
+</div>
+
+@if (_coordsInvalid)
+{
+    <div class="callout callout-error">@T["stops.coordsError"]</div>
+}
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_stops.Count == 0" EmptyText="@T["stops.none"]">
+    <p class="muted small">@(_nearbyMode ? T.F("stops.nearCount", _stops.Count) : T.F("stops.count", _paged?.TotalCount ?? 0))</p>
+    <table class="table">
+        <thead>
+            <tr><th>@T["col.name"]</th><th>@T["col.id"]</th><th>@T["col.feed"]</th><th>@T["col.stepFree"]</th><th>@T["col.distance"]</th><th></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var s in _stops)
+            {
+                <tr>
+                    <td><strong>@s.Name</strong> <span class="muted small">@s.Code</span></td>
+                    <td><code>@s.Id</code></td>
+                    <td>@s.Feed</td>
+                    <td>@T.YesNo(s.WheelchairAccessible)</td>
+                    <td>@(s.DistanceMeters is null ? "" : $"{s.DistanceMeters:0} m")</td>
+                    <td><a class="btn btn-small" href="@($"mobility/stops/{Uri.EscapeDataString(s.Id)}")">@T["stops.departures"]</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    @if (!_nearbyMode && _paged is not null && _paged.TotalPages > 1)
+    {
+        <div class="pager">
+            <button class="btn btn-ghost btn-small" disabled="@(_page <= 1)" @onclick="() => GoToAsync(_page - 1)">@T["pager.previous"]</button>
+            <span>@T.F("pager.page", _paged.Page, _paged.TotalPages)</span>
+            <button class="btn btn-ghost btn-small" disabled="@(_page >= _paged.TotalPages)" @onclick="() => GoToAsync(_page + 1)">@T["pager.next"]</button>
+        </div>
+    }
+</LoadState>
+
+@code {
+    private string? _query;
+    private string _lat = "50.0614";
+    private string _lon = "19.9372";
+    private int _page = 1;
+    private PagedResult<StopDto>? _paged;
+    private List<StopDto> _stops = [];
+    private bool _loading = true;
+    private bool _nearbyMode;
+    private bool _coordsInvalid;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadPageAsync();
+
+    private Task SearchAsync()
+    {
+        _page = 1;
+        return LoadPageAsync();
+    }
+
+    private Task GoToAsync(int page)
+    {
+        _page = page;
+        return LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        await RunAsync(async () =>
+        {
+            _nearbyMode = false;
+            _paged = await Api.SearchStopsAsync(_query, _page, 25);
+            _stops = _paged?.Items.ToList() ?? [];
+        });
+    }
+
+    private async Task NearbyAsync()
+    {
+        _coordsInvalid = !double.TryParse(_lat, NumberStyles.Float, CultureInfo.InvariantCulture, out var lat) |
+                         !double.TryParse(_lon, NumberStyles.Float, CultureInfo.InvariantCulture, out var lon);
+        if (_coordsInvalid) return;
+
+        await RunAsync(async () =>
+        {
+            _nearbyMode = true;
+            _paged = null;
+            _stops = await Api.GetNearbyStopsAsync(lat, lon, 600) ?? [];
+        });
+    }
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        _loading = true;
+        _error = null;
+        try { await action(); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+}

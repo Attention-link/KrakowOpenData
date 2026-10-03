@@ -1,0 +1,77 @@
+@page "/mobility/stops/{StopId}"
+@implements IDisposable
+@inject KrakowApiClient Api
+
+<PageHeader Category="@T["cat.Mobility"]" Title="@(_stop?.Name ?? StopId)" PageTitleText="@(_stop?.Name ?? T["dep.pageTitle"])"
+            Description="@T["dep.lede"]" Source="@T["dep.source"]" />
+
+<p><a href="mobility/stops">@T["dep.back"]</a> <span class="muted small">· <code>@StopId</code> · @T.F("common.updated", Format.Time(_updated))</span></p>
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_departures.Count == 0" EmptyText="@T["dep.none"]" OnRetry="LoadAsync">
+    <table class="table">
+        <thead>
+            <tr><th>@T["col.line"]</th><th>@T["col.direction"]</th><th>@T["col.scheduled"]</th><th>@T["col.expected"]</th><th>@T["col.delay"]</th><th>@T["col.stepFree"]</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var d in _departures)
+            {
+                <tr>
+                    <td><span class="line @d.Mode.ToLowerInvariant()" title="@T.Mode(d.Mode)">@d.RouteShortName</span></td>
+                    <td>@d.Headsign</td>
+                    <td>@Format.Time(d.ScheduledDeparture)</td>
+                    <td><strong>@Format.Time(d.ExpectedDeparture)</strong></td>
+                    <td>
+                        @if (d.IsRealtime)
+                        {
+                            <Badge Tone="@Format.DelayTone(d.DelaySeconds)">@T.Delay(d.DelaySeconds)</Badge>
+                        }
+                        else
+                        {
+                            <span class="muted small">@T["dep.timetable"]</span>
+                        }
+                    </td>
+                    <td>@T.YesNo(d.WheelchairAccessible)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</LoadState>
+
+@code {
+    [Parameter] public string StopId { get; set; } = string.Empty;
+
+    private StopDto? _stop;
+    private List<DepartureDto> _departures = [];
+    private bool _loading = true;
+    private string? _error;
+    private DateTimeOffset? _updated;
+    private Timer? _timer;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+        _timer ??= new Timer(_ => InvokeAsync(async () => { await LoadAsync(); StateHasChanged(); }), null,
+            TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+    }
+
+    private async Task LoadAsync()
+    {
+        _error = null;
+        try
+        {
+            _stop ??= await Api.GetStopAsync(StopId);
+            _departures = await Api.GetDeparturesAsync(StopId, 20, 60) ?? [];
+            _updated = DateTimeOffset.Now;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

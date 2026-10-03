@@ -1,0 +1,26 @@
+<PageTitle>@T.F("page.titleFormat", PageTitleText ?? Title)</PageTitle>
+
+<header class="page-header">
+    @if (!string.IsNullOrWhiteSpace(Category))
+    {
+        <div class="eyebrow">@Category</div>
+    }
+    <h1>@Title</h1>
+    @if (!string.IsNullOrWhiteSpace(Description))
+    {
+        <p class="lede">@Description</p>
+    }
+    @if (!string.IsNullOrWhiteSpace(Source))
+    {
+        <p class="source">@T.F("page.source", Source)</p>
+    }
+</header>
+
+@code {
+    // All values are passed already translated, e.g. Title="@T["weather.title"]".
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? PageTitleText { get; set; }
+    [Parameter] public string? Category { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? Source { get; set; }
+}
