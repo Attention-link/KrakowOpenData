@@ -3,8 +3,9 @@
     <NavLink class="nav-link" href="" Match="NavLinkMatch.All">@T["nav.catalog"]</NavLink>
 
     <div class="sb-sidenav-menu-heading">@T["nav.safetyGroup"]</div>
-    <a class="nav-link" href="/safety/index.html">@T["nav.safetyApp"]</a>
-    <a class="nav-link" href="/safety/index.html#/planner">@T["nav.safetyPlanner"]</a>
+    @* The safety app is a separate page, not a Blazor route: target="_top" makes the browser load it instead of the router answering "Not found". *@
+    <a class="nav-link" href="/safety/index.html" target="_top">@T["nav.safetyApp"]</a>
+    <a class="nav-link" href="/safety/index.html#/planner" target="_top">@T["nav.safetyPlanner"]</a>
 
     <div class="sb-sidenav-menu-heading">@T["cat.Mobility"]</div>
     <NavLink class="nav-link" href="mobility/stops">@T["nav.stops"]</NavLink>

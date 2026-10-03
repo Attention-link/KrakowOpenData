@@ -115,6 +115,8 @@ export function topbar({ subtitle, right = [], pill } = {}) {
       h('img', { src: 'icon.svg', alt: '' }),
       h('div', { class: 'truncate' }, h('b', null, t('app.title')), h('span', null, subtitle || t('app.subtitle')))),
     h('div', { class: 'spacer' }),
+    // The Kraków Open Data home page (the data catalog), outside this app: the browser loads it (not this app's router).
+    h('a', { class: 'btn sm quiet', href: '/', target: '_top', title: t('nav.homeHint') }, icon('home', 'sm'), h('span', { class: 'hide-sm' }, t('nav.home'))),
     pill || '',
     ...right,
     langSelect());
