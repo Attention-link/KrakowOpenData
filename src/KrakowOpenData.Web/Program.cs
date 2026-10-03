@@ -1,11 +1,13 @@
 using KrakowOpenData.Web.Components;
 using KrakowOpenData.Web.Localization;
 using KrakowOpenData.Client;
+using KrakowOpenData.Web.Assets;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddScoped<LanguageState>(); // one per browser session (circuit)
+builder.Services.AddSingleton<AssetVersions>(); // content-hashed css/js URLs, so Cloudflare never serves a previous build
 
 // The UI reads everything through KrakowOpenData.Client, like any external consumer would.
 builder.Services.AddKrakowOpenDataClient(builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5080/");

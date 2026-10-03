@@ -1,3 +1,4 @@
+@inject KrakowOpenData.Web.Assets.AssetVersions AssetUrls
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,15 +11,15 @@
     <link rel="icon" href="brand/icon-32.png" sizes="32x32" type="image/png" />
     <link rel="apple-touch-icon" href="brand/icon-180.png" />
     <link rel="manifest" href="brand/site.webmanifest" />
-    <link rel="stylesheet" href="lib/sb-admin/styles.css" />
-    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="@AssetUrls.Url("lib/sb-admin/styles.css")" />
+    <link rel="stylesheet" href="@AssetUrls.Url("app.css")" />
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 <body class="sb-nav-fixed">
     <Routes @rendermode="InteractiveServer" />
-    <script src="lib/bootstrap/bootstrap.bundle.min.js"></script>
-    <script src="js/layout.js"></script>
-    <script src="js/language.js"></script>
+    <script src="@AssetUrls.Url("lib/bootstrap/bootstrap.bundle.min.js")"></script>
+    <script src="@AssetUrls.Url("js/layout.js")"></script>
+    <script src="@AssetUrls.Url("js/language.js")"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>

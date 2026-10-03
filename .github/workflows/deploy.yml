@@ -7,6 +7,9 @@
 #   DOCKHAND_WEBHOOK_SECRET  the stack's webhook secret in Dockhand
 #   CF_ACCESS_CLIENT_ID      Cloudflare Access service token in front of the webhook path
 #   CF_ACCESS_CLIENT_SECRET  (iac-homelab cloudflare/access_dockhand.tf outputs)
+# Optional, to purge Cloudflare's cache of opendata.al.mt once the new build is up (skipped when either is missing):
+#   CF_ZONE_ID               the al.mt zone's ID
+#   CF_PURGE_TOKEN           an API token with Zone > Cache Purge on that zone
 name: Deploy
 
 on:
@@ -52,7 +55,7 @@ jobs:
           SITE_URL: https://opendata.al.mt
         shell: python3 {0}
         run: |
-          import datetime, hashlib, hmac, json, os, re, sys, time, urllib.error, urllib.request
+          import datetime, hashlib, hmac, json, os, re, sys, threading, time, urllib.error, urllib.request
 
           def fail(message):
               print(f"::error::{message}")
@@ -82,14 +85,26 @@ jobs:
           # Dockhand answers once the deploy has finished, image builds included. Cloudflare gives up on a proxied
           # request after ~100 s with a 524 while Dockhand carries on, so a 524 means "still deploying", and the
           # health check below is what confirms the result either way.
+          # Sometimes no answer comes at all and the connection just stays open (urlopen's timeout only covers a
+          # silent socket), so the call gets 2 minutes in all; after that it counts as "still deploying" too.
           triggered_at = datetime.datetime.now(datetime.timezone.utc)
-          try:
-              with urllib.request.urlopen(request, timeout=300) as response:
-                  status, raw, final_url = response.status, response.read(), response.url
-          except urllib.error.HTTPError as exc:
-              status, raw, final_url = exc.code, exc.read(), url
-          except OSError as exc:
-              fail(f"Could not reach Dockhand: {getattr(exc, 'reason', exc)}")
+          outcome = {}
+
+          def call_webhook():
+              try:
+                  with urllib.request.urlopen(request, timeout=300) as response:
+                      outcome["answer"] = (response.status, response.read(), response.url)
+              except urllib.error.HTTPError as exc:
+                  outcome["answer"] = (exc.code, exc.read(), url)
+              except OSError as exc:
+                  outcome["error"] = getattr(exc, "reason", exc)
+
+          caller = threading.Thread(target=call_webhook, daemon=True)
+          caller.start()
+          caller.join(timeout=120)
+          if "error" in outcome:
+              fail(f"Could not reach Dockhand: {outcome['error']}")
+          status, raw, final_url = outcome.get("answer", (524, b"", url))
 
           if final_url != url:
               fail("The request was redirected, most likely to a Cloudflare Access login: check CF_ACCESS_CLIENT_ID/SECRET")
@@ -109,7 +124,7 @@ jobs:
           if status in hints:
               fail(f"Dockhand returned {status}: {hints[status]}")
           if status == 524:
-              print("Dockhand is still building (Cloudflare stopped waiting for its answer); watching the site instead")
+              print("Dockhand is still building (no answer within 2 minutes); watching the site instead")
           elif status != 200:
               fail(f"Dockhand returned {status}: {detail or 'no error message'}")
           elif result.get("skipped"):
@@ -135,3 +150,35 @@ jobs:
                   last = str(exc)
               time.sleep(15)
           fail(f"The new deploy did not come up within 20 minutes ({last}); check the stack's logs in Dockhand")
+
+      - name: Purge Cloudflare's cache of the site
+        env:
+          CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+          CF_PURGE_TOKEN: ${{ secrets.CF_PURGE_TOKEN }}
+        shell: python3 {0}
+        run: |
+          # The css/js URLs carry a content hash, so a new build is never hidden; this clears everything else
+          # (icons, manifest, the Kompas Krakowa app files) so nobody sees a mix of two builds.
+          import json, os, sys, urllib.error, urllib.request
+
+          zone, token = os.environ["CF_ZONE_ID"].strip(), os.environ["CF_PURGE_TOKEN"].strip()
+          if not zone or not token:
+              print("::notice::Cloudflare cache not purged: set the CF_ZONE_ID and CF_PURGE_TOKEN secrets to purge on deploy")
+              sys.exit(0)
+          request = urllib.request.Request(
+              f"https://api.cloudflare.com/client/v4/zones/{zone}/purge_cache",
+              data=json.dumps({"purge_everything": True}).encode(), method="POST",
+              headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  result = json.loads(response.read())
+          except urllib.error.HTTPError as exc:
+              result = json.loads(exc.read() or b"{}")
+          except OSError as exc:
+              print(f"::warning::Could not reach Cloudflare to purge the cache: {getattr(exc, 'reason', exc)}")
+              sys.exit(0)
+          if result.get("success"):
+              print("Cloudflare cache purged")
+          else:
+              # The deploy itself is done; a failed purge only means older files may linger until they expire.
+              print(f"::warning::Cloudflare cache purge failed: {result.get('errors')}")
