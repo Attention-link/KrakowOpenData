@@ -1,5 +1,5 @@
 # Every merge to master: test, then redeploy https://opendata.al.mt by calling the Dockhand Git stack's webhook.
-# Dockhand syncs this repo and builds both images on the host (deploy/docker-compose.yml, "--build" deploy option),
+# Dockhand syncs this repo and builds both images on the host (docker-compose.dockhand.yml, "--build" deploy option),
 # so nothing is published to a registry. Run it by hand to redeploy without a merge.
 #
 # Repository secrets used by the deploy job:

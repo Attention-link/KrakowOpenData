@@ -2,8 +2,12 @@
 #
 # Flow: a merge to master runs .github/workflows/deploy.yml, which runs the tests and then calls this stack's
 # Dockhand webhook. Dockhand syncs this repo and deploys with its "--build" deploy option ON, so both images are
-# built on the host from the Dockerfiles in this repo (build contexts below are relative to this file, i.e. the
-# repository root). No registry is involved.
+# built on the host from the Dockerfiles in this repo. No registry is involved.
+#
+# The stack's "Context directory" must be "." (the repo root). Through Hawser, Dockhand sends only the compose file's
+# folder (or the context directory, when wider) to the remote host, so without it the host has no source to build.
+# This file lives at the repo root, next to the sources, so "context: ." means the same thing however Dockhand sets
+# compose's working directory.
 #
 # Single origin: Traefik sends the API's paths (/api/*, plus /health and /swagger at the root) to the API container
 # and everything else to the web app, so the browser-side app's API base is just the site root.
@@ -16,7 +20,7 @@
 services:
   opendata-api:
     build:
-      context: ..
+      context: .
       dockerfile: src/KrakowOpenData.Api/Dockerfile
     image: krakow-opendata-api:local
     container_name: attention-link-opendata-api
@@ -55,7 +59,7 @@ services:
 
   opendata-web:
     build:
-      context: ..
+      context: .
       dockerfile: src/KrakowOpenData.Web/Dockerfile
     image: krakow-opendata-web:local
     container_name: attention-link-opendata-web
