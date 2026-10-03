@@ -1,7 +1,7 @@
 // Resident-facing and shared strings. [en, pl, uk]
 export const residentStrings = {
   'skip': ['Skip to content', 'Przejdź do treści', 'Перейти до вмісту'],
-  'app.title': ['Safety Concerns', 'Bezpieczeństwo w Krakowie', 'Безпека в Кракові'],
+  'app.title': ['Kompas Krakowa', 'Kompas Krakowa', 'Kompas Krakowa'],
   'app.subtitle': ['Kraków · heat and night safety', 'Kraków · upał i bezpieczeństwo nocą', 'Краків · спека і безпека вночі'],
 
   'common.back': ['Back', 'Wstecz', 'Назад'],
@@ -224,7 +224,7 @@ export const residentStrings = {
   'how.reports': ['Resident reports lower the score of their square. A single report counts a quarter; reports confirmed by others count in full, and they fade over days unless confirmed again.', 'Zgłoszenia mieszkańców obniżają wynik ich kwadratu. Pojedyncze zgłoszenie liczy się w ćwierci; potwierdzone przez innych – w pełni, a z czasem tracą znaczenie, jeśli nikt ich nie potwierdza.', 'Звіти мешканців знижують оцінку квадрата. Один звіт враховується на чверть; підтверджені іншими – повністю, і з часом втрачають вагу, якщо їх ніхто не підтверджує.'],
   'how.notCrime': ['These are scores for infrastructure and resident reports, not crime statistics. Mapped data can be incomplete.', 'To oceny infrastruktury i zgłoszeń mieszkańców, a nie statystyki przestępczości. Dane z map mogą być niepełne.', 'Це оцінки інфраструктури та звітів мешканців, а не статистика злочинності. Дані мап можуть бути неповними.'],
 
-  'welcome.title': ['Safety Concerns for Kraków', 'Bezpieczeństwo w Krakowie', 'Безпека в Кракові'],
+  'welcome.title': ['Welcome to Kompas Krakowa', 'Witaj w Kompasie Krakowa', 'Ласкаво просимо до Kompas Krakowa'],
   'welcome.p1': ['See how any place in Kraków scores, and help improve it.', 'Zobacz, jak wypada dowolne miejsce w Krakowie, i pomóż je poprawić.', 'Дізнайтеся, як оцінюється будь-яке місце в Кракові, і допоможіть його покращити.'],
   'welcome.safety': ['Night safety: lighting, night transport and open places.', 'Bezpieczeństwo nocą: oświetlenie, transport nocny i otwarte miejsca.', 'Безпека вночі: освітлення, нічний транспорт і відкриті місця.'],
   'welcome.heat': ['Heat: water, shade and cool places.', 'Upał: woda, cień i chłodne miejsca.', 'Спека: вода, тінь і прохолодні місця.'],

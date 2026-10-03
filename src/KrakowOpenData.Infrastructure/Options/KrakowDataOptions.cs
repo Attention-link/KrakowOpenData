@@ -47,7 +47,7 @@ public sealed class KrakowDataOptions
 
     public int AirQualityRefreshMinutes { get; set; } = 20;
 
-    /// <summary>Photon geocoder (OpenStreetMap address search with autocomplete) behind the address boxes of the Safety Concerns app.</summary>
+    /// <summary>Photon geocoder (OpenStreetMap address search with autocomplete) behind the address boxes of the Kompas Krakowa app.</summary>
     public string GeocoderBaseUrl { get; set; } = "https://photon.komoot.io/";
 
     /// <summary>

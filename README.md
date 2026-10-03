@@ -1,8 +1,50 @@
-# Kraków Open Data
+# Kompas Krakowa (Kraków Compass)
 
-One API, a .NET client package and a web UI over Kraków's live public data, grouped by topic: mobility, environment,
-climate & crisis, urban space, public services and society. Built as a hackathon starting point: pick an idea,
-keep what you need, delete the rest.
+**One-stop open data library for Kraków.** Live public data (transport, environment, crisis warnings, urban space, public
+services) behind one open API, with a first app on top that answers: *where in Kraków is it too hot, too dark or too poorly
+served, and what should the city do about it?*
+
+Built for HackYeah 2026. The repository started as "Kraków Open Data" (the API, client and data pages below) and the app on
+top of it is called Kompas Krakowa.
+
+## Goal
+
+Become Kraków's shared, open data layer for everyday conditions and for crises:
+
+- **One place for the data.** Every dataset reachable through one documented open API and a typed .NET client, so other apps, researchers and the city can reuse it.
+- **Residents and agencies on one map.** Resident reports now; later accident and crime reports from residents and from the agencies that hold the official records (police, roads authority, emergency services), each labelled by source and shown only where agencies make data available.
+- **Crisis use.** Warnings, alerts, reports and planner tools that work in a heatwave today and can serve floods, air pollution or outages.
+- **Honest about gaps.** Scores show how many features are mapped and warn where data is thin; city planners are meant to complete the missing data in a pilot.
+
+## MVP (what works now)
+
+The MVP proves the model on **heat and night safety**:
+
+- **Open API** with Swagger docs: data per topic, plus scores for any point, the whole city grid, nearby places, street routes, how every score is built, reports, alerts, planner summary and address search.
+- **Resident app** (installable, offline, English/Polish/Ukrainian): map with streets and places, a heat score (0 cool – 100 very hot) and a night-safety score (0 unsafe – 100 safe) with explanations of weights and sources, fastest versus safer/cooler street routes, address search, reporting with neighbour confirmation, alerts for "my area".
+- **Planner dashboard**: ranked areas to act on, gap charts, clickable figures with their data sources, reports to verify or resolve, alerts to a map area, simulated agency contact.
+- Scores are **environmental (mapped infrastructure plus resident reports), not crime statistics.**
+
+**Remaining for the MVP:** a "possibly missing data" flag on the dashboard, a simple "add a missing place" form for planners, and a final pass on Polish texts and demo data. Everything under "Goal" beyond heat and night safety is future work.
+
+## Quick start
+
+Needs the .NET 8 SDK and an internet connection. Two terminals in the repository folder:
+
+```bash
+dotnet run --project src/KrakowOpenData.Api
+dotnet run --project src/KrakowOpenData.Web
+```
+
+The first start takes 1–2 minutes while the timetable and OpenStreetMap data download.
+
+| Who | Address |
+| --- | --- |
+| Residents | http://localhost:5090/safety/ |
+| City planners | http://localhost:5090/safety/#/planner (also the "Planner dashboard" menu link; opens directly in demo mode) |
+| API documentation | http://localhost:5080/swagger |
+
+For Visual Studio, Docker and tests see [How to run](#how-to-run). Demo planner data: **Reports → Add demo reports**.
 
 ## What it does
 
@@ -10,9 +52,8 @@ keep what you need, delete the rest.
 - **Client** (`KrakowOpenData.Client` + `KrakowOpenData.Contracts`) – a typed .NET client, packaged for NuGet, so other solutions can use the data.
 - **Web** (`KrakowOpenData.Web`) – Blazor pages for each dataset, built on the client like any other consumer. Every page is in
   **Polish, English and Ukrainian** (switcher in the sidebar). City data itself (stop names, alert text, table columns) is shown as published.
-- **Safety Concerns** (API under `/api/safety`, app in `KrakowOpenData.Web/wwwroot/safety`) – an installable, offline-capable web app
-  on top of the data: heat and night-safety scores for any place in Kraków, citizen reports that move the scores, and a planner
-  dashboard with alerts and agency contacts. See [Safety Concerns](#safety-concerns).
+- **Kompas Krakowa app** (API under `/api/safety`, app in `KrakowOpenData.Web/wwwroot/safety`) – the installable, offline-capable web app
+  described above. See [Kompas Krakowa app](#kompas-krakowa-app-heat-and-night-safety).
 
 ## Data sources
 
@@ -31,6 +72,8 @@ Everything is live, public data that needs no API key. The API fetches it from t
 | Urban space | AEDs, drinking water, toilets, EV chargers, bike parking | OpenStreetMap (Overpass API) | daily |
 | Urban space | Street lights (~27,000: position; LED/sodium, mount, height where mapped) | OpenStreetMap (Overpass API) | daily |
 | Urban space | Parks (with extent), libraries, pharmacies (with opening hours), hospitals, police stations (used by the safety scores) | OpenStreetMap (Overpass API) | daily |
+| Safety app | Address search and reverse lookup | Photon (OpenStreetMap geocoder), proxied by the API | cached 1 h / 24 h |
+| Safety app | Walking routes along streets (foot profile) | OpenStreetMap Germany OSRM router (`Safety:Routing:BaseUrl`), proxied by the API | cached 30 min |
 | Public services | City service cards (every BIP procedure) | City of Kraków Open Data API | 6 h |
 | Public services | NFZ treatment waiting lists | NFZ API | 1 h per search |
 | Society, services, environment | 45 city tables: residents, jobs, tourism, culture, sport events, schools, nurseries, health, parks, vehicles, lost property | City of Kraków Open Data API | 6 h |
@@ -53,7 +96,7 @@ src/
   KrakowOpenData.Api             minimal API + OpenAPI
   KrakowOpenData.Contracts       DTOs returned by the API (no dependencies; NuGet package)
   KrakowOpenData.Client          typed .NET client (NuGet package)
-  KrakowOpenData.Web             Blazor UI (uses the client); also serves the Safety Concerns web app from wwwroot/safety
+  KrakowOpenData.Web             Blazor UI (uses the client); also serves the Kompas Krakowa web app from wwwroot/safety
 tests/                           xUnit tests per layer; API and client tests run against in-memory fakes
 .github/workflows/               packs and publishes the client packages
 ```
@@ -117,7 +160,7 @@ This one command starts both apps.
 Not needed to run the apps. From the solution folder: `dotnet test`, or **Test → Run All Tests** in
 Visual Studio. The tests replace every public source with in-memory fakes, so they need no internet.
 
-## Safety Concerns
+## Kompas Krakowa app: heat and night safety
 
 A web app and API that combine the open data above into two scores for any place in Kraków, and let residents and city
 planners act on them.

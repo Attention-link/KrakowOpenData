@@ -1,7 +1,7 @@
-# Handover: Safety Concerns (HackYeah 2026)
+# Handover: Kompas Krakowa (HackYeah 2026)
 
-Written for a new session picking this up. Branch: `feature/safety-concerns`. **Nothing is committed yet** (`git status` shows the whole feature as modified and untracked files).
-The README has a full "Safety Concerns" section; this file is the working state, decisions and what is left.
+Written for a new session picking this up. Branch: `feature/safety-concerns`. The feature is committed and pushed to this branch.
+The README has a full "Kompas Krakowa app" section; this file is the working state, decisions and what is left.
 
 ## What this is
 

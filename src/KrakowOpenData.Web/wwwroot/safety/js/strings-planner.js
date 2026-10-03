@@ -241,7 +241,7 @@ export const plannerStrings = {
   'ag.recorded': ['Contact recorded. Reference {ref}.', 'Kontakt zapisany. Numer {ref}.', 'Контакт записано. Номер {ref}.'],
 
   // Briefs sent to agencies (English and Polish)
-  'brief.subject': ['Kraków Safety Concerns: area {cell}, {action}', 'Bezpieczeństwo w Krakowie: obszar {cell}, {action}', 'Safety Concerns: район {cell}, {action}'],
+  'brief.subject': ['Kompas Krakowa: area {cell}, {action}', 'Kompas Krakowa: obszar {cell}, {action}', 'Kompas Krakowa: район {cell}, {action}'],
   'brief.generic': ['request for action', 'prośba o działanie', 'запит на дію'],
   'brief.location': ['Location: {lat}, {lon} (grid square {cell})', 'Lokalizacja: {lat}, {lon} (kwadrat siatki {cell})', 'Місце: {lat}, {lon} (квадрат {cell})'],
   'brief.situation': ['Situation: {heat}; {dark}.', 'Sytuacja: {heat}; {dark}.', 'Ситуація: {heat}; {dark}.'],
@@ -251,5 +251,5 @@ export const plannerStrings = {
   'brief.weak': ['Weak points: {list}.', 'Słabe punkty: {list}.', 'Слабкі місця: {list}.'],
   'brief.reports': ['Open resident reports: {n} ({types}).', 'Otwarte zgłoszenia mieszkańców: {n} ({types}).', 'Відкриті звіти мешканців: {n} ({types}).'],
   'brief.request': ['Requested action: {text}.', 'Prośba o działanie: {text}.', 'Запит: {text}.'],
-  'brief.source': ['Source: Safety Concerns prototype. Scores come from mapped data (OpenStreetMap, timetables) and resident reports; they are not crime statistics.', 'Źródło: prototyp „Bezpieczeństwo w Krakowie”. Wyniki pochodzą z danych mapowych (OpenStreetMap, rozkłady jazdy) i zgłoszeń mieszkańców; to nie są statystyki przestępczości.', 'Джерело: прототип Safety Concerns. Оцінки базуються на даних мап і звітах мешканців; це не статистика злочинності.']
+  'brief.source': ['Source: Kompas Krakowa prototype. Scores come from mapped data (OpenStreetMap, timetables) and resident reports; they are not crime statistics.', 'Źródło: prototyp „Kompas Krakowa”. Wyniki pochodzą z danych mapowych (OpenStreetMap, rozkłady jazdy) i zgłoszeń mieszkańców; to nie są statystyki przestępczości.', 'Джерело: прототип Safety Concerns. Оцінки базуються на даних мап і звітах мешканців; це не статистика злочинності.']
 };

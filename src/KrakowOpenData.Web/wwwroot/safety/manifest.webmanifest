@@ -1,6 +1,6 @@
 {
-  "name": "Safety Concerns · Kraków",
-  "short_name": "Safety Kraków",
+  "name": "Kompas Krakowa",
+  "short_name": "Kompas",
   "description": "Heat and night-safety scores for any place in Kraków, citizen reports and a planner dashboard.",
   "start_url": "./index.html#/",
   "scope": "./",

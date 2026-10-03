@@ -17,7 +17,7 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
 
-// The Safety Concerns app files are revalidated on every load (ETag), so a new version is never hidden by the browser cache.
+// The Kompas Krakowa app files are revalidated on every load (ETag), so a new version is never hidden by the browser cache.
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = ctx =>
@@ -26,7 +26,7 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-// Safety Concerns progressive web app (static files in wwwroot/safety). It calls the API from the browser, so it needs the
+// Kompas Krakowa progressive web app (static files in wwwroot/safety). It calls the API from the browser, so it needs the
 // API address as the browser sees it, which can differ from the one this server uses (e.g. inside Docker).
 var publicApi = builder.Configuration["Safety:PublicApiBaseUrl"] ?? builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5080/";
 // Demo convenience: when Safety:PlannerDemoKey is set, the planner dashboard signs in with it so the menu link opens it directly.
