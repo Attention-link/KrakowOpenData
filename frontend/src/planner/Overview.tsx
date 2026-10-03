@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Banner, Empty, Explainable, Icon, InfoButton, Skeleton } from '../components/ui';
 import { bandText, loadMethod, openFacts, openFactorExplainer, openKpiExplainer, openMethod } from '../components/explain';
-import { cachedGet, getReportTypes } from '../lib/api';
+import { ApiError, cachedGet, errorText, getReportTypes } from '../lib/api';
 import { t, useT } from '../lib/i18n';
 import { FACTOR_ICON, bandOf, bandRange, type Kind } from '../lib/model';
 import { useApp } from '../lib/store';
@@ -36,6 +36,20 @@ export function Overview() {
   useEffect(() => { void loadGridFor(event).then((r) => setGrid(r.data)).catch(() => {}); }, [event]);
   useEffect(() => setFactor(null), [event]);
 
+  const error = usePlanner((s) => s.summaryError);
+  const reload = usePlanner((s) => s.reloadSummary);
+  if (!res && error) {
+    // No data and a reason: say why (still loading on the server, offline, ...) and offer to try again.
+    const loading = error instanceof ApiError && error.status === 503;
+    return (
+      <div className="pl-page stack">
+        <Banner kind={loading ? 'info' : 'danger'} icon={loading ? 'refresh' : 'alert'}>
+          <span>{loading ? t('pl.preparing') : errorText(error, t)}</span>
+          <div><button className="btn sm" type="button" onClick={reload}>{t('common.retry')}</button></div>
+        </Banner>
+      </div>
+    );
+  }
   if (!res) return <div className="pl-page stack"><div className="kpis">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} height={92} />)}</div><Skeleton height={220} /></div>;
 
   const s = res.data;

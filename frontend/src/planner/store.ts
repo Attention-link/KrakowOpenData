@@ -13,11 +13,15 @@ export interface SummaryState { data: PlannerSummary; stale: boolean; savedAt: n
 
 interface PlannerState {
   summary: SummaryState | null;
+  /** Why there is no summary (still loading on the server, offline, ...) and how to try again. */
+  summaryError: unknown;
+  reloadSummary: () => void;
   dataVersion: number;
   focus: Focus | null;
   drawerCell: string | null;
   grid: Grid | null;
   setSummary: (s: SummaryState | null) => void;
+  setSummaryError: (error: unknown, reload: () => void) => void;
   setFocus: (f: Focus | null) => void;
   openCell: (id: string | null) => void;
   setGrid: (g: Grid | null) => void;
@@ -31,7 +35,10 @@ export const usePlanner = create<PlannerState>((set) => ({
   focus: null,
   drawerCell: null,
   grid: null,
+  summaryError: null,
+  reloadSummary: () => {},
   setSummary: (summary) => set({ summary }),
+  setSummaryError: (summaryError, reloadSummary) => set({ summaryError, reloadSummary }),
   setFocus: (focus) => set({ focus }),
   openCell: (drawerCell) => set({ drawerCell }),
   setGrid: (grid) => set({ grid }),

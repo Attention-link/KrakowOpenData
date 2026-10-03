@@ -6,7 +6,7 @@ import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Explainable, Icon, toast } from '../components/ui';
 import { Topbar } from '../components/chrome';
 import { openKpiExplainer } from '../components/explain';
-import { PLANNER_AUTO_KEY, errorText, getSummary, plannerPing } from '../lib/api';
+import { ApiError, PLANNER_AUTO_KEY, errorText, getSummary, plannerPing } from '../lib/api';
 import { useCachedQuery, useInterval } from '../lib/hooks';
 import { useLang, useT } from '../lib/i18n';
 import { isOffline, setApp, useApp } from '../lib/store';
@@ -52,7 +52,15 @@ function Dashboard({ demoAccess }: { demoAccess: boolean }) {
 
   const q = useCachedQuery(`p:summary:${event}`, () => getSummary(event, 50), [version]);
   useEffect(() => { setSummary(q.data ? { data: q.data, stale: q.stale, savedAt: q.savedAt ?? Date.now() } : null); }, [q.data, q.stale, q.savedAt]);
-  useEffect(() => { if (q.error && !q.data) toast(errorText(q.error, t), { error: true }); }, [q.error]);
+  const setSummaryError = usePlanner((s) => s.setSummaryError);
+  useEffect(() => { setSummaryError(q.data ? null : q.error, () => void q.reload()); }, [q.error, q.data]);
+  // The server says the data is still being prepared (503): try again when it says to, instead of staying empty.
+  const preparing = !q.data && q.error instanceof ApiError && q.error.status === 503;
+  useEffect(() => {
+    if (!preparing) return;
+    const id = setTimeout(() => void q.reload(), ((q.error as ApiError).retryAfter || 15) * 1000);
+    return () => clearTimeout(id);
+  }, [preparing, q.error]);
   useInterval(() => { if (!isOffline()) void q.reload(); }, 60000);
   const wasOk = useRef(apiOk);
   useEffect(() => { if (apiOk && !wasOk.current) void q.reload(); wasOk.current = apiOk; }, [apiOk]);

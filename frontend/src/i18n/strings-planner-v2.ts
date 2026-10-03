@@ -24,6 +24,7 @@ export const plannerStringsV2 = {
   'ov.reportCounts': ['Open now / last 24 h / verified by a planner', 'Otwarte teraz / ostatnie 24 h / zweryfikowane przez planistę', 'Відкриті зараз / за 24 год / підтверджені планувальником'],
   'ov.days': ['{n} days', '{n} dni', '{n} днів'],
   'ov.hours': ['{n} hours', '{n} godz.', '{n} год'],
+  'pl.preparing': ['The city data is still being prepared on the server (this takes a minute after a restart). We will try again automatically.', 'Dane miasta są jeszcze przygotowywane na serwerze (po restarcie trwa to minutę). Spróbujemy ponownie automatycznie.', 'Дані міста ще готуються на сервері (після перезапуску це займає хвилину). Ми спробуємо ще раз автоматично.'],
   'pl.demoChip': ['Demo access', 'Dostęp demo', 'Демо-доступ'],
   'pl.demoAccess': ['Demo access: you were signed in automatically. In production, planners sign in with the city’s identity provider.', 'Dostęp demo: zalogowano automatycznie. W wersji produkcyjnej planiści logują się przez system tożsamości miasta.', 'Демо-доступ: вхід виконано автоматично. У робочій версії планувальники входять через систему ідентифікації міста.'],
   'ov.gapFormula': ['Share of built-up area (squares weighted by how many people they affect) where this factor scores below 35 out of 100.', 'Udział zabudowy (kwadraty ważone liczbą osób, których dotyczą), w której ten czynnik ma wynik poniżej 35 ze 100.', 'Частка забудови (квадрати зважені кількістю людей), де цей чинник має оцінку нижче 35 зі 100.'],
