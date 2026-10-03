@@ -138,12 +138,14 @@ function Kpis({ s, meta }: { s: PlannerSummary; meta: GridMeta }) {
         const alertish = (key === 'noWater500' && k.value >= 50) || (key === 'poorlyLit' && k.value >= 50);
         // Every tile opens its explanation: what it is, how it is computed, the data source and the numbers behind it.
         return (
-          <button key={key} className={`kpi ${alertish ? 'alertish' : ''}`} type="button" role="listitem" title={t('explain.click')}
+          <div key={key} role="listitem" className="kpi-cell">
+          <button className={`kpi ${alertish ? 'alertish' : ''}`} type="button" title={t('explain.click')}
             onClick={() => openKpiExplainer(key, { value: k.value, unit: k.unit, factorKey: FACTOR_OF[key], extra: extra(key, k.value), links: GO[key] ? [{ href: GO[key][0], label: t(GO[key][1]) }] : [] })}>
             <div className="v num">{k.unit === '%' || k.unit === 'score' ? Math.round(k.value) : k.value}{k.unit === '%' ? <small>%</small> : k.unit === 'score' ? <small>/100</small> : null}</div>
             <div className="l">{t(`kpi.${key}`)}</div>
             <div className="h">{t(`kpi.${key}.help`)}</div>
           </button>
+          </div>
         );
       })}
     </div>

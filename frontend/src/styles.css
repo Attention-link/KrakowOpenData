@@ -465,3 +465,5 @@ button.bar:hover .fill { outline: 2px solid var(--accent); outline-offset: 1px; 
   .pl-page { padding: .75rem; }
   .kpis { grid-template-columns: repeat(2, 1fr); }
 }
+.kpi-cell { display: flex; }
+.kpi-cell .kpi { flex: 1 1 auto; }
