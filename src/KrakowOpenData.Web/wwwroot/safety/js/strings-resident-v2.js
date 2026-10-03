@@ -3,7 +3,7 @@
 export const residentStringsV2 = {
   // ── Navigation ──
   'nav.home': ['Home page', 'Strona główna', 'Головна'],
-  'nav.homeHint': ['Kraków Open Data home page (the data catalog)', 'Strona główna Kraków Open Data (katalog danych)', 'Головна сторінка Kraków Open Data (каталог даних)'],
+  'nav.homeHint': ['Kompas Krakowa home page', 'Strona główna Kompas Krakowa', 'Головна сторінка Kompas Krakowa'],
   'nav.backMenu': ['Back to menu', 'Wróć do menu', 'Назад до меню'],
   'nav.backDashboard': ['Back to dashboard', 'Wróć do panelu', 'Назад до панелі'],
 

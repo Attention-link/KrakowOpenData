@@ -1,17 +1,17 @@
 /* Kraków Open Data – small additions on top of Bootstrap 5 + SB Admin (lib/sb-admin/styles.css). */
 :root {
-  --accent: #b3261e;          /* Kraków red */
+  --ink: #070a0f;             /* brand colours: see brand/favicon.svg */
+  --cyan: #22d3ee;
+  --green: #34d399;
+  --accent: #0e7490;          /* cyan, darkened for text/buttons on white */
   --tram: #1f5fbf;
-  --bus: #c26a00;
+  --bus: #9a5200;
   --other: #6b6f76;
   --mono: ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
 .sb-topnav .navbar-brand { font-weight: 700; }
-.brand-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 700; }
-.sb-sidenav .nav-link.active { color: #fff; background: rgba(255, 255, 255, .12); border-left: 3px solid var(--accent); }
 
-.eyebrow { font-size: .75rem; letter-spacing: .06em; color: var(--accent) !important; }
 .page-header { margin-bottom: 1.5rem; }
 .lede { color: #6c757d; max-width: 70ch; margin: .5rem 0 0; }
 .source { font-size: .8rem; color: #6c757d; margin: .4rem 0 0; }
@@ -64,7 +64,7 @@ code { font-family: var(--mono); font-size: .85em; }
 .pager { display: flex; gap: .75rem; align-items: center; justify-content: center; margin-top: 1rem; }
 .chips { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
 .table-scroll { overflow-x: auto; max-width: 100%; }
-.table-scroll .table td, .table-scroll .table th { white-space: nowrap; }
+.table-scroll .table td, .table-scroll .table th { white-space: normal; overflow-wrap: anywhere; }
 ul.plain { list-style: none; padding: 0; margin: .25rem 0 0; display: flex; flex-direction: column; gap: .25rem; }
 
 #blazor-error-ui { display: none; position: fixed; bottom: 0; left: 0; right: 0; padding: .6rem 1rem; background: #dc3545; color: #fff; z-index: 2000; }
@@ -72,7 +72,6 @@ ul.plain { list-style: none; padding: 0; margin: .25rem 0 0; display: flex; flex
 
 @media (max-width: 860px) {
   input:not([type=checkbox]) { min-width: 0; width: 100%; }
-  .table { display: block; overflow-x: auto; }
 }
 
 /* Home page thumbnails */
@@ -80,3 +79,74 @@ ul.plain { list-style: none; padding: 0; margin: .25rem 0 0; display: flex; flex
 .start-card:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12); }
 .start-card h2 { font-size: 1.3rem; margin: .5rem 0 0; color: #212529; }
 .start-icon { width: 56px; height: 56px; border-radius: 12px; color: #fff; display: grid; place-items: center; font-size: 1.8rem; }
+
+/* ── Brand: ink ground, cyan shields, green route (see brand/) ── */
+body { background: #f4f7fa; }
+.sb-topnav { background: var(--ink) !important; border-bottom: 2px solid var(--cyan); }
+.sb-topnav .navbar-brand { color: #e9eef6; }
+.brand-mark { width: 34px; height: 34px; flex: none; }
+.sb-sidenav-dark { background: #0b111a; color: #c3cddb; }
+.sb-sidenav-dark .sb-sidenav-menu .nav-link { color: #c3cddb; }
+.sb-sidenav-dark .sb-sidenav-menu .nav-link:hover { color: #fff; background: rgba(34, 211, 238, .08); }
+.sb-sidenav-dark .sb-sidenav-menu .nav-link.active { color: var(--cyan); background: rgba(34, 211, 238, .12); border-left: 3px solid var(--cyan); }
+.sb-sidenav-dark .sb-sidenav-menu .sb-sidenav-menu-heading { color: #6b7c93; }
+.sb-sidenav-dark .sb-sidenav-footer { background: var(--ink); color: #94a3b8; }
+.eyebrow { font-size: .75rem; letter-spacing: .06em; color: var(--accent) !important; }
+a { color: var(--accent); }
+.btn-primary { --bs-btn-bg: var(--accent); --bs-btn-border-color: var(--accent); --bs-btn-hover-bg: #155e75; --bs-btn-hover-border-color: #155e75; --bs-btn-active-bg: #164e63; --bs-btn-active-border-color: #164e63; --bs-btn-disabled-bg: var(--accent); --bs-btn-disabled-border-color: var(--accent); }
+.btn-outline-primary { --bs-btn-color: var(--accent); --bs-btn-border-color: var(--accent); --bs-btn-hover-bg: var(--accent); --bs-btn-hover-border-color: var(--accent); --bs-btn-active-bg: #155e75; --bs-btn-active-border-color: #155e75; }
+.text-bg-success { background-color: var(--green) !important; color: var(--ink) !important; }
+.text-bg-info { background-color: var(--cyan) !important; color: var(--ink) !important; }
+.text-primary { color: var(--accent) !important; }
+.form-control:focus, input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 .2rem rgba(34, 211, 238, .25); outline: 0; }
+.start-icon.bg-primary { background: var(--accent) !important; }
+.start-icon.bg-dark { background: var(--ink) !important; color: var(--cyan); }
+.start-icon.bg-secondary { background: #164e63 !important; }
+.start-card:hover { border-color: var(--cyan); }
+
+/* ── Accessibility: text colours with at least 4.5:1 contrast on their backgrounds ── */
+.text-muted, .muted, .lede, .source, .legend, .map-legend, .facts dt { color: #4f575f !important; }
+.btn-outline-secondary { --bs-btn-color: #495057; --bs-btn-border-color: #6c757d; }
+code { color: #9d174d; }
+.sb-sidenav-dark .sb-sidenav-menu .sb-sidenav-menu-heading { color: #9fb0c6; }
+footer .text-muted { color: #495057 !important; }
+.landmark, .landmark-label, .map-legend { fill: #4f575f; }
+:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.sb-topnav :focus-visible, .sb-sidenav-dark :focus-visible { outline-color: #67e8f9; }
+
+/* ── Home hero: ink panel with the shield mark behind the title ── */
+.home-hero { position: relative; overflow: hidden; border-radius: .75rem; padding: 2.5rem 2rem; margin-bottom: 1.5rem; color: #e9eef6;
+  background: radial-gradient(circle at 85% 20%, rgba(34, 211, 238, .22), transparent 55%), var(--ink); }
+.home-hero::before { content: ""; position: absolute; right: -70px; top: 50%; width: min(360px, 75%); aspect-ratio: 1; transform: translateY(-50%);
+  background: url("brand/mark.svg") center / contain no-repeat; opacity: .4; pointer-events: none; }
+.home-hero > * { position: relative; }
+.home-hero h1 { color: #fff; font-size: clamp(1.75rem, 6vw, 2.75rem); }
+.home-hero .lede { color: #d3dbe7 !important; max-width: 36ch; font-size: 1.1rem; }
+
+/* ── Phones: nothing scrolls sideways. Tables become stacked cards (labels are added by js/layout.js). ── */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg { max-width: 100%; }
+.card, .alert, main { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 767.98px) {
+  main.container-fluid { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .home-hero { padding: 1.75rem 1.25rem; }
+  .toolbar, .search { flex-direction: column; align-items: stretch; }
+  .toolbar > *, .search > * { width: 100%; }
+  input.narrow { width: 100%; }
+  .btn { white-space: normal; }
+  .sb-topnav .navbar-brand { font-size: 1rem; margin-right: 0; min-width: 0; }
+  .grid { grid-template-columns: 1fr; }
+
+  table.table, table.table > tbody, table.table > tbody > tr, table.table > tbody > tr > td { display: block; width: 100%; }
+  table.table > thead { display: none; }
+  table.table { background: transparent; --bs-table-accent-bg: transparent; }
+  table.table > tbody > tr { background: #fff; border: 1px solid #dee2e6; border-radius: .5rem; margin-bottom: .75rem; padding: .25rem .9rem; }
+  table.table > tbody > tr > td { display: flex; justify-content: space-between; gap: 1rem; text-align: right; border: 0; padding: .4rem 0; overflow-wrap: anywhere; background: transparent; box-shadow: none; }
+  table.table > tbody > tr > td + td { border-top: 1px solid #eef1f4; }
+  table.table > tbody > tr > td::before { content: attr(data-label); flex: none; max-width: 45%; text-align: left; font-weight: 600; color: #343a40; }
+  table.table > tbody > tr > td:empty { display: none; }
+  .pager { flex-wrap: wrap; }
+}
+@media (max-width: 374.98px) {
+  .sb-topnav .navbar-brand span:not(.brand-mark) { display: none; }
+}

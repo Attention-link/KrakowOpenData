@@ -7,10 +7,10 @@
 <CascadingValue Value="Language.Current">
     <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
         <a class="navbar-brand ps-3 d-flex align-items-center gap-2" href="/">
-            <span class="brand-mark">K</span>
+            <img class="brand-mark" src="brand/favicon.svg" alt="" />
             <span>@Language.Current["brand.title"]</span>
         </a>
-        <button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0 text-light" id="sidebarToggle" type="button" aria-label="Menu">&#9776;</button>
+        <button class="btn btn-link btn-sm order-first ms-2 me-1 text-light" id="sidebarToggle" type="button" aria-label="Menu">&#9776;</button>
         <div class="ms-auto me-3 me-lg-4">
             <LanguageSwitcher OnSelect="SelectAsync" />
         </div>
