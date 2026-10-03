@@ -1,5 +1,5 @@
 @page "/mobility/stops"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.Mobility"]" Title="@T["stops.title"]" PageTitleText="@T["stops.pageTitle"]"
             Description="@T["stops.lede"]" Source="@T["stops.source"]" />
@@ -82,7 +82,7 @@
         await RunAsync(async () =>
         {
             _nearbyMode = false;
-            _paged = await Api.SearchStopsAsync(_query, _page, 25);
+            _paged = await Api.Mobility.SearchStopsAsync(_query, _page, 25);
             _stops = _paged?.Items.ToList() ?? [];
         });
     }
@@ -97,7 +97,7 @@
         {
             _nearbyMode = true;
             _paged = null;
-            _stops = await Api.GetNearbyStopsAsync(lat, lon, 600) ?? [];
+            _stops = (await Api.Mobility.GetNearbyStopsAsync(lat, lon, 600)).ToList();
         });
     }
 

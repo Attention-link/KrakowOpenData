@@ -1,5 +1,5 @@
 @page "/services/cards"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.PublicServices"]" Title="@T["cards.title"]" PageTitleText="@T["nav.serviceCards"]"
             Description="@T["cards.lede"]" Source="@T["cards.source"]" />
@@ -60,7 +60,7 @@
     {
         _loading = true;
         _error = null;
-        try { _items = await Api.SearchServiceCardsAsync(_query) ?? []; }
+        try { _items = (await Api.Services.SearchServiceCardsAsync(_query)).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

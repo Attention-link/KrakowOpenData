@@ -1,6 +1,7 @@
 using KrakowOpenData.Application.Abstractions;
 using KrakowOpenData.Application.Catalog;
-using KrakowOpenData.Application.Contracts;
+using KrakowOpenData.Application.Mapping;
+using KrakowOpenData.Contracts;
 using KrakowOpenData.Domain.Common;
 
 namespace KrakowOpenData.Application.Services;

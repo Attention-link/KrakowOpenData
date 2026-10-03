@@ -1,0 +1,80 @@
+@page "/urban/amenities"
+@inject IKrakowOpenDataClient Api
+
+<PageHeader Category="@T["cat.UrbanSpace"]" Title="@T["amen.title"]" PageTitleText="@T["nav.amenities"]"
+            Description="@T["amen.lede"]" Source="@T["amen.source"]" />
+
+<div class="toolbar">
+    <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <select aria-label="@T["amen.title"]" @bind="_kind">
+            @foreach (var kind in Kinds)
+            {
+                <option value="@kind">@T["kind." + kind]</option>
+            }
+        </select>
+        <input class="narrow" placeholder="50.0617,19.9373" aria-label="@T["amen.near"]" title="@T["amen.near"]" @bind="_near" />
+        <input class="narrow" type="number" min="50" step="50" aria-label="@T["amen.radius"]" title="@T["amen.radius"]" @bind="_radius" />
+        <button class="btn" type="submit">@T["common.search"]</button>
+    </form>
+    <span class="muted small">@T.F("amen.count", _items.Count)</span>
+</div>
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["amen.none"]" OnRetry="LoadAsync">
+    <table class="table">
+        <thead><tr><th>@T["col.name"]</th><th>@T["col.position"]</th><th>@T["col.distance"]</th><th>@T["amen.details"]</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var a in _items.Take(500))
+            {
+                <tr>
+                    <td><strong>@(a.Name ?? T["kind." + a.Kind])</strong></td>
+                    <td class="small">@a.Latitude.ToString("F5", CultureInfo.InvariantCulture), @a.Longitude.ToString("F5", CultureInfo.InvariantCulture)</td>
+                    <td>@(a.DistanceMeters is null ? "–" : a.DistanceMeters.Value.ToString("0", CultureInfo.InvariantCulture) + " m")</td>
+                    <td class="small">@a.Details</td>
+                    <td><a href="@MapUrl(a)" target="_blank" rel="noopener">@T["amen.mapLink"]</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</LoadState>
+
+@code {
+    private static readonly string[] Kinds = ["Defibrillator", "DrinkingWater", "Toilets", "EvCharger", "BikeParking"];
+
+    private string _kind = "Defibrillator";
+    private string? _near = "50.0617,19.9373"; // Rynek Główny
+    private int _radius = 1000;
+    private List<AmenityDto> _items = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        double? lat = null, lon = null;
+        if (!string.IsNullOrWhiteSpace(_near))
+        {
+            var parts = _near.Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 ||
+                !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var la) ||
+                !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lo))
+            {
+                _error = T["amen.badPoint"];
+                _loading = false;
+                return;
+            }
+
+            lat = la;
+            lon = lo;
+        }
+
+        _loading = true;
+        _error = null;
+        try { _items = (await Api.Urban.GetAmenitiesAsync(_kind, lat, lon, _radius)).ToList(); }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private static string MapUrl(AmenityDto a) =>
+        FormattableString.Invariant($"https://www.openstreetmap.org/?mlat={a.Latitude}&mlon={a.Longitude}#map=18/{a.Latitude}/{a.Longitude}");
+}

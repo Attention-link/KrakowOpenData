@@ -27,6 +27,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Api.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Web.Tests", "tests\KrakowOpenData.Web.Tests\KrakowOpenData.Web.Tests.csproj", "{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Client", "src\KrakowOpenData.Client\KrakowOpenData.Client.csproj", "{3B6E2C41-7A2D-4F1E-9C5B-1D2E3F4A5B61}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KrakowOpenData.Contracts", "src\KrakowOpenData.Contracts\KrakowOpenData.Contracts.csproj", "{6D2A9C14-3E5B-4F7A-8C9D-0E1F2A3B4C95}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,6 +77,14 @@ Global
 		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A46F4B37-63C5-5BBF-8E74-0D3D56ACCE22}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B6E2C41-7A2D-4F1E-9C5B-1D2E3F4A5B61}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B6E2C41-7A2D-4F1E-9C5B-1D2E3F4A5B61}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B6E2C41-7A2D-4F1E-9C5B-1D2E3F4A5B61}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B6E2C41-7A2D-4F1E-9C5B-1D2E3F4A5B61}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D2A9C14-3E5B-4F7A-8C9D-0E1F2A3B4C95}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D2A9C14-3E5B-4F7A-8C9D-0E1F2A3B4C95}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D2A9C14-3E5B-4F7A-8C9D-0E1F2A3B4C95}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D2A9C14-3E5B-4F7A-8C9D-0E1F2A3B4C95}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -88,5 +100,7 @@ Global
 		{FA73EA81-6D34-5FFD-A5B6-C3B99C57BBBB} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
 		{2A150EFA-DFCE-5F3F-990D-8B639EC0F0C4} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
 		{C7D45379-A5D3-506F-8D12-E793A05FB06D} = {0FFD9F83-E619-5973-BA49-B9D857CAB985}
+		{3B6E2C41-7A2D-4F1E-9C5B-1D2E3F4A5B61} = {F523A358-E314-5AE4-ABDC-FEFD47085DE8}
+		{6D2A9C14-3E5B-4F7A-8C9D-0E1F2A3B4C95} = {F523A358-E314-5AE4-ABDC-FEFD47085DE8}
 	EndGlobalSection
 EndGlobal

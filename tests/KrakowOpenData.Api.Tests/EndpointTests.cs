@@ -1,7 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using KrakowOpenData.Application.Abstractions;
-using KrakowOpenData.Application.Contracts;
+using KrakowOpenData.Application.Catalog;
+using KrakowOpenData.Contracts;
 
 namespace KrakowOpenData.Api.Tests;
 
@@ -98,7 +99,7 @@ public class EndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Elevated_river_gauges_come_from_the_2024_replay()
+    public async Task Elevated_river_gauges_are_filtered()
     {
         var gauges = await _client.GetFromJsonAsync<List<RiverGaugeDto>>("/api/crisis/river-gauges?elevatedOnly=true");
         Assert.NotNull(gauges);
@@ -107,7 +108,7 @@ public class EndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Sample_warning_applies_to_Krakow()
+    public async Task Only_warnings_for_Krakow_are_returned()
     {
         var warnings = await _client.GetFromJsonAsync<List<WarningDto>>("/api/crisis/warnings");
         Assert.NotNull(warnings);
@@ -123,11 +124,11 @@ public class EndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Open_data_tables_are_listed_and_readable_in_sample_mode()
+    public async Task Open_data_tables_are_listed_and_readable()
     {
         var tables = await _client.GetFromJsonAsync<List<OpenDataTableDto>>("/api/open-data/tables");
         Assert.NotNull(tables);
-        Assert.Equal(44, tables.Count);
+        Assert.Equal(OpenDataTables.All.Count, tables.Count);
 
         var rows = await _client.GetFromJsonAsync<OpenDataRowsDto>("/api/open-data/tables/nurseries-public?limit=2");
         Assert.NotNull(rows);
@@ -146,5 +147,46 @@ public class EndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
         Assert.True(result[0].AverageWaitDays <= result[1].AverageWaitDays);
+    }
+
+    [Fact]
+    public async Task OpenApi_spec_documents_every_category_with_typed_responses()
+    {
+        var spec = await _client.GetStringAsync("/swagger/v1/swagger.json");
+
+        foreach (var path in new[]
+                 {
+                     "/api/mobility/stops", "/api/environment/air-quality", "/api/crisis/river-gauges",
+                     "/api/urban/amenities", "/api/urban/street-lights", "/api/urban/street-lights/summary", "/api/services/waiting-lists", "/api/open-data/tables/{key}"
+                 })
+        {
+            Assert.Contains($"\"{path}\"", spec);
+        }
+
+        Assert.Contains("AirQualityDto", spec);
+        Assert.Contains("GetDepartures", spec);
+    }
+
+    [Fact]
+    public async Task Root_redirects_to_swagger_ui()
+    {
+        var response = await factory.CreateClient(new() { AllowAutoRedirect = false }).GetAsync("/");
+        Assert.Equal("/swagger", response.Headers.Location?.ToString());
+    }
+
+    [Fact]
+    public async Task Street_lights_near_a_point_and_summary()
+    {
+        var near = await _client.GetFromJsonAsync<List<StreetLightDto>>("/api/urban/street-lights?lat=50.0617&lon=19.9373&radius=200");
+        Assert.NotNull(near);
+        Assert.Equal(new[] { "osm-n10", "osm-n11" }, near.Select(l => l.Id).ToArray());
+
+        var summary = await _client.GetFromJsonAsync<StreetLightSummaryDto>("/api/urban/street-lights/summary");
+        Assert.NotNull(summary);
+        Assert.Equal(3, summary.Total);
+        Assert.Equal(2, summary.WithKnownTechnology);
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync("/api/urban/street-lights?technology=candle")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync("/api/urban/street-lights?lat=50.06")).StatusCode);
     }
 }

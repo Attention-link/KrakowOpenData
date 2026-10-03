@@ -1,12 +1,10 @@
 # docker compose up --build   → API on http://localhost:5080, UI on http://localhost:5090
-# Set KRAKOW_SAMPLE=true for offline demos (no downloads).
 services:
   api:
     build:
       context: .
       dockerfile: src/KrakowOpenData.Api/Dockerfile
     environment:
-      - KrakowData__UseSampleData=${KRAKOW_SAMPLE:-false}
       - Cors__AllowedOrigins__0=http://localhost:5090
     ports:
       - "5080:8080"

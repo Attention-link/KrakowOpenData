@@ -1,0 +1,46 @@
+# Packs KrakowOpenData.Contracts + KrakowOpenData.Client and publishes them to GitHub Packages.
+# Trigger: push a tag like v0.2.0 (the tag sets the package version), or run it by hand.
+name: Publish client packages
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version (e.g. 0.2.0)"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Work out the version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then v="${{ github.event.inputs.version }}"; else v="${GITHUB_REF_NAME#v}"; fi
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: dotnet test KrakowOpenData.sln -c Release
+
+      - name: Pack
+        run: |
+          dotnet pack src/KrakowOpenData.Contracts -c Release -p:Version=$VERSION -o artifacts
+          dotnet pack src/KrakowOpenData.Client -c Release -p:Version=$VERSION -o artifacts
+
+      - name: Push to GitHub Packages
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+          --api-key "${{ secrets.GITHUB_TOKEN }}"
+          --skip-duplicate

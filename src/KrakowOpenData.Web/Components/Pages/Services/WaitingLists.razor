@@ -1,5 +1,5 @@
 @page "/services/waiting-lists"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.PublicServices"]" Title="@T["nfz.title"]" PageTitleText="@T["nav.waitingLists"]"
             Description="@T["nfz.lede"]" Source="@T["nfz.source"]" />
@@ -89,7 +89,7 @@ else
         _searched = true;
         _loading = true;
         _error = null;
-        try { _items = await Api.SearchWaitingListsAsync(_benefit.Trim(), _urgent) ?? []; }
+        try { _items = (await Api.Services.SearchWaitingListsAsync(_benefit.Trim(), _urgent)).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

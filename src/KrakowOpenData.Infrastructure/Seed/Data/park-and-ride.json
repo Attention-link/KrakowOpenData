@@ -1,11 +1,169 @@
-// P+R car parks run by ZTP Kraków. Only facts found on official pages are filled in; unknown values are null.
-// Sources: https://krakow.pl (Parkingi dla samochodów), https://ztp.krakow.pl/en/park-and-ride/pr-car-parks,
-// EU project pages (mapadotacji.gov.pl) for Mały Płaszów and Nowy Bieżanów.
+// Offline copy of live data (used in sample mode only). Live mode queries OpenStreetMap (Overpass API)
+// for park_ride car parks in Kraków (copied 3 Oct 2026). © OpenStreetMap contributors, ODbL.
 [
-  { "id": "pr-czerwone-maki", "name": "Czerwone Maki P+R", "address": "ul. Czerwone Maki, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": "At the Czerwone Maki P+R tram and bus loop.", "source": "krakow.pl" },
-  { "id": "pr-kurdwanow", "name": "Kurdwanów P+R", "address": "ul. por. Halszki 1a, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": null, "source": "krakow.pl" },
-  { "id": "pr-maly-plaszow", "name": "Mały Płaszów P+R", "address": "ul. Bagrowa (loop at ul. Lipska), Kraków", "location": null, "capacity": 165, "evChargers": 2, "bikeSpaces": 20, "openingHours": "Daily 04:30–02:30", "notes": "7 spaces for disabled drivers.", "source": "mapadotacji.gov.pl" },
-  { "id": "pr-mydlniki-wapiennik", "name": "Mydlniki Wapiennik P+R", "address": "ul. Brzezińskiego, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": null, "source": "krakow.pl" },
-  { "id": "pr-nowy-biezanow", "name": "Nowy Bieżanów P+R", "address": "Entrance from ul. Barbary, Kraków", "location": null, "capacity": 110, "evChargers": 2, "bikeSpaces": 20, "openingHours": "Daily 04:30–02:30", "notes": "At the Nowy Bieżanów P+R tram loop.", "source": "mapadotacji.gov.pl" },
-  { "id": "pr-suche-stawy", "name": "Suche Stawy P+R", "address": "ul. Tadeusza Ptaszyckiego, Kraków", "location": null, "capacity": null, "evChargers": null, "bikeSpaces": null, "openingHours": null, "notes": "Closed system with barriers (ZDMK tender, 2021).", "source": "zdmk.krakow.pl" }
+  {
+    "id": "osm-w483476337",
+    "name": "P+R Kurdwanów",
+    "address": "Porucznika Jerzego Halszki 1, 30-001 Kraków",
+    "location": {
+      "latitude": 50.0130672,
+      "longitude": 19.9486105
+    },
+    "capacity": 167,
+    "evChargers": 4,
+    "bikeSpaces": null,
+    "openingHours": "Mo-Su 04:30-02:30",
+    "notes": "fee: yes",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w531675666",
+    "name": "P+R Nowy Bieżanów",
+    "address": null,
+    "location": {
+      "latitude": 50.0154709,
+      "longitude": 20.0235627
+    },
+    "capacity": 110,
+    "evChargers": 2,
+    "bikeSpaces": null,
+    "openingHours": "Mo-Su 04:30-02:30",
+    "notes": "fee: yes",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w622678396",
+    "name": "P+R Mały Płaszów",
+    "address": null,
+    "location": {
+      "latitude": 50.039114,
+      "longitude": 20.0005505
+    },
+    "capacity": 160,
+    "evChargers": 2,
+    "bikeSpaces": null,
+    "openingHours": "Mo-Su 04:30-02:30",
+    "notes": "fee: yes",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w191209860",
+    "name": "P+R Czerwone Maki",
+    "address": null,
+    "location": {
+      "latitude": 50.0185153,
+      "longitude": 19.89055
+    },
+    "capacity": 192,
+    "evChargers": null,
+    "bikeSpaces": null,
+    "openingHours": "04:30-02:30",
+    "notes": "fee: yes",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w1001207025",
+    "name": "P+R Swoszowice",
+    "address": null,
+    "location": {
+      "latitude": 50.0005423,
+      "longitude": 19.9293739
+    },
+    "capacity": 154,
+    "evChargers": 6,
+    "bikeSpaces": null,
+    "openingHours": null,
+    "notes": "fee: yes",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w917484027",
+    "name": "P+R Mydlniki Wapiennik",
+    "address": null,
+    "location": {
+      "latitude": 50.0909271,
+      "longitude": 19.8399726
+    },
+    "capacity": 86,
+    "evChargers": 2,
+    "bikeSpaces": null,
+    "openingHours": null,
+    "notes": "fee: no",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-n11408482473",
+    "name": "P+R Górka Narodowa",
+    "address": null,
+    "location": {
+      "latitude": 50.1049576,
+      "longitude": 19.9627164
+    },
+    "capacity": 465,
+    "evChargers": null,
+    "bikeSpaces": null,
+    "openingHours": null,
+    "notes": "fee: yes; rooftop",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w69822271",
+    "name": "P+R Prądnik Czerwony",
+    "address": null,
+    "location": {
+      "latitude": 50.0968809,
+      "longitude": 19.9751496
+    },
+    "capacity": 83,
+    "evChargers": null,
+    "bikeSpaces": null,
+    "openingHours": "Mo-Su 04:00-24:00",
+    "notes": "fee: no",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w1164894443",
+    "name": "P+R Krowodrza Górka",
+    "address": null,
+    "location": {
+      "latitude": 50.0890848,
+      "longitude": 19.933199
+    },
+    "capacity": null,
+    "evChargers": null,
+    "bikeSpaces": null,
+    "openingHours": null,
+    "notes": "fee: yes",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w1230199322",
+    "name": "P+R Pachońskiego",
+    "address": null,
+    "location": {
+      "latitude": 50.094149,
+      "longitude": 19.9302583
+    },
+    "capacity": null,
+    "evChargers": null,
+    "bikeSpaces": null,
+    "openingHours": null,
+    "notes": "fee: yes",
+    "source": "OpenStreetMap"
+  },
+  {
+    "id": "osm-w1349841715",
+    "name": "P+R Kościelniki",
+    "address": null,
+    "location": {
+      "latitude": 50.0864618,
+      "longitude": 20.1698392
+    },
+    "capacity": 140,
+    "evChargers": null,
+    "bikeSpaces": null,
+    "openingHours": null,
+    "notes": "train P+R",
+    "source": "OpenStreetMap"
+  }
 ]

@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Application: use cases, repository interfaces, DTOs. Depends only on Domain. -->
+  <!-- Application: use cases, repository interfaces, entity-to-DTO mapping. Depends on Domain and Contracts. -->
   <PropertyGroup>
     <RootNamespace>KrakowOpenData.Application</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\KrakowOpenData.Domain\KrakowOpenData.Domain.csproj" />
+    <ProjectReference Include="..\KrakowOpenData.Contracts\KrakowOpenData.Contracts.csproj" />
   </ItemGroup>
 </Project>

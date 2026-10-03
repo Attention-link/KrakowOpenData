@@ -1,18 +1,14 @@
 using KrakowOpenData.Web.Components;
 using KrakowOpenData.Web.Localization;
-using KrakowOpenData.Web.Services;
+using KrakowOpenData.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddScoped<LanguageState>(); // one per browser session (circuit)
 
-var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5080/";
-builder.Services.AddHttpClient<KrakowApiClient>(client =>
-{
-    client.BaseAddress = new Uri(apiBaseUrl.EndsWith('/') ? apiBaseUrl : apiBaseUrl + "/");
-    client.Timeout = TimeSpan.FromSeconds(120); // first GTFS load can be slow
-});
+// The UI reads everything through KrakowOpenData.Client, like any external consumer would.
+builder.Services.AddKrakowOpenDataClient(builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5080/");
 
 var app = builder.Build();
 

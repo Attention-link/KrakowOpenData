@@ -1,5 +1,5 @@
 @page "/urban/districts"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.UrbanSpace"]" Title="@T["districts.title"]" PageTitleText="@T["nav.districts"]"
             Description="@T["districts.lede"]" Source="@T["districts.source"]" />
@@ -32,7 +32,7 @@
     {
         _loading = true;
         _error = null;
-        try { _items = await Api.GetDistrictsAsync() ?? []; }
+        try { _items = (await Api.Urban.GetDistrictsAsync()).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

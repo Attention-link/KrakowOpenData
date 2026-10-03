@@ -1,5 +1,5 @@
 @page "/"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Title="@T["home.title"]" PageTitleText="@T["home.pageTitle"]" Description="@T["home.lede"]" />
 
@@ -48,9 +48,9 @@
 </LoadState>
 
 @code {
-    private static readonly string[] AccessKinds = ["LiveFeed", "Api", "Download", "Seed", "Sample", "Planned"];
+    private static readonly string[] AccessKinds = ["LiveFeed", "Api", "Download", "Planned"];
 
-    // Which sample page shows which dataset. Presentation concern, so it lives in the UI.
+    // Which page shows which dataset. Presentation concern, so it lives in the UI.
     private static readonly Dictionary<string, string> UiRoutes = new()
     {
         ["transit-stops"] = "mobility/stops",
@@ -64,6 +64,8 @@
         ["river-gauges"] = "crisis/rivers",
         ["weather-warnings"] = "crisis/warnings",
         ["districts"] = "urban/districts",
+        ["osm-amenities"] = "urban/amenities",
+        ["street-lights"] = "urban/street-lights",
         ["service-cards"] = "services/cards",
         ["nfz-waiting-lists"] = "services/waiting-lists",
         ["open-data-portal"] = "open-data"
@@ -81,7 +83,7 @@
         _error = null;
         try
         {
-            _categories = await Api.GetCatalogAsync() ?? [];
+            _categories = (await Api.Catalog.GetCategoriesAsync()).ToList();
         }
         catch (Exception ex)
         {
@@ -97,7 +99,6 @@
     {
         "LiveFeed" => "good",
         "Api" or "Download" => "info",
-        "Sample" => "warn",
         "Planned" => "bad",
         _ => "neutral"
     };

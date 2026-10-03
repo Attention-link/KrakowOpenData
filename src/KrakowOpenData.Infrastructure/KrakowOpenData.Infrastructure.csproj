@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <!--
-    Infrastructure: repository implementations and data-source adapters (GTFS, GTFS-RT, IMGW, seed files).
+    Infrastructure: repository implementations and data-source adapters (GTFS, GTFS-RT, IMGW, GIOŚ, NFZ, OpenStreetMap, city Open Data API).
     Uses only the ASP.NET Core shared framework (HttpClientFactory, Options, Logging, DI) – no NuGet packages.
   -->
   <PropertyGroup>
@@ -16,11 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Curated seed files and clearly-labelled sample data travel inside the assembly. -->
-    <EmbeddedResource Include="Seed\Data\*.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <InternalsVisibleTo Include="KrakowOpenData.Infrastructure.Tests" />
+    <InternalsVisibleTo Include="KrakowOpenData.Api.Tests" />
   </ItemGroup>
 </Project>

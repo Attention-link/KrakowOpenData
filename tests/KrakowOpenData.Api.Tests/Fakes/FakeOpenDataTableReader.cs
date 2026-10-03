@@ -1,12 +1,12 @@
 using KrakowOpenData.Application.Abstractions;
 using KrakowOpenData.Application.Catalog;
 
-namespace KrakowOpenData.Infrastructure.OpenDataPortal;
+namespace KrakowOpenData.Api.Tests.Fakes;
 
-/// <summary>Offline stand-in used in sample mode: three invented rows per table, clearly labelled.</summary>
-public sealed class SampleOpenDataTableReader : IOpenDataTableReader
+/// <summary>Offline stand-in for API tests: three invented rows per table.</summary>
+public sealed class FakeOpenDataTableReader : IOpenDataTableReader
 {
-    public const string SourceName = "SAMPLE (not real)";
+    public const string SourceName = "TEST";
 
     public Task<OpenDataTableContent> ReadAsync(OpenDataTable table, int maxRows, CancellationToken cancellationToken = default)
     {

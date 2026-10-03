@@ -1,4 +1,6 @@
-namespace KrakowOpenData.Application.Abstractions;
+namespace KrakowOpenData.Contracts;
+
+/// <summary>One page of results plus paging totals.</summary>
 
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize)
 {

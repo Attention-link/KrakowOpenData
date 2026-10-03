@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Contracts: the DTOs the API returns. No dependencies, so it ships as its own small NuGet
+    package and is shared by the API (Application) and the client.
+  -->
+  <PropertyGroup>
+    <RootNamespace>KrakowOpenData.Contracts</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <!-- XML docs give consumers IntelliSense; missing-comment warnings are not useful here. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageId>KrakowOpenData.Contracts</PackageId>
+    <Description>Data contracts (DTOs) returned by the Kraków Open Data API.</Description>
+  </PropertyGroup>
+</Project>

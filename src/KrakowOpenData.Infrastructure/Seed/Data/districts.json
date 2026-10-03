@@ -1,22 +1,148 @@
-// Kraków's 18 districts (dzielnice). Registered permanent residents are filled in only where the
-// city published them: end of 2025, BIP Kraków (https://www.bip.krakow.pl/?mmi=97).
+// Offline copy of live data (used in sample mode only). Live mode reads the same table from
+// https://api.um.krakow.pl/opendata-mieszkancy-pobyt-staly/v1/zameldowani-na-pobyt-staly-km-31-12-2025 (copied 3 Oct 2026).
 [
-  { "id": "I", "number": 1, "name": "Stare Miasto", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "II", "number": 2, "name": "Grzegórzki", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "III", "number": 3, "name": "Prądnik Czerwony", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "IV", "number": 4, "name": "Prądnik Biały", "registeredPopulation": 74105, "populationNote": "Registered permanent residents, end of 2025 (largest district)", "source": "BIP Kraków" },
-  { "id": "V", "number": 5, "name": "Krowodrza", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "VI", "number": 6, "name": "Bronowice", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "VII", "number": 7, "name": "Zwierzyniec", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "VIII", "number": 8, "name": "Dębniki", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "IX", "number": 9, "name": "Łagiewniki-Borek Fałęcki", "registeredPopulation": 15168, "populationNote": "Registered permanent residents, end of 2025 (smallest district)", "source": "BIP Kraków" },
-  { "id": "X", "number": 10, "name": "Swoszowice", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XI", "number": 11, "name": "Podgórze Duchackie", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XII", "number": 12, "name": "Bieżanów-Prokocim", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XIII", "number": 13, "name": "Podgórze", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XIV", "number": 14, "name": "Czyżyny", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XV", "number": 15, "name": "Mistrzejowice", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XVI", "number": 16, "name": "Bieńczyce", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XVII", "number": 17, "name": "Wzgórza Krzesławickie", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" },
-  { "id": "XVIII", "number": 18, "name": "Nowa Huta", "registeredPopulation": null, "populationNote": null, "source": "BIP Kraków" }
+  {
+    "id": "I",
+    "number": 1,
+    "name": "Stare Miasto",
+    "registeredPopulation": 26823,
+    "populationNote": "Permanent residents on 31 Dec 2025: 14487 women, 12336 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "II",
+    "number": 2,
+    "name": "Grzegórzki",
+    "registeredPopulation": 29599,
+    "populationNote": "Permanent residents on 31 Dec 2025: 16099 women, 13500 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "III",
+    "number": 3,
+    "name": "Prądnik Czerwony",
+    "registeredPopulation": 44524,
+    "populationNote": "Permanent residents on 31 Dec 2025: 24443 women, 20081 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "IV",
+    "number": 4,
+    "name": "Prądnik Biały",
+    "registeredPopulation": 74105,
+    "populationNote": "Permanent residents on 31 Dec 2025: 40022 women, 34083 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "V",
+    "number": 5,
+    "name": "Krowodrza",
+    "registeredPopulation": 28725,
+    "populationNote": "Permanent residents on 31 Dec 2025: 16003 women, 12722 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "VI",
+    "number": 6,
+    "name": "Bronowice",
+    "registeredPopulation": 24655,
+    "populationNote": "Permanent residents on 31 Dec 2025: 13284 women, 11371 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "VII",
+    "number": 7,
+    "name": "Zwierzyniec",
+    "registeredPopulation": 20296,
+    "populationNote": "Permanent residents on 31 Dec 2025: 10932 women, 9364 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "VIII",
+    "number": 8,
+    "name": "Dębniki",
+    "registeredPopulation": 66203,
+    "populationNote": "Permanent residents on 31 Dec 2025: 35199 women, 31004 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "IX",
+    "number": 9,
+    "name": "Łagiewniki-Borek Fałęcki",
+    "registeredPopulation": 15168,
+    "populationNote": "Permanent residents on 31 Dec 2025: 8142 women, 7026 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "X",
+    "number": 10,
+    "name": "Swoszowice",
+    "registeredPopulation": 29234,
+    "populationNote": "Permanent residents on 31 Dec 2025: 15389 women, 13845 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XI",
+    "number": 11,
+    "name": "Podgórze Duchackie",
+    "registeredPopulation": 53769,
+    "populationNote": "Permanent residents on 31 Dec 2025: 28990 women, 24779 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XII",
+    "number": 12,
+    "name": "Bieżanów-Prokocim",
+    "registeredPopulation": 62507,
+    "populationNote": "Permanent residents on 31 Dec 2025: 33833 women, 28674 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XIII",
+    "number": 13,
+    "name": "Podgórze",
+    "registeredPopulation": 42298,
+    "populationNote": "Permanent residents on 31 Dec 2025: 22121 women, 20177 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XIV",
+    "number": 14,
+    "name": "Czyżyny",
+    "registeredPopulation": 34624,
+    "populationNote": "Permanent residents on 31 Dec 2025: 18430 women, 16194 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XV",
+    "number": 15,
+    "name": "Mistrzejowice",
+    "registeredPopulation": 49936,
+    "populationNote": "Permanent residents on 31 Dec 2025: 26902 women, 23034 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XVI",
+    "number": 16,
+    "name": "Bieńczyce",
+    "registeredPopulation": 35743,
+    "populationNote": "Permanent residents on 31 Dec 2025: 19687 women, 16056 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XVII",
+    "number": 17,
+    "name": "Wzgórza Krzesławickie",
+    "registeredPopulation": 20123,
+    "populationNote": "Permanent residents on 31 Dec 2025: 10640 women, 9483 men",
+    "source": "Otwarte Dane Kraków"
+  },
+  {
+    "id": "XVIII",
+    "number": 18,
+    "name": "Nowa Huta",
+    "registeredPopulation": 45365,
+    "populationNote": "Permanent residents on 31 Dec 2025: 24494 women, 20871 men",
+    "source": "Otwarte Dane Kraków"
+  }
 ]

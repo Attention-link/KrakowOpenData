@@ -48,3 +48,9 @@ GET {{api}}/api/open-data/tables?category=Society
 GET {{api}}/api/open-data/tables/nurseries-public?limit=100
 ###
 GET {{api}}/api/open-data/tables/lost-property?q=telefon
+###
+GET {{api}}/api/urban/amenities?kind=Defibrillator&lat=50.0617&lon=19.9373&radius=1000
+###
+GET {{api}}/api/urban/street-lights?lat=50.0617&lon=19.9373&radius=300
+###
+GET {{api}}/api/urban/street-lights/summary?lat=50.0617&lon=19.9373&radius=1000

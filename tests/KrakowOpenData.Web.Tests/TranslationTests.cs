@@ -67,10 +67,11 @@ public class TranslationTests
     }
 
     [Theory]
-    [InlineData("access.", new[] { "LiveFeed", "Api", "Download", "Seed", "Sample", "Planned" })]
+    [InlineData("access.", new[] { "LiveFeed", "Api", "Download", "Planned" })]
     [InlineData("mode.", new[] { "Tram", "Bus", "Rail", "Metro", "Other" })]
     [InlineData("band.", new[] { "Good", "Moderate", "Poor", "VeryPoor", "Unknown" })]
     [InlineData("state.", new[] { "AboveAlarm", "AboveWarning", "Normal", "Unknown" })]
+    [InlineData("tech.", new[] { "Led", "Sodium", "Mercury", "MetalHalide", "Other", "Unknown" })]
     public void Values_shown_from_the_api_are_translated(string prefix, string[] values)
     {
         foreach (var value in values) Assert.True(UiText.Entries.ContainsKey(prefix + value), $"Missing {prefix}{value}");

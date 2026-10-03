@@ -5,12 +5,6 @@ public sealed class KrakowDataOptions
 {
     public const string SectionName = "KrakowData";
 
-    /// <summary>
-    /// When true, nothing is downloaded: transit, weather and warnings come from built-in sample data.
-    /// Use it for offline demos and tests.
-    /// </summary>
-    public bool UseSampleData { get; set; }
-
     /// <summary>GTFS feeds to merge. ZTP Kraków publishes A (bus), T (tram) and M (agglomeration).</summary>
     public List<GtfsFeedOptions> GtfsFeeds { get; set; } = [];
 
@@ -52,6 +46,41 @@ public sealed class KrakowDataOptions
     public int NfzMaxPages { get; set; } = 4;
 
     public int AirQualityRefreshMinutes { get; set; } = 20;
+
+    /// <summary>
+    /// OpenStreetMap Overpass endpoints, tried in order: if one is slow, busy (429/504) or down,
+    /// the next mirror is used. All serve the same data.
+    /// </summary>
+    public List<string> OverpassUrls { get; set; } =
+    [
+        "https://overpass-api.de/api/interpreter",
+        "https://overpass.private.coffee/api/interpreter",
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+    ];
+
+    /// <summary>Per-request timeout for Overpass; the citywide street-lamp query is several MB.</summary>
+    public int OverpassTimeoutSeconds { get; set; } = 180;
+
+    /// <summary>
+    /// Download OpenStreetMap datasets in the background when the API starts (and refresh them daily),
+    /// so requests never wait for Overpass. Tests switch this off.
+    /// </summary>
+    public bool PreloadOnStartup { get; set; } = true;
+
+    /// <summary>How long a request waits for a dataset's very first download before answering 503.</summary>
+    public int FirstLoadWaitSeconds { get; set; } = 20;
+
+    /// <summary>
+    /// Where the last successful OpenStreetMap downloads are saved, so a restart serves them at once.
+    /// Empty = %LOCALAPPDATA%/KrakowOpenData/cache (or ~/.local/share/... on Linux).
+    /// </summary>
+    public string CacheDirectory { get; set; } = string.Empty;
+
+    /// <summary>OSM boundary name (admin_level 8) to search in.</summary>
+    public string OsmAreaName { get; set; } = "Kraków";
+
+    /// <summary>Overpass is queried at most this often (one combined query).</summary>
+    public int OsmRefreshMinutes { get; set; } = 1440;
 
     public int OpenDataRefreshMinutes { get; set; } = 360;
 

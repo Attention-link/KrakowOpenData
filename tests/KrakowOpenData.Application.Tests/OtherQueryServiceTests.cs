@@ -70,8 +70,25 @@ public class OtherQueryServiceTests
         var repo = new InMemoryRepository<District>(
             new District("II", 2, "Grzegórzki", null, null, "BIP"),
             new District("I", 1, "Stare Miasto", null, null, "BIP"));
-        var result = await new UrbanSpaceQueryService(repo).GetDistrictsAsync();
+        var result = await new UrbanSpaceQueryService(repo, new InMemoryRepository<Amenity>()).GetDistrictsAsync();
         Assert.Equal(new[] { "I", "II" }, result.Select(d => d.Id).ToArray());
+    }
+
+    [Fact]
+    public async Task Amenities_near_a_point_are_filtered_by_kind_and_radius_nearest_first()
+    {
+        var square = new GeoPoint(50.0617, 19.9373);
+        var amenities = new InMemoryRepository<Amenity>(
+            new Amenity("far", AmenityKind.Defibrillator, "Far", new GeoPoint(50.0900, 19.9373), null, "OSM"),
+            new Amenity("near", AmenityKind.Defibrillator, "Near", new GeoPoint(50.0620, 19.9373), null, "OSM"),
+            new Amenity("mid", AmenityKind.Defibrillator, "Mid", new GeoPoint(50.0650, 19.9373), null, "OSM"),
+            new Amenity("water", AmenityKind.DrinkingWater, null, new GeoPoint(50.0618, 19.9373), null, "OSM"));
+        var svc = new UrbanSpaceQueryService(new InMemoryRepository<District>(), amenities);
+
+        var result = await svc.GetAmenitiesAsync(AmenityKind.Defibrillator, square, 1000, 10);
+
+        Assert.Equal(new[] { "near", "mid" }, result.Select(a => a.Id).ToArray());
+        Assert.True(result[0].DistanceMeters < result[1].DistanceMeters);
     }
 
     [Fact]

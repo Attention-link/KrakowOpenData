@@ -1,3 +1,5 @@
+using KrakowOpenData.Application.Abstractions;
+
 namespace KrakowOpenData.Api.Endpoints;
 
 /// <summary>
@@ -11,6 +13,15 @@ public sealed class UpstreamUnavailableFilter(ILogger<UpstreamUnavailableFilter>
         try
         {
             return await next(context);
+        }
+        catch (DataSourceLoadingException ex)
+        {
+            // First download after start-up is still running: answer at once and say when to retry.
+            context.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(ex.RetryAfter.TotalSeconds)).ToString();
+            return Results.Problem(
+                title: "Data is still loading",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
         }
         catch (Exception ex) when (IsUpstreamFailure(ex) && !context.HttpContext.RequestAborted.IsCancellationRequested)
         {

@@ -1,0 +1,128 @@
+@page "/urban/street-lights"
+@inject IKrakowOpenDataClient Api
+
+<PageHeader Category="@T["cat.UrbanSpace"]" Title="@T["lights.title"]" PageTitleText="@T["nav.streetLights"]"
+            Description="@T["lights.lede"]" Source="@T["lights.source"]" />
+
+<div class="toolbar">
+    <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <input class="narrow" placeholder="50.0617,19.9373" aria-label="@T["amen.near"]" title="@T["amen.near"]" @bind="_near" />
+        <input class="narrow" type="number" min="50" max="5000" step="50" aria-label="@T["amen.radius"]" title="@T["amen.radius"]" @bind="_radius" />
+        <select aria-label="@T["lights.technology"]" @bind="_technology">
+            <option value="">@T["lights.allTechnologies"]</option>
+            @foreach (var tech in Technologies)
+            {
+                <option value="@tech">@T["tech." + tech]</option>
+            }
+        </select>
+        <button class="btn" type="submit">@T["common.search"]</button>
+    </form>
+</div>
+
+<LoadState IsLoading="_loading" Error="@_error" IsEmpty="_summary is null" OnRetry="LoadAsync">
+    @if (_summary is not null)
+    {
+        <div class="grid">
+            <article class="card">
+                <span class="muted small">@T["lights.inArea"]</span>
+                <h3>@_summary.Total.ToString("N0", CultureInfo.InvariantCulture)</h3>
+                @if (_summary.PerKm2 is { } density)
+                {
+                    <span class="small">@T.F("lights.density", density.ToString("0", CultureInfo.InvariantCulture))</span>
+                }
+            </article>
+            <article class="card">
+                <span class="muted small">@T["lights.byTechnology"]</span>
+                @foreach (var (tech, count) in _summary.ByTechnology)
+                {
+                    <div class="small">@T.Or("tech." + tech, tech): <strong>@count</strong></div>
+                }
+            </article>
+            <article class="card">
+                <span class="muted small">@T["lights.byMount"]</span>
+                @foreach (var (mount, count) in _summary.ByMount.Take(6))
+                {
+                    <div class="small">@mount: <strong>@count</strong></div>
+                }
+            </article>
+        </div>
+        <p class="muted small">@T.F("lights.coverage", _summary.WithKnownTechnology, _summary.Total)</p>
+
+        <table class="table">
+            <thead><tr><th>@T["col.distance"]</th><th>@T["lights.technology"]</th><th>@T["lights.mount"]</th><th>@T["lights.height"]</th><th>@T["lights.operator"]</th><th>@T["lights.reference"]</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var l in _lights.Take(300))
+                {
+                    <tr>
+                        <td>@(l.DistanceMeters is null ? "–" : l.DistanceMeters.Value.ToString("0", CultureInfo.InvariantCulture) + " m")</td>
+                        <td><Badge Tone="@Tone(l.Technology)">@T.Or("tech." + l.Technology, l.Technology)</Badge></td>
+                        <td class="small">@(l.Mount ?? "–")</td>
+                        <td>@(l.HeightMeters is null ? "–" : l.HeightMeters.Value.ToString("0.#", CultureInfo.InvariantCulture) + " m")</td>
+                        <td class="small">@(l.Operator ?? "–")</td>
+                        <td class="small">@(l.Reference ?? "–")</td>
+                        <td><a href="@MapUrl(l)" target="_blank" rel="noopener">@T["amen.mapLink"]</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        @if (_lights.Count > 300)
+        {
+            <p class="muted small">@T.F("odp.shown", 300)</p>
+        }
+    }
+</LoadState>
+
+@code {
+    private static readonly string[] Technologies = ["Led", "Sodium", "Mercury", "MetalHalide", "Other", "Unknown"];
+
+    private string? _near = "50.0617,19.9373"; // Rynek Główny
+    private int _radius = 300;
+    private string _technology = "";
+    private StreetLightSummaryDto? _summary;
+    private List<StreetLightDto> _lights = [];
+    private bool _loading = true;
+    private string? _error;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        double? lat = null, lon = null;
+        if (!string.IsNullOrWhiteSpace(_near))
+        {
+            var parts = _near.Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2 ||
+                !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var la) ||
+                !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lo))
+            {
+                _error = T["amen.badPoint"];
+                _loading = false;
+                return;
+            }
+
+            lat = la;
+            lon = lo;
+        }
+
+        _loading = true;
+        _error = null;
+        try
+        {
+            var technology = string.IsNullOrEmpty(_technology) ? null : _technology;
+            _summary = await Api.Urban.GetStreetLightSummaryAsync(lat, lon, _radius);
+            _lights = (await Api.Urban.GetStreetLightsAsync(lat, lon, _radius, technology, 2000)).ToList();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private static string Tone(string technology) => technology switch
+    {
+        "Led" => "good",
+        "Sodium" or "Mercury" or "MetalHalide" => "warn",
+        _ => "neutral"
+    };
+
+    private static string MapUrl(StreetLightDto l) =>
+        FormattableString.Invariant($"https://www.openstreetmap.org/?mlat={l.Latitude}&mlon={l.Longitude}#map=19/{l.Latitude}/{l.Longitude}");
+}

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Console example of using KrakowOpenData.Client. Start the API first. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>KrakowOpenData.Client.Sample</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KrakowOpenData.Client\KrakowOpenData.Client.csproj" />
+  </ItemGroup>
+</Project>

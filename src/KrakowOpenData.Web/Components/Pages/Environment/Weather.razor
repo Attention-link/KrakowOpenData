@@ -1,5 +1,5 @@
 @page "/environment/weather"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.Environment"]" Title="@T["weather.title"]"
             Description="@T["weather.lede"]" Source="@T["weather.source"]" />
@@ -40,7 +40,7 @@
     {
         _loading = true;
         _error = null;
-        try { _items = await Api.GetWeatherAsync() ?? []; }
+        try { _items = (await Api.Environment.GetWeatherAsync()).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

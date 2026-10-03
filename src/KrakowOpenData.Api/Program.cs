@@ -1,11 +1,27 @@
 using System.Text.Json.Serialization;
 using KrakowOpenData.Api.Endpoints;
 using KrakowOpenData.Infrastructure;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddKrakowOpenData(builder.Configuration);
 builder.Services.AddProblemDetails();
+
+// OpenAPI: spec at /swagger/v1/swagger.json, interactive docs at /swagger.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(o =>
+{
+    o.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Kraków Open Data API",
+        Version = "v1",
+        Description = "Kraków's public data in one API: public transport, air quality, weather, rivers, warnings, " +
+                      "districts, amenities, city procedures, NFZ waiting lists and the city's Open Data tables. " +
+                      "503 means a public source is unavailable right now. .NET apps can use the KrakowOpenData.Client package."
+    });
+    o.SupportNonNullableReferenceTypes();
+});
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -26,8 +42,15 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 app.UseCors();
 
-app.MapGet("/", () => Results.Redirect("/api/catalog")).ExcludeFromDescription();
-app.MapGet("/health", () => Results.Ok(new { status = "ok", time = DateTimeOffset.UtcNow }));
+app.UseSwagger();
+app.UseSwaggerUI(o =>
+{
+    o.SwaggerEndpoint("/swagger/v1/swagger.json", "Kraków Open Data API v1");
+    o.DocumentTitle = "Kraków Open Data API";
+});
+
+app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
+app.MapGet("/health", () => Results.Ok(new { status = "ok", time = DateTimeOffset.UtcNow })).ExcludeFromDescription();
 
 var api = app.MapGroup("/api").AddEndpointFilter<UpstreamUnavailableFilter>();
 api.MapCatalogEndpoints();

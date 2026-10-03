@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\KrakowOpenData.Web\KrakowOpenData.Web.csproj" />
+    <!-- Translation tests check every catalog dataset and table has UI text. -->
+    <ProjectReference Include="..\..\src\KrakowOpenData.Application\KrakowOpenData.Application.csproj" />
   </ItemGroup>
 </Project>

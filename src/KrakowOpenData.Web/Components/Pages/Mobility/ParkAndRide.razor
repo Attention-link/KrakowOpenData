@@ -1,5 +1,5 @@
 @page "/mobility/park-and-ride"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.Mobility"]" Title="@T["pr.title"]" PageTitleText="@T["pr.pageTitle"]"
             Description="@T["pr.lede"]" Source="@T["pr.source"]" />
@@ -35,7 +35,7 @@
     {
         _loading = true;
         _error = null;
-        try { _items = await Api.GetParkAndRideAsync() ?? []; }
+        try { _items = (await Api.Mobility.GetParkAndRideAsync()).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

@@ -1,5 +1,5 @@
 @page "/crisis/rivers"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.ClimateAndCrisis"]" Title="@T["rivers.title"]"
             Description="@T["rivers.lede"]" Source="@T["rivers.source"]" />
@@ -42,7 +42,7 @@
     {
         _loading = true;
         _error = null;
-        try { _items = await Api.GetRiverGaugesAsync(_elevatedOnly) ?? []; }
+        try { _items = (await Api.Crisis.GetRiverGaugesAsync(_elevatedOnly)).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

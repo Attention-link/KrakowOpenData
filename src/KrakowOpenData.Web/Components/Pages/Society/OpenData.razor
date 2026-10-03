@@ -1,7 +1,6 @@
 @page "/open-data"
 @page "/open-data/{Key}"
-@using KrakowOpenData.Domain.Common
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 @inject NavigationManager Nav
 
 <PageHeader Category="@T["cat.Society"]" Title="@T["odp.title"]" PageTitleText="@T["nav.openData"]"
@@ -105,7 +104,7 @@
     {
         _loadingTables = true;
         _tablesError = null;
-        try { _tables = await Api.GetOpenDataTablesAsync() ?? []; }
+        try { _tables = (await Api.OpenData.GetTablesAsync()).ToList(); }
         catch (Exception ex) { _tablesError = ex.Message; }
         finally { _loadingTables = false; }
     }
@@ -121,7 +120,7 @@
         _rowsError = null;
         try
         {
-            _rows = await Api.GetOpenDataRowsAsync(Key, RowLimit);
+            _rows = await Api.OpenData.GetRowsAsync(Key, RowLimit);
             if (_rows is null) _rowsError = T["odp.unknown"];
         }
         catch (Exception ex) { _rowsError = ex.Message; }
@@ -138,8 +137,8 @@
     {
         if (_rows is null) return [];
         if (string.IsNullOrWhiteSpace(_filter)) return _rows.Rows;
-        var needle = TextNormalizer.Normalize(_filter);
-        return _rows.Rows.Where(r => r.Values.Any(v => v is not null && TextNormalizer.Normalize(v).Contains(needle, StringComparison.Ordinal)));
+        var needle = SearchText.Normalize(_filter);
+        return _rows.Rows.Where(r => r.Values.Any(v => v is not null && SearchText.Normalize(v).Contains(needle, StringComparison.Ordinal)));
     }
 
     // Table titles are translated by key; the English title from the API is the fallback.

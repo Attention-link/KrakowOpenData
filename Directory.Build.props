@@ -11,4 +11,14 @@
     <RollForward>Major</RollForward>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
+
+  <!-- NuGet packaging. Only KrakowOpenData.Contracts and KrakowOpenData.Client opt in (IsPackable=true).
+       Override the version at pack time: dotnet pack -p:Version=1.2.3 -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <Version>0.1.0</Version>
+    <Authors>HackYeah 2026 team</Authors>
+    <PackageTags>krakow;open-data;gtfs;air-quality;smart-city</PackageTags>
+  </PropertyGroup>
+
 </Project>

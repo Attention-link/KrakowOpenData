@@ -1,4 +1,5 @@
 using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Application.Catalog;
 using KrakowOpenData.Application.Services;
 using KrakowOpenData.Domain.ClimateAndCrisis;
 using KrakowOpenData.Domain.Common;
@@ -14,21 +15,19 @@ using KrakowOpenData.Infrastructure.GtfsRealtime;
 using KrakowOpenData.Infrastructure.Imgw;
 using KrakowOpenData.Infrastructure.Nfz;
 using KrakowOpenData.Infrastructure.OpenDataPortal;
+using KrakowOpenData.Infrastructure.OpenStreetMap;
 using KrakowOpenData.Infrastructure.Options;
 using KrakowOpenData.Infrastructure.Repositories;
-using KrakowOpenData.Infrastructure.Sample;
-using KrakowOpenData.Infrastructure.Seed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace KrakowOpenData.Infrastructure;
 
 /// <summary>
 /// Composition root for data access. Call <c>services.AddKrakowOpenData(configuration)</c> from the host.
-/// To add a dataset: create a domain record, a data source here, a repository registration, and a
-/// service method in Application – nothing else needs to change.
+/// Every dataset is read live from its public source and cached. To add a dataset: create a domain
+/// record, a data source here, and a service method in Application – nothing else needs to change.
+/// Tests replace the <see cref="IDataSource{T}"/> and provider registrations with in-memory fakes.
 /// </summary>
 public static class DependencyInjection
 {
@@ -38,94 +37,61 @@ public static class DependencyInjection
         var options = configuration.GetSection(KrakowDataOptions.SectionName).Get<KrakowDataOptions>() ?? new KrakowDataOptions();
 
         services.AddSingleton<IClock, SystemClock>();
+        services.AddMemoryCache();
         services.AddHttpClient(GtfsDatasetProvider.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(Math.Max(5, options.HttpTimeoutSeconds));
             client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
         });
 
-        // ── Transit feeds: live or sample ─────────────────────────────────────
-        if (options.UseSampleData)
-        {
-            services.AddSingleton<IGtfsDatasetProvider, SampleGtfsDatasetProvider>();
-            services.AddSingleton<IGtfsRealtimeFeedProvider, SampleRealtimeFeedProvider>();
-        }
-        else
-        {
-            services.AddSingleton<IGtfsDatasetProvider, GtfsDatasetProvider>();
-            services.AddSingleton<IGtfsRealtimeFeedProvider, GtfsRealtimeFeedProvider>();
-        }
-
-        services.AddMemoryCache();
+        // ── Upstream clients (one per public source) ──────────────────────────
+        services.AddSingleton<IGtfsDatasetProvider, GtfsDatasetProvider>();
+        services.AddSingleton<IGtfsRealtimeFeedProvider, GtfsRealtimeFeedProvider>();
         services.AddSingleton<ImgwClient>();
         services.AddSingleton<GiosClient>();
-
-        // ── City Open Data portal tables and NFZ waiting lists: live or sample ──
-        if (options.UseSampleData)
+        services.AddHttpClient(OverpassQueryRunner.HttpClientName, client =>
         {
-            services.AddSingleton<IOpenDataTableReader, SampleOpenDataTableReader>();
-            services.AddSingleton<IWaitingListSource, SampleWaitingListSource>();
-        }
-        else
-        {
-            services.AddSingleton<IOpenDataTableReader, OpenDataPortalClient>();
-            services.AddSingleton<IWaitingListSource, NfzClient>();
-        }
-
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(30, options.OverpassTimeoutSeconds));
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
+        });
+        services.AddSingleton<ISnapshotStore, FileSnapshotStore>();
+        services.AddSingleton<OverpassQueryRunner>();
+        services.AddSingleton<OverpassClient>();
+        services.AddSingleton<StreetLightsClient>();
+        services.AddHostedService<OsmPreloadService>();
+        services.AddSingleton<IOpenDataTableReader, OpenDataPortalClient>();
+        services.AddSingleton<IWaitingListSource, NfzClient>();
         services.AddSingleton<ITransitScheduleRepository, GtfsScheduleRepository>();
 
-        // ── Mobility ──────────────────────────────────────────────────────────
-        AddRepository<TransitStop>(services, sp =>
-        {
-            var gtfs = sp.GetRequiredService<IGtfsDatasetProvider>();
-            return new DelegateDataSource<TransitStop>(async ct => (await gtfs.GetAsync(ct)).Stops.Values.ToList());
-        });
-        AddRepository<TransitRoute>(services, sp =>
-        {
-            var gtfs = sp.GetRequiredService<IGtfsDatasetProvider>();
-            return new DelegateDataSource<TransitRoute>(async ct => (await gtfs.GetAsync(ct)).Routes.Values.ToList());
-        });
-        AddRepository<VehiclePosition>(services, sp =>
-        {
-            var rt = sp.GetRequiredService<IGtfsRealtimeFeedProvider>();
-            return new DelegateDataSource<VehiclePosition>(async ct => (await rt.GetAsync(ct)).Vehicles);
-        });
-        AddRepository<TripUpdate>(services, sp =>
-        {
-            var rt = sp.GetRequiredService<IGtfsRealtimeFeedProvider>();
-            return new DelegateDataSource<TripUpdate>(async ct => (await rt.GetAsync(ct)).TripUpdates);
-        });
-        AddRepository<ServiceAlert>(services, sp =>
-        {
-            var rt = sp.GetRequiredService<IGtfsRealtimeFeedProvider>();
-            return new DelegateDataSource<ServiceAlert>(async ct => (await rt.GetAsync(ct)).Alerts);
-        });
-        AddRepository<ParkAndRideFacility>(services, _ => SeedData.Source<ParkAndRideFacility>(SeedData.ParkAndRide));
+        // ── Mobility: ZTP GTFS / GTFS-RT, OpenStreetMap ──────────────────────
+        AddRepository<TransitStop>(services, sp => From<TransitStop>(async ct => (await Gtfs(sp).GetAsync(ct)).Stops.Values.ToList()));
+        AddRepository<TransitRoute>(services, sp => From<TransitRoute>(async ct => (await Gtfs(sp).GetAsync(ct)).Routes.Values.ToList()));
+        AddRepository<VehiclePosition>(services, sp => From<VehiclePosition>(async ct => (await Realtime(sp).GetAsync(ct)).Vehicles));
+        AddRepository<TripUpdate>(services, sp => From<TripUpdate>(async ct => (await Realtime(sp).GetAsync(ct)).TripUpdates));
+        AddRepository<ServiceAlert>(services, sp => From<ServiceAlert>(async ct => (await Realtime(sp).GetAsync(ct)).Alerts));
+        AddRepository<ParkAndRideFacility>(services, sp => From<ParkAndRideFacility>(async ct => (await Osm(sp).GetAsync(ct)).ParkAndRide));
 
-        // ── Environment ───────────────────────────────────────────────────────
-        AddRepository<WeatherObservation>(services, sp => options.UseSampleData
-            ? SeedData.Source<WeatherObservation>(SeedData.SampleWeather)
-            : Cached(sp, new DelegateDataSource<WeatherObservation>(sp.GetRequiredService<ImgwClient>().GetSynopAsync), options.ApiRefreshMinutes));
-        AddRepository<AirQualityMeasurement>(services, sp => options.UseSampleData
-            ? SeedData.Source<AirQualityMeasurement>(SeedData.SampleAirQuality)
-            : Cached(sp, new DelegateDataSource<AirQualityMeasurement>(sp.GetRequiredService<GiosClient>().GetAirQualityAsync), options.AirQualityRefreshMinutes));
+        // ── Environment: IMGW, GIOŚ ───────────────────────────────────────────
+        AddRepository<WeatherObservation>(services, sp =>
+            Cached(sp, From<WeatherObservation>(sp.GetRequiredService<ImgwClient>().GetSynopAsync), options.ApiRefreshMinutes));
+        AddRepository<AirQualityMeasurement>(services, sp =>
+            Cached(sp, From<AirQualityMeasurement>(sp.GetRequiredService<GiosClient>().GetAirQualityAsync), options.AirQualityRefreshMinutes));
 
-        // ── Climate & crisis ──────────────────────────────────────────────────
+        // ── Climate & crisis: IMGW ────────────────────────────────────────────
         AddRepository<HydroObservation>(services, sp =>
-        {
-            var historical = SeedData.Source<HydroObservation>(SeedData.LocalRiverGauges);
-            if (options.UseSampleData) return historical;
+            Cached(sp, From<HydroObservation>(sp.GetRequiredService<ImgwClient>().GetHydroAsync), options.ApiRefreshMinutes));
+        AddRepository<WeatherWarning>(services, sp =>
+            Cached(sp, From<WeatherWarning>(sp.GetRequiredService<ImgwClient>().GetWarningsAsync), options.ApiRefreshMinutes));
 
-            var live = Cached(sp, new DelegateDataSource<HydroObservation>(sp.GetRequiredService<ImgwClient>().GetHydroAsync), options.ApiRefreshMinutes);
-            return new CompositeDataSource<HydroObservation>([live, historical], Logger(sp, "RiverGauges"));
-        });
-        AddRepository<WeatherWarning>(services, sp => options.UseSampleData
-            ? SeedData.Source<WeatherWarning>(SeedData.SampleWarnings)
-            : Cached(sp, new DelegateDataSource<WeatherWarning>(sp.GetRequiredService<ImgwClient>().GetWarningsAsync), options.ApiRefreshMinutes));
+        // ── Urban space: city Open Data API, OpenStreetMap ────────────────────
+        AddRepository<District>(services, sp => From<District>(async ct => CityTableMapper.Districts(
+            await Tables(sp).ReadAsync(OpenDataTables.ResidentsByDistrict, 1000, ct), "31 Dec 2025")));
+        AddRepository<Amenity>(services, sp => From<Amenity>(async ct => (await Osm(sp).GetAsync(ct)).Amenities));
+        AddRepository<StreetLight>(services, sp => From<StreetLight>(sp.GetRequiredService<StreetLightsClient>().GetAsync));
 
-        // ── Urban space & public services ─────────────────────────────────────
-        AddRepository<District>(services, _ => SeedData.Source<District>(SeedData.Districts));
-        AddRepository<CityServiceCard>(services, _ => SeedData.Source<CityServiceCard>(SeedData.ServiceCards));
+        // ── Public services: city Open Data API ───────────────────────────────
+        AddRepository<CityServiceCard>(services, sp => From<CityServiceCard>(async ct => CityTableMapper.ServiceCards(
+            await Tables(sp).ReadAsync(OpenDataTables.CityProcedures, 5000, ct))));
 
         // ── Application use cases ─────────────────────────────────────────────
         services.AddSingleton<CatalogService>();
@@ -133,6 +99,7 @@ public static class DependencyInjection
         services.AddSingleton<EnvironmentQueryService>();
         services.AddSingleton<ClimateCrisisQueryService>();
         services.AddSingleton<UrbanSpaceQueryService>();
+        services.AddSingleton<StreetLightsQueryService>();
         services.AddSingleton<PublicServicesQueryService>();
         services.AddSingleton<WaitingListQueryService>();
         services.AddSingleton<OpenDataPortalService>();
@@ -147,9 +114,16 @@ public static class DependencyInjection
         services.AddSingleton<IReadRepository<T>>(sp => new Repository<T>(sp.GetRequiredService<IDataSource<T>>()));
     }
 
+    private static IDataSource<T> From<T>(Func<CancellationToken, Task<IReadOnlyList<T>>> load) => new DelegateDataSource<T>(load);
+
     private static IDataSource<T> Cached<T>(IServiceProvider sp, IDataSource<T> inner, int minutes) =>
         new CachedDataSource<T>(inner, TimeSpan.FromMinutes(Math.Max(1, minutes)), sp.GetRequiredService<IClock>());
 
-    private static ILogger Logger(IServiceProvider sp, string category) =>
-        sp.GetRequiredService<ILoggerFactory>().CreateLogger($"KrakowOpenData.{category}");
+    private static IGtfsDatasetProvider Gtfs(IServiceProvider sp) => sp.GetRequiredService<IGtfsDatasetProvider>();
+
+    private static IGtfsRealtimeFeedProvider Realtime(IServiceProvider sp) => sp.GetRequiredService<IGtfsRealtimeFeedProvider>();
+
+    private static OverpassClient Osm(IServiceProvider sp) => sp.GetRequiredService<OverpassClient>();
+
+    private static IOpenDataTableReader Tables(IServiceProvider sp) => sp.GetRequiredService<IOpenDataTableReader>();
 }

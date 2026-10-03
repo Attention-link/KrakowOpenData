@@ -14,12 +14,6 @@ public enum AccessMode
     /// <summary>File downloaded and parsed periodically (e.g. GTFS zip).</summary>
     Download,
 
-    /// <summary>Bundled seed data, curated by hand from official pages.</summary>
-    Seed,
-
-    /// <summary>Clearly-labelled sample data for demos; replace before relying on it.</summary>
-    Sample,
-
     /// <summary>Known source, not wired up yet: the next thing to implement.</summary>
     Planned
 }
@@ -62,9 +56,9 @@ public static class DataCatalog
         new("service-alerts", "Disruptions and detours", DataCategory.Mobility, "ZTP Kraków",
             "https://gtfs.ztp.krakow.pl/", "GTFS-RT (protobuf)", AccessMode.LiveFeed, "/api/mobility/alerts",
             "ServiceAlerts_A/T/M.pb."),
-        new("park-and-ride", "P+R car parks", DataCategory.Mobility, "ZTP Kraków / krakow.pl",
-            "https://ztp.krakow.pl/en/park-and-ride/pr-car-parks", "Seed (JSON)", AccessMode.Seed, "/api/mobility/park-and-ride",
-            "Names and known facts only; no public occupancy feed found."),
+        new("park-and-ride", "P+R car parks", DataCategory.Mobility, "OpenStreetMap contributors",
+            "https://www.openstreetmap.org", "Overpass JSON", AccessMode.Api, "/api/mobility/park-and-ride",
+            "Named park_ride car parks in Kraków with capacity, EV charging spaces and hours, from OpenStreetMap (refreshed daily). No live occupancy."),
         new("city-bikes", "City bikes (LajkBike, Park-e-Bike)", DataCategory.Mobility, "City of Kraków",
             "https://www.krakow.pl", "Unknown", AccessMode.Planned, null,
             "No public GBFS feed found yet."),
@@ -78,9 +72,9 @@ public static class DataCatalog
             "Latest hourly PM2.5, PM10 and NO₂ for every GIOŚ station in Kraków, plus the official Polish air quality index. No key needed."),
 
         // ── Climate & crisis ───────────────────────────────────────────────────
-        new("river-gauges", "River and stream levels", DataCategory.ClimateAndCrisis, "IMGW-PIB / City of Kraków",
-            "https://danepubliczne.imgw.pl", "JSON API + seed", AccessMode.Api, "/api/crisis/river-gauges",
-            "Live IMGW stations near Kraków plus the city's local stream readings from 15 Sep 2024 for replay."),
+        new("river-gauges", "River and stream levels", DataCategory.ClimateAndCrisis, "IMGW-PIB",
+            "https://danepubliczne.imgw.pl", "JSON API", AccessMode.Api, "/api/crisis/river-gauges",
+            "Live IMGW gauges in and around Kraków (Wisła, Rudawa, Prądnik, Wilga) with warning and alarm levels."),
         new("weather-warnings", "Weather and hydrological warnings", DataCategory.ClimateAndCrisis, "IMGW-PIB",
             "https://danepubliczne.imgw.pl", "JSON API", AccessMode.Api, "/api/crisis/warnings",
             "Filtered to Kraków county (TERYT 1261) by default."),
@@ -89,20 +83,22 @@ public static class DataCatalog
             "Download layers from MSIP and load as GeoJSON."),
 
         // ── Urban space ────────────────────────────────────────────────────────
-        new("districts", "Districts (dzielnice)", DataCategory.UrbanSpace, "BIP Kraków",
-            "https://www.bip.krakow.pl/?mmi=97", "Seed (JSON)", AccessMode.Seed, "/api/urban/districts",
-            "All 18 districts; registered population where published."),
+        new("districts", "Districts (dzielnice)", DataCategory.UrbanSpace, "Urząd Miasta Krakowa",
+            "https://otwartedane.um.krakow.pl/", "JSON API", AccessMode.Api, "/api/urban/districts",
+            "All 18 districts with permanent residents (31 Dec 2025) from the city's Open Data API."),
         new("msip-spatial", "Spatial data: parcels, buildings, green areas", DataCategory.UrbanSpace, "MSIP Kraków",
             "https://msip.krakow.pl", "WFS / SHP / GeoJSON", AccessMode.Planned, null,
             "District boundaries, addresses, streets, zoning plans. The WFS/REST endpoints returned 404 when checked (Oct 2026)."),
-        new("osm-amenities", "Amenities from OpenStreetMap", DataCategory.UrbanSpace, "OpenStreetMap contributors",
-            "https://overpass-api.de", "Overpass JSON", AccessMode.Planned, null,
-            "Defibrillators (AED), drinking water, public toilets, EV chargers, bike parking. Overpass rate-limits heavy queries; not wired yet."),
-
+        new("osm-amenities", "Public amenities", DataCategory.UrbanSpace, "OpenStreetMap contributors",
+            "https://www.openstreetmap.org", "Overpass JSON", AccessMode.Api, "/api/urban/amenities",
+            "Defibrillators (AED), drinking water, public toilets, EV chargers and bike parking in Kraków, refreshed daily."),
+        new("street-lights", "Street lights", DataCategory.UrbanSpace, "OpenStreetMap contributors",
+            "https://www.openstreetmap.org", "Overpass JSON", AccessMode.Api, "/api/urban/street-lights",
+            "About 27,000 mapped street lamps with position; type (LED, sodium), mount, height and operator where mapped. Refreshed daily."),
         // ── Public services ────────────────────────────────────────────────────
-        new("service-cards", "City service cards (procedures)", DataCategory.PublicServices, "BIP Kraków",
-            "https://bip.krakow.pl/uslugi/GD-35", "Seed (JSON)", AccessMode.Seed, "/api/services/cards",
-            "Copied by hand from BIP (it disallows crawling). Add more cards to the seed file."),
+        new("service-cards", "City service cards (procedures)", DataCategory.PublicServices, "Urząd Miasta Krakowa / BIP",
+            "https://www.bip.krakow.pl/", "JSON API", AccessMode.Api, "/api/services/cards",
+            "Every procedure published on BIP (symbol, name, link, version), from the city's Open Data API."),
         new("nfz-waiting-lists", "NFZ treatment waiting lists", DataCategory.PublicServices, "NFZ",
             "https://api.nfz.gov.pl/app-itl-api/", "JSON API", AccessMode.Api, "/api/services/waiting-lists?benefit=ortoped",
             "Kraków providers for a searched service: people waiting and average wait in days. First-available dates are empty in the API."),
@@ -110,7 +106,7 @@ public static class DataCatalog
         // ── Society ────────────────────────────────────────────────────────────
         new("open-data-portal", "City Open Data portal tables", DataCategory.Society, "Urząd Miasta Krakowa",
             "https://otwartedane.um.krakow.pl/", "JSON API", AccessMode.Api, "/api/open-data/tables",
-            "44 tables from api.um.krakow.pl: residents, labour market, tourism, culture, sport events, schools, nurseries, health, parks, vehicles, lost property.")
+            "45 tables from api.um.krakow.pl: residents, labour market, tourism, culture, sport events, schools, nurseries, health, parks, vehicles, lost property.")
     ];
 
     public static IEnumerable<IGrouping<DataCategory, DatasetDescriptor>> ByCategory() =>

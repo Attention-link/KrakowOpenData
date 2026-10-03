@@ -1,6 +1,6 @@
 @page "/mobility/stops/{StopId}"
 @implements IDisposable
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.Mobility"]" Title="@(_stop?.Name ?? StopId)" PageTitleText="@(_stop?.Name ?? T["dep.pageTitle"])"
             Description="@T["dep.lede"]" Source="@T["dep.source"]" />
@@ -59,8 +59,8 @@
         _error = null;
         try
         {
-            _stop ??= await Api.GetStopAsync(StopId);
-            _departures = await Api.GetDeparturesAsync(StopId, 20, 60) ?? [];
+            _stop ??= await Api.Mobility.GetStopAsync(StopId);
+            _departures = (await Api.Mobility.GetDeparturesAsync(StopId, 20, 60)).ToList();
             _updated = DateTimeOffset.Now;
         }
         catch (Exception ex)

@@ -1,13 +1,8 @@
 @page "/environment/air-quality"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.Environment"]" Title="@T["air.title"]"
             Description="@T["air.lede"]" Source="@T["air.source"]" />
-
-@if (_items.Any(a => a.Source.Contains("SAMPLE", StringComparison.OrdinalIgnoreCase)))
-{
-    <div class="callout callout-warn">@T["air.sampleWarning"]</div>
-}
 
 <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" OnRetry="LoadAsync">
     <table class="table">
@@ -50,7 +45,7 @@
     {
         _loading = true;
         _error = null;
-        try { _items = await Api.GetAirQualityAsync() ?? []; }
+        try { _items = (await Api.Environment.GetAirQualityAsync()).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

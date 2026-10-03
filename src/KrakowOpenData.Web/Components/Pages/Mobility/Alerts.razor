@@ -1,5 +1,5 @@
 @page "/mobility/alerts"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.Mobility"]" Title="@T["alerts.title"]"
             Description="@T["alerts.lede"]" Source="@T["alerts.source"]" />
@@ -49,7 +49,7 @@
     {
         _loading = true;
         _error = null;
-        try { _alerts = await Api.GetAlertsAsync() ?? []; }
+        try { _alerts = (await Api.Mobility.GetAlertsAsync()).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

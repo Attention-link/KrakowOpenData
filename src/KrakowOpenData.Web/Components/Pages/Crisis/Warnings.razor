@@ -1,5 +1,5 @@
 @page "/crisis/warnings"
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.ClimateAndCrisis"]" Title="@T["warnings.title"]" PageTitleText="@T["nav.warnings"]"
             Description="@T["warnings.lede"]" Source="@T["warnings.source"]" />
@@ -36,7 +36,7 @@
     {
         _loading = true;
         _error = null;
-        try { _items = await Api.GetWarningsAsync() ?? []; }
+        try { _items = (await Api.Crisis.GetWarningsAsync()).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
     }

@@ -105,3 +105,107 @@ public class NewSourceParserTests
         Assert.Equal("/app-itl-api/queues?page=2&limit=25", page.Next);
     }
 }
+
+public class LiveReplacementTests
+{
+    [Fact]
+    public void Overpass_response_splits_named_park_and_ride_from_amenities()
+    {
+        const string json = """
+        {"elements":[
+          {"type":"way","id":483476337,"center":{"lat":50.013,"lon":19.948},"tags":{"amenity":"parking","park_ride":"yes","name":"P+R Kurdwanów","capacity":"167","capacity:charging":"4","opening_hours":"Mo-Su 04:30-02:30","fee":"yes","addr:street":"Porucznika Jerzego Halszki","addr:housenumber":"1","addr:city":"Kraków"}},
+          {"type":"way","id":1,"center":{"lat":50.01,"lon":20.03},"tags":{"amenity":"parking","park_ride":"yes"}},
+          {"type":"node","id":2,"lat":50.06,"lon":19.93,"tags":{"emergency":"defibrillator","indoor":"yes","opening_hours":"24/7"}},
+          {"type":"node","id":3,"lat":50.06,"lon":19.94,"tags":{"amenity":"drinking_water"}},
+          {"type":"node","id":4,"lat":50.06,"lon":19.95,"tags":{"amenity":"bench"}}]}
+        """;
+
+        var snapshot = KrakowOpenData.Infrastructure.OpenStreetMap.OverpassParser.Parse(json);
+
+        var pr = Assert.Single(snapshot.ParkAndRide); // the unnamed one is skipped
+        Assert.Equal("P+R Kurdwanów", pr.Name);
+        Assert.Equal(167, pr.Capacity);
+        Assert.Equal(4, pr.EvChargers);
+        Assert.Equal("Porucznika Jerzego Halszki 1, Kraków", pr.Address);
+        Assert.Equal(new[] { KrakowOpenData.Domain.UrbanSpace.AmenityKind.Defibrillator, KrakowOpenData.Domain.UrbanSpace.AmenityKind.DrinkingWater },
+            snapshot.Amenities.Select(a => a.Kind).ToArray());
+        Assert.Contains("opening_hours: 24/7", snapshot.Amenities[0].Details);
+    }
+
+    [Fact]
+    public void Districts_are_built_from_residents_table()
+    {
+        var table = new KrakowOpenData.Application.Abstractions.OpenDataTableContent(
+            ["Nr_Dzielnicy", "Dzielnica", "Płeć", "Liczba_osób"],
+            [
+                Row(("Nr_Dzielnicy", "1"), ("Dzielnica", "Dzielnica I Stare Miasto"), ("Płeć", "K"), ("Liczba_osób", "14487")),
+                Row(("Nr_Dzielnicy", "1"), ("Dzielnica", "Dzielnica I Stare Miasto"), ("Płeć", "M"), ("Liczba_osób", "12336")),
+                Row(("Nr_Dzielnicy", "14"), ("Dzielnica", "Dzielnica XIV Czyżyny"), ("Płeć", "K"), ("Liczba_osób", "18430"))
+            ],
+            false, "test");
+
+        var districts = CityTableMapper.Districts(table, "31 Dec 2025");
+
+        Assert.Equal(2, districts.Count);
+        Assert.Equal("I", districts[0].Id);
+        Assert.Equal("Stare Miasto", districts[0].Name);
+        Assert.Equal(26823, districts[0].RegisteredPopulation);
+        Assert.Equal("XIV", districts[1].Id);
+        Assert.Equal("Czyżyny", districts[1].Name);
+    }
+
+    [Fact]
+    public void Service_cards_are_built_from_procedures_table()
+    {
+        var table = new KrakowOpenData.Application.Abstractions.OpenDataTableContent(
+            ["Symbol usługi", "Nazwa usługi", "Adres do karty na BIP"],
+            [Row(("Symbol usługi", "AM-13"), ("Nazwa usługi", "Opiniowanie wniosków dotyczących murali"), ("Adres do karty na BIP", "https://www.bip.krakow.pl/uslugi/AM-13"), ("Wersja Karty Uslugi", "8"))],
+            false, "test");
+
+        var card = Assert.Single(CityTableMapper.ServiceCards(table));
+
+        Assert.Equal("AM-13", card.Id);
+        Assert.Equal("AM", card.Topic);
+        Assert.Equal("https://www.bip.krakow.pl/uslugi/AM-13", card.SourceUrl);
+        Assert.True(card.RelevanceFor("murale") > 0 || card.RelevanceFor("murali") > 0);
+    }
+
+    private static IReadOnlyDictionary<string, string?> Row(params (string Key, string? Value)[] cells) =>
+        cells.ToDictionary(c => c.Key, c => c.Value);
+}
+
+public class StreetLightParserTests
+{
+    [Fact]
+    public void Street_lamps_are_parsed_with_optional_details()
+    {
+        const string json = """
+        {"elements":[
+          {"type":"node","id":1,"lat":50.06,"lon":19.93,"tags":{"highway":"street_lamp","lamp_type":"led","lamp_mount":"bent_mast","height":"8 m","light:count":"2","operator":"Tauron","ref":"A12"}},
+          {"type":"node","id":2,"lat":50.07,"lon":19.94,"tags":{"highway":"street_lamp","lamp_type":"electric","support":"pole"}},
+          {"type":"node","id":3,"tags":{"highway":"street_lamp"}}]}
+        """;
+
+        var lights = KrakowOpenData.Infrastructure.OpenStreetMap.StreetLightParser.Parse(json);
+
+        Assert.Equal(2, lights.Count); // the one without coordinates is skipped
+        var first = lights[0];
+        Assert.Equal("osm-n1", first.Id);
+        Assert.Equal(KrakowOpenData.Domain.UrbanSpace.StreetLightTechnology.Led, first.Technology);
+        Assert.Equal("bent_mast", first.Mount);
+        Assert.Equal(8, first.HeightMeters);
+        Assert.Equal(2, first.LightCount);
+        Assert.Equal("Tauron", first.Operator);
+        Assert.Equal("A12", first.Reference);
+        Assert.Equal(KrakowOpenData.Domain.UrbanSpace.StreetLightTechnology.Unknown, lights[1].Technology);
+        Assert.Equal("pole", lights[1].Mount);
+    }
+
+    [Fact]
+    public void Query_asks_only_for_street_lamp_nodes_in_the_area()
+    {
+        var query = KrakowOpenData.Infrastructure.OpenStreetMap.StreetLightParser.BuildQuery("Kraków");
+        Assert.Contains("node[\"highway\"=\"street_lamp\"](area.a)", query);
+        Assert.Contains("\"name\"=\"Kraków\"", query);
+    }
+}

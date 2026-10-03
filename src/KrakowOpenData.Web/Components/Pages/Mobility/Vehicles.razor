@@ -1,6 +1,6 @@
 @page "/mobility/vehicles"
 @implements IDisposable
-@inject KrakowApiClient Api
+@inject IKrakowOpenDataClient Api
 
 <PageHeader Category="@T["cat.Mobility"]" Title="@T["veh.title"]"
             Description="@T["veh.lede"]" Source="@T["veh.source"]" />
@@ -107,7 +107,7 @@
         _error = null;
         try
         {
-            _vehicles = await Api.GetVehiclesAsync(_routeId) ?? [];
+            _vehicles = (await Api.Mobility.GetVehiclesAsync(_routeId)).ToList();
             _updated = DateTimeOffset.Now;
         }
         catch (Exception ex)

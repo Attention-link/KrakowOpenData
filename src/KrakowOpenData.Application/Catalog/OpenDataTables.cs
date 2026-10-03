@@ -26,6 +26,7 @@ public static class OpenDataTables
     [
         // ── Residents and labour market ────────────────────────────────────────
         new("residents-statistics", "Residents: statistics", DataCategory.Society, "opendata-mieszkancy-statystyki", "Statystyka_mieszkancy"),
+        new("residents-by-district", "Permanent residents by district (31 Dec 2025)", DataCategory.Society, "opendata-mieszkancy-pobyt-staly", "zameldowani-na-pobyt-staly-km-31-12-2025"),
         new("permanent-residents", "Residents registered for permanent stay (31 Dec 2025)", DataCategory.Society, "opendata-mieszkancy-pobyt-staly", "zameldowani-na-pobyt-staly-31-12-2025"),
         new("permanent-residents-2024", "Residents registered for permanent stay (31 Dec 2024)", DataCategory.Society, "opendata-mieszkancy-pobyt-staly", "zameldowani-na-pobyt-staly-31-12-2024"),
         new("unemployed", "Registered unemployed", DataCategory.Society, "opendata-przedsiebiorczosc-i-nauka", "bezrobotni"),
@@ -80,6 +81,12 @@ public static class OpenDataTables
         new("pocket-parks", "Pocket parks: area", DataCategory.Environment, "opendata-srodowisko-parki-kieszonkowe", "parki-kieszonkowe-powierzchnia"),
         new("registered-vehicles", "Registered vehicles", DataCategory.Mobility, "opendata-transport-zarejestrowane-pojazdy", "zarejstrowane-pojazdy")
     ];
+
+    /// <summary>Feeds the Districts dataset.</summary>
+    public static OpenDataTable ResidentsByDistrict => Find("residents-by-district")!;
+
+    /// <summary>Feeds the City service cards dataset.</summary>
+    public static OpenDataTable CityProcedures => Find("city-procedures")!;
 
     public static OpenDataTable? Find(string key) =>
         All.FirstOrDefault(t => string.Equals(t.Key, key, StringComparison.OrdinalIgnoreCase));
