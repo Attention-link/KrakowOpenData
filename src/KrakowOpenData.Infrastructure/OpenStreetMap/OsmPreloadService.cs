@@ -12,6 +12,7 @@ namespace KrakowOpenData.Infrastructure.OpenStreetMap;
 public sealed class OsmPreloadService(
     OverpassClient amenities,
     StreetLightsClient streetLights,
+    SafetyPlacesClient safetyPlaces,
     IOptions<KrakowDataOptions> options,
     ILogger<OsmPreloadService> logger) : BackgroundService
 {
@@ -25,6 +26,7 @@ public sealed class OsmPreloadService(
             // One after the other: the shared runner spaces the requests anyway.
             await WarmUp(amenities.Dataset.WarmUpAsync, "amenities", stoppingToken);
             await WarmUp(streetLights.Dataset.WarmUpAsync, "street lights", stoppingToken);
+            await WarmUp(safetyPlaces.Dataset.WarmUpAsync, "parks, libraries, pharmacies, hospitals and police", stoppingToken);
 
             try
             {

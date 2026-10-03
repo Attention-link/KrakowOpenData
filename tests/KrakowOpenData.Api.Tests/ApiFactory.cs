@@ -19,12 +19,15 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Testing");
         builder.UseSetting("KrakowData:PreloadOnStartup", "false"); // no OpenStreetMap downloads in tests
+        builder.UseSetting("Safety:Persist", "false");               // reports and alerts stay in memory
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IGtfsDatasetProvider, FakeGtfsDatasetProvider>();
             services.AddSingleton<IGtfsRealtimeFeedProvider, FakeRealtimeFeedProvider>();
             services.AddSingleton<IOpenDataTableReader, FakeOpenDataTableReader>();
             services.AddSingleton<IWaitingListSource, FakeWaitingListSource>();
+            services.AddSingleton<IGeocoder, FakeGeocoder>();
+            services.AddSingleton<IWalkingRouter, FakeWalkingRouter>();
 
             services.AddSingleton(FakeData.Of(FakeData.Weather));
             services.AddSingleton(FakeData.Of(FakeData.AirQuality));
@@ -35,6 +38,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton(FakeData.Of(FakeData.ServiceCards));
             services.AddSingleton(FakeData.Of(FakeData.Amenities));
             services.AddSingleton(FakeData.Of(FakeData.StreetLights));
+            services.AddSingleton(FakeData.Of(FakeData.SafetyPlaces));
         });
     }
 }

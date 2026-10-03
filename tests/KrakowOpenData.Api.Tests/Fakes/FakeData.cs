@@ -3,6 +3,7 @@ using KrakowOpenData.Domain.Common;
 using KrakowOpenData.Domain.Environment;
 using KrakowOpenData.Domain.Mobility;
 using KrakowOpenData.Domain.PublicServices;
+using KrakowOpenData.Domain.Safety;
 using KrakowOpenData.Domain.UrbanSpace;
 using KrakowOpenData.Infrastructure.DataSources;
 
@@ -68,5 +69,12 @@ public static class FakeData
     [
         new("osm-n1", AmenityKind.Defibrillator, "AED Rynek", new GeoPoint(50.0618, 19.9374), "access: yes", Source),
         new("osm-n2", AmenityKind.DrinkingWater, null, new GeoPoint(50.0640, 19.9400), null, Source)
+    ];
+
+    public static SafetyPlace[] SafetyPlaces { get; } =
+    [
+        new("osm-w1", SafetyPlaceKind.Park, "Planty", new GeoPoint(50.0620, 19.9360), null, 200, Source),
+        new("osm-n3", SafetyPlaceKind.Pharmacy, "Apteka", new GeoPoint(50.0615, 19.9370), "24/7", 0, Source),
+        new("osm-n4", SafetyPlaceKind.Police, "Komisariat I", new GeoPoint(50.0610, 19.9380), null, 0, Source)
     ];
 }

@@ -1,5 +1,8 @@
 using KrakowOpenData.Application.Abstractions;
 using KrakowOpenData.Application.Catalog;
+using KrakowOpenData.Application.Safety;
+using KrakowOpenData.Domain.Safety;
+using KrakowOpenData.Infrastructure.Safety;
 using KrakowOpenData.Application.Services;
 using KrakowOpenData.Domain.ClimateAndCrisis;
 using KrakowOpenData.Domain.Common;
@@ -9,6 +12,7 @@ using KrakowOpenData.Domain.PublicServices;
 using KrakowOpenData.Domain.UrbanSpace;
 using KrakowOpenData.Infrastructure.Common;
 using KrakowOpenData.Infrastructure.DataSources;
+using KrakowOpenData.Infrastructure.Geocoding;
 using KrakowOpenData.Infrastructure.Gios;
 using KrakowOpenData.Infrastructure.Gtfs;
 using KrakowOpenData.Infrastructure.GtfsRealtime;
@@ -58,7 +62,23 @@ public static class DependencyInjection
         services.AddSingleton<OverpassQueryRunner>();
         services.AddSingleton<OverpassClient>();
         services.AddSingleton<StreetLightsClient>();
+        services.AddSingleton<SafetyPlacesClient>();
         services.AddHostedService<OsmPreloadService>();
+        services.AddHttpClient(PhotonGeocoder.HttpClientName, client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
+        });
+        services.AddSingleton<IGeocoder, PhotonGeocoder>();
+        services.Configure<RoutingOptions>(configuration.GetSection(RoutingOptions.SectionName));
+        services.AddHttpClient(OsrmWalkingRouter.HttpClientName, (sp, client) =>
+        {
+            var routing = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoutingOptions>>().Value;
+            client.BaseAddress = new Uri(routing.BaseUrl.TrimEnd('/') + "/");
+            client.Timeout = TimeSpan.FromSeconds(12);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
+        });
+        services.AddSingleton<IWalkingRouter, OsrmWalkingRouter>();
         services.AddSingleton<IOpenDataTableReader, OpenDataPortalClient>();
         services.AddSingleton<IWaitingListSource, NfzClient>();
         services.AddSingleton<ITransitScheduleRepository, GtfsScheduleRepository>();
@@ -88,6 +108,7 @@ public static class DependencyInjection
             await Tables(sp).ReadAsync(OpenDataTables.ResidentsByDistrict, 1000, ct), "31 Dec 2025")));
         AddRepository<Amenity>(services, sp => From<Amenity>(async ct => (await Osm(sp).GetAsync(ct)).Amenities));
         AddRepository<StreetLight>(services, sp => From<StreetLight>(sp.GetRequiredService<StreetLightsClient>().GetAsync));
+        AddRepository<SafetyPlace>(services, sp => From<SafetyPlace>(sp.GetRequiredService<SafetyPlacesClient>().GetAsync));
 
         // ── Public services: city Open Data API ───────────────────────────────
         AddRepository<CityServiceCard>(services, sp => From<CityServiceCard>(async ct => CityTableMapper.ServiceCards(
@@ -103,6 +124,22 @@ public static class DependencyInjection
         services.AddSingleton<PublicServicesQueryService>();
         services.AddSingleton<WaitingListQueryService>();
         services.AddSingleton<OpenDataPortalService>();
+
+        // ── Safety concerns: heat + night-safety scores, citizen reports, planner tools ──
+        services.Configure<SafetyOptions>(configuration.GetSection(SafetyOptions.SectionName));
+        services.AddSingleton<ISafetyStore, JsonFileSafetyStore>();
+        services.AddSingleton<IAgencyGateway, SimulatedAgencyGateway>();
+        services.AddSingleton<PresenceTracker>();
+        services.AddSingleton<SafetyModelProvider>();
+        services.AddSingleton<ConditionsService>();
+        services.AddSingleton<ScoreService>();
+        services.AddSingleton<RouteService>();
+        services.AddSingleton<MethodService>();
+        services.AddSingleton<ReportService>();
+        services.AddSingleton<AlertService>();
+        services.AddSingleton<AgencyService>();
+        services.AddSingleton<PlannerService>();
+        services.AddSingleton<DemoDataService>();
 
         return services;
     }

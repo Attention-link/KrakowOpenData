@@ -22,8 +22,31 @@ public static class OverpassParser
         $"area[\"name\"=\"{areaName}\"][\"admin_level\"=\"8\"]->.a;(" +
         "nwr[\"park_ride\"][\"park_ride\"!=\"no\"](area.a);" +
         "nwr[\"emergency\"=\"defibrillator\"](area.a);" +
-        "nwr[\"amenity\"~\"^(drinking_water|toilets|charging_station|bicycle_parking)$\"](area.a);" +
+        "nwr[\"amenity\"~\"^(toilets|charging_station|bicycle_parking)$\"](area.a);" +
+        // Drinking water is mapped in several ways in OpenStreetMap; asking for only amenity=drinking_water misses many.
+        // Anything tagged drinking_water=no is excluded. Taps and springs count only when tagged as drinkable.
+        "nwr[\"amenity\"=\"drinking_water\"][\"drinking_water\"!=\"no\"](area.a);" +
+        "nwr[\"amenity\"=\"water_point\"][\"drinking_water\"!=\"no\"](area.a);" +
+        "nwr[\"man_made\"=\"water_tap\"][\"drinking_water\"=\"yes\"](area.a);" +
+        "nwr[\"amenity\"=\"fountain\"][\"drinking_water\"=\"yes\"](area.a);" +
+        "nwr[\"natural\"=\"spring\"][\"drinking_water\"=\"yes\"](area.a);" +
         ");out center tags;";
+
+    /// <summary>
+    /// True for anything a person could drink from: a drinking-water point, a water point, or a tap, fountain or spring that is
+    /// explicitly tagged drinkable. <c>drinking_water=no</c> always wins.
+    /// </summary>
+    internal static bool IsDrinkingWater(JsonElement tags)
+    {
+        var drinkable = Tag(tags, "drinking_water");
+        if (drinkable == "no") return false;
+        return (Tag(tags, "amenity"), Tag(tags, "man_made"), Tag(tags, "natural")) switch
+        {
+            ("drinking_water", _, _) or ("water_point", _, _) => true,
+            ("fountain", _, _) or (_, "water_tap", _) or (_, _, "spring") => drinkable == "yes",
+            _ => false
+        };
+    }
 
     private static readonly string[] DetailKeys =
         ["opening_hours", "operator", "access", "fee", "capacity", "indoor", "level", "location", "description", "socket:type2", "socket:chademo", "socket:type2_combo"];
@@ -63,7 +86,7 @@ public static class OverpassParser
             AmenityKind? kind = (Tag(tags, "emergency"), Tag(tags, "amenity")) switch
             {
                 ("defibrillator", _) => AmenityKind.Defibrillator,
-                (_, "drinking_water") => AmenityKind.DrinkingWater,
+                _ when IsDrinkingWater(tags) => AmenityKind.DrinkingWater,
                 (_, "toilets") => AmenityKind.Toilets,
                 (_, "charging_station") => AmenityKind.EvCharger,
                 (_, "bicycle_parking") => AmenityKind.BikeParking,

@@ -10,6 +10,9 @@ keep what you need, delete the rest.
 - **Client** (`KrakowOpenData.Client` + `KrakowOpenData.Contracts`) – a typed .NET client, packaged for NuGet, so other solutions can use the data.
 - **Web** (`KrakowOpenData.Web`) – Blazor pages for each dataset, built on the client like any other consumer. Every page is in
   **Polish, English and Ukrainian** (switcher in the sidebar). City data itself (stop names, alert text, table columns) is shown as published.
+- **Safety Concerns** (API under `/api/safety`, app in `KrakowOpenData.Web/wwwroot/safety`) – an installable, offline-capable web app
+  on top of the data: heat and night-safety scores for any place in Kraków, citizen reports that move the scores, and a planner
+  dashboard with alerts and agency contacts. See [Safety Concerns](#safety-concerns).
 
 ## Data sources
 
@@ -27,13 +30,14 @@ Everything is live, public data that needs no API key. The API fetches it from t
 | Urban space | Districts with population | City of Kraków Open Data API | 6 h |
 | Urban space | AEDs, drinking water, toilets, EV chargers, bike parking | OpenStreetMap (Overpass API) | daily |
 | Urban space | Street lights (~27,000: position; LED/sodium, mount, height where mapped) | OpenStreetMap (Overpass API) | daily |
+| Urban space | Parks (with extent), libraries, pharmacies (with opening hours), hospitals, police stations (used by the safety scores) | OpenStreetMap (Overpass API) | daily |
 | Public services | City service cards (every BIP procedure) | City of Kraków Open Data API | 6 h |
 | Public services | NFZ treatment waiting lists | NFZ API | 1 h per search |
 | Society, services, environment | 45 city tables: residents, jobs, tourism, culture, sport events, schools, nurseries, health, parks, vehicles, lost property | City of Kraków Open Data API | 6 h |
 
 If a source is down, its endpoints answer **503** and the rest keep working; cached data is served while a refresh fails.
 
-The OpenStreetMap datasets (street lights, amenities, P+R) are large, so the API downloads them **in the background**
+The OpenStreetMap datasets (street lights, amenities, P+R, parks and other places) are large, so the API downloads them **in the background**
 when it starts and once a day, trying mirror servers if the main one is busy. The last download is saved to
 `%LOCALAPPDATA%\KrakowOpenData\cache` (change with `KrakowData:CacheDirectory`), so after a restart they are available
 immediately. On the very first start they take a minute or two; until then their endpoints answer 503 "Data is still
@@ -49,7 +53,7 @@ src/
   KrakowOpenData.Api             minimal API + OpenAPI
   KrakowOpenData.Contracts       DTOs returned by the API (no dependencies; NuGet package)
   KrakowOpenData.Client          typed .NET client (NuGet package)
-  KrakowOpenData.Web             Blazor UI (uses the client)
+  KrakowOpenData.Web             Blazor UI (uses the client); also serves the Safety Concerns web app from wwwroot/safety
 tests/                           xUnit tests per layer; API and client tests run against in-memory fakes
 .github/workflows/               packs and publishes the client packages
 ```
@@ -112,6 +116,193 @@ This one command starts both apps.
 
 Not needed to run the apps. From the solution folder: `dotnet test`, or **Test → Run All Tests** in
 Visual Studio. The tests replace every public source with in-memory fakes, so they need no internet.
+
+## Safety Concerns
+
+A web app and API that combine the open data above into two scores for any place in Kraków, and let residents and city
+planners act on them.
+
+- **Heat score** (0 cool – 100 very hot, **higher = hotter**): how much heat stress a place carries on a hot day because it lacks shade, water, a cool indoor place, toilets and a way to reach relief
+- **Night-safety score** (0 unsafe – 100 safe, **higher = safer**): how well set up is this place for walking at night? (street lighting, night transport, places open at night, a defibrillator)
+
+Both are 0–100, computed for every ~250 m square of the built-up city. They are **environmental scores built from
+mapped infrastructure and resident reports, not crime statistics** (Kraków publishes no open, geolocated incident data).
+
+**Open the app** (start the API and the Web app as described in [How to run](#how-to-run)):
+
+| Who | Where |
+| --- | --- |
+| Residents | http://localhost:5090/safety/ |
+| City planners | http://localhost:5090/safety/#/planner, also the **Planner dashboard** link in the site menu. It opens directly: the Web app signs in with the demo key (`Safety:PlannerDemoKey`; empty it to require the key on the sign-in screen) |
+
+### Residents
+
+- A map coloured by the chosen view: **Night safety**, **Heat** or **Both** (the weaker of the two). The view is suggested from the
+  conditions: dark → night safety, hot or a heat warning → heat.
+- **Each view shows only its own data.** Heat: the heat score, its factors, where to cool down, heat reports, heat alerts and the heat situation.
+  Night safety: the night-safety score, its factors, safe places open at night, night reports and alerts, and daylight. Both shows the two side by side.
+- **Menu**: find a place by **address, street or stop** (suggestions as you type, with visible *Show: All / Addresses / Stops* filters), use your location,
+  set "my area" for alerts, start a walk check. Every other screen has a labelled **Back to menu** button.
+- Tap anywhere (or pick a search result) for a **place card**: the score, *why* (every factor with its distance and weight), nearby help with walking
+  times, and open reports of that view.
+- **Every map says what it is looking at**: the address of the place (looked up from the coordinates), the radius covered (a dashed circle for the
+  1.5 km that help is searched within, an outlined square for the 250 m the score and reports apply to) and, for a walk, the start and end addresses.
+- **Report a concern**, limited to the types of the chosen view (Heat: no shade, water point not working, overheated spot; Night safety: lamp out,
+  feels unsafe, hazardous path). Place it by dragging the pin, tapping the map or typing an address. Reports move the score of their square, see below.
+- **Walk check** that follows the view: **Check a night walk** (Night safety: lighting, night transport, open places), **Check a cool walk**
+  (Heat: water, shade, cool places, toilets) or **Check a walk** (Both). Type the start and the destination with suggestions, tap the map, or use
+  your area. **Routes follow real streets** (OpenStreetMap foot routing): the fastest route is shown with a **safer / cooler / better** alternative when one scores clearly better (at least 3 points on average, at most 30 % longer). Start (A) and destination (B) are clearly marked, the route is coloured by score along the way, the weakest spot is marked with its address and the nearest help to it.
+- **Every score explains itself.** The "?" next to a score, a factor row, the map legend and "Weights and sources" open a panel with what 0 and 100 mean, the colour ranges (for heat 0–25 = low heat … 65–100 = very high), the weight of each factor and *why* it has that weight, the data source, how many such features are mapped in Kraków, and for this place which factors added how many points. The text comes from `GET /api/safety/method`, built from the same code as the scores. The map shows streets and, from zoom 14, the places that feed the scores (water, parks, toilets, refuges, night-open places, defibrillators).
+- **Alerts** from planners for the area the resident has chosen ("my area"), shown for the current view (heat alerts in Heat, night alerts in Night safety,
+  general alerts always). Banners while the app is open, optionally device notifications (switch on the menu).
+- Languages: **Polish, English, Ukrainian** (selector in the top bar; there is no settings screen). Works on phones (bottom sheet) and wide screens
+  (side panel); follows the device's light or dark mode; keyboard and screen-reader friendly.
+
+### Planners
+
+Sign in with the planner key; the dashboard has a global **event selector** (Heat warning / Night safety / Both) that decides what is ranked
+**and what is shown**: with Heat selected the dashboard, drawers, map markers, report lists and conditions are about heat only, with Night safety about
+night safety only. Every page except the overview has a **Back to dashboard** button. Addresses are shown for map squares, alert centres and
+reports; the alert composer and the map take an address to centre on.
+
+| Page | What it does |
+| --- | --- |
+| Overview | Situation banner, headline numbers, score distribution, *what is missing most* (tap a bar to filter), and **where to act first** (ranked list, with a table view for every chart) |
+| Map | The city coloured by priority or score, with resident reports and active alert areas; tap a square to drill down |
+| Area drawer | Opens from any list or map square: the full factor table, nearest assets, resident reports (with notes: verify or resolve them) and **suggested actions** |
+| Reports | All resident reports with filters; verify, resolve, show on map, alert the area |
+| Alerts | Compose an alert for **everyone currently inside a circle** (templates, translations, severity, duration, live reach estimate, two-step send); manage running alerts |
+| Contacts | Agencies (ZDMK road faults and lighting, the city services portal, Crisis Management Centre, Straż Miejska, ZZM green spaces, ZTP transport), a prefilled **brief** in Polish or English, and a contact log |
+
+From an area drawer a planner can **create an alert** for that area or **contact an agency** with a brief that states the location, scores, weak factors,
+open reports and the requested action.
+
+### How the scores are computed
+
+The model lives in one documented file: [`SafetyModel.cs`](src/KrakowOpenData.Application/Safety/SafetyModel.cs) (with
+[`ReportRules.cs`](src/KrakowOpenData.Application/Safety/ReportRules.cs) for reports). Summary:
+
+1. The city is cut into 250 m squares ([`GridSpec`](src/KrakowOpenData.Application/Safety/GridSpec.cs)); a square is on the map when it has 3+ mapped street lamps or a stop.
+2. Each **factor** is a straight-line distance to the nearest feature (or a density) turned into 0–100: full score up to a near distance, zero beyond a far one, a straight line between. In the heat score a factor adds **heat in proportion to what is missing**: no park nearby adds its full weight (35 points), no drinking water 25.
+3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the safety score and raise the heat score). Internally the model measures a place's *cooling capacity* (higher = better) and the heat score is 100 minus it.
+
+| Layer | Factor (weight) | Data | Full score → zero |
+| --- | --- | --- | --- |
+| Heat | Drinking water (25) | OSM drinking-water points | ≤ 150 m → 800 m |
+| Heat | Parks and shade (35) | OSM parks, measured to the park's edge (no tree-canopy data) | ≤ 100 m → 600 m |
+| Heat | Cool indoor place (20) | libraries, pharmacies, hospitals (opening hours not checked) | ≤ 200 m → 900 m |
+| Heat | Public toilets (10) | OSM toilets | ≤ 200 m → 800 m |
+| Heat | Public transport (10) | GTFS stops | ≤ 150 m → 600 m |
+| Night | Street lighting (40) | OSM lamps per km² in the 3×3 squares around (not lux) | ≥ 400 /km² → ≤ 40 /km² |
+| Night | Night transport (25) | stops with departures 23:00–04:30 (GTFS) | ≤ 250 m → 1000 m |
+| Night | Open at night (20) | police, hospitals, pharmacies tagged `24/7` | ≤ 250 m → 1000 m |
+| Night | Defibrillator (15) | OSM AEDs | ≤ 100 m → 500 m |
+
+4. **Combined** (the "Both" view) = 0.6 × the lower layer + 0.4 × the average.
+5. **Exposure** (0.2–1.0) estimates how many people a square affects from lamp and stop counts, because there is no open population grid.
+6. **Planner priority** = (100 − score) × exposure × urgency, where urgency follows the live heat situation (none 0.8, hot day 1.0, warning level 1–3 → 1.1 / 1.25 / 1.5).
+
+**Resident reports** (`ReportRules`): per square and type, a single unconfirmed report counts a quarter; two independent supporters (anonymous device
+ids; "still true" confirmations count) or a planner verification count in full, with a boost for more supporters; the effect halves every half-life
+(1 day for an overheated spot up to 14 days for a lamp out) unless confirmed again. Resolved reports count for nothing. A device may send 5 reports an hour.
+
+All thresholds are first estimates, meant to be tuned in `SafetyModel`. Unit tests pin the worked examples.
+
+### Address search
+
+Address boxes and the address shown on maps use **OpenStreetMap data through [Photon](https://photon.komoot.io)**, a geocoder that supports search-as-you-type
+(the public Nominatim service does not). The browser never calls Photon: it calls this API (`/api/geo/search`, `/api/geo/reverse`), which sends only the typed
+text or one coordinate, caches answers (searches 1 h, lookups 24 h) and allows two requests at a time, to stay within Photon's fair use. Change the server with
+`KrakowData:GeocoderBaseUrl` (for example a self-hosted Photon). Addresses seen once are remembered on the device, so they still show offline; typing a new
+address needs a connection, tapping the map does not.
+
+### Water data
+
+Heat scores depend heavily on drinking-water points, and OpenStreetMap has few: about 100 tagged `amenity=drinking_water` for a city of ~800,000 (plus a few
+water points, and taps and fountains that are only tagged drinkable sometimes). The data query now also takes `amenity=water_point`, and taps, fountains and
+springs explicitly tagged `drinking_water=yes`, and drops anything tagged `drinking_water=no`. It still cannot know about fountains nobody has mapped, so the
+app says so: the place card shows how few points are mapped when water is the weak factor, and the planner overview carries a data note. Improving this means adding
+points in OpenStreetMap or getting a list from the water utility or the city. The new query applies at the next daily download (delete
+`%LOCALAPPDATA%\KrakowOpenData\cache\osm-amenities.json` while online to force it).
+
+### Alerts and privacy
+
+Planners create an alert for a circle (centre, radius 100 m–5 km, severity, message, optional PL/UK translations, expiry). The resident app asks
+`GET /api/safety/alerts?lat&lon` about once a minute while it is open and online; the server keeps **no recipient list**. To show planners an estimate of reach
+it remembers, **in memory only**, a random device id with the last position for 15 minutes. Position is sent only for users who set "my area". Reports
+carry only the random device id, never an account. Real push notifications (when the app is closed) would need a push service and are not implemented.
+
+### Works offline
+
+- The app shell is a service worker cache, so it opens with no connection after the first visit (Leaflet is loaded from cdnjs and cached by the same worker).
+- API answers are saved in IndexedDB (the last map, conditions, place cards, nearby-help list, alerts). With no connection, the map still shows saved scores,
+  place cards fall back to the saved card or to the saved grid plus the saved nearby list, the night walk check is estimated from the saved grid, and the status pill says what is shown and how old it is.
+- **Reports written offline are queued on the device** and sent automatically when the connection returns. The planner dashboard shows its last saved data read-only; actions that change data are disabled until online.
+- Map tiles you have looked at are cached (up to 400); without tiles the score squares still draw on a grey background.
+
+### API
+
+All under `/api/safety` (see Swagger for schemas). Planner endpoints need the `X-Planner-Key` header.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET conditions` | Heat pressure, air, rivers, warnings, daylight, suggested view |
+| `GET grid?event=heat\|night\|both` | The whole score grid, compact (for the map and offline use) |
+| `GET place?lat&lon&event` | Scores, factors, nearest help, nearby reports, suggested actions for any point |
+| `GET cells/{id}?event` | The same for a grid square (planners also get report notes) |
+| `GET route?from&to&mode=night|heat|both` | **Walking routes along streets**: the fastest and, when clearly better, a safer / cooler one, each scored every 50 m |
+| `GET method` | How every score is built: meaning of 0 and 100, bands, each factor with weight, thresholds, reason for the weight, data source and mapped count, definitions of the dashboard figures |
+| `GET corridor?from&to` | Scores sampled every 50 m along the straight line between two points (kept for simple clients) |
+| `GET features` | Water points, parks, refuges, … for offline "nearest" |
+| `GET /api/geo/search?q&lat&lon`, `GET /api/geo/reverse?lat&lon` | Address search with autocomplete, and the address of a point (OpenStreetMap via Photon) |
+| `GET report-types`, `GET reports`, `POST reports`, `POST reports/{id}/confirm` | Citizen reports |
+| `GET alerts?lat&lon&deviceId` | Active alerts covering a point |
+| `GET planner/summary?event` | Dashboard numbers: KPIs, histogram, factor gaps, ranked places |
+| `POST planner/reports/{id}/verify\|resolve` | Review reports |
+| `GET\|POST planner/alerts`, `DELETE planner/alerts/{id}`, `GET planner/reach` | Alerts and audience estimate |
+| `GET planner/agencies`, `GET\|POST planner/dispatches` | Agency contacts |
+| `POST planner/demo-data` | Adds sample reports in the lowest-scoring areas (for demos) |
+
+### Configuration
+
+```json
+// KrakowOpenData.Api/appsettings.json
+"Safety": {
+  "PlannerKey": "demo-planner",   // CHANGE THIS. Shared key: demo-grade, not real authentication
+  "Persist": true,                // keep reports, alerts and contacts in a JSON file across restarts
+  "StorePath": ""                 // default: %LOCALAPPDATA%\KrakowOpenData\safety-store.json
+}
+// KrakowOpenData.Web/appsettings.json
+"Safety": { "PublicApiBaseUrl": "http://localhost:5080/",    // the API address as the browser sees it (docker-compose sets it)
+            "PlannerDemoKey": "demo-planner" }             // demo only: planner opens without sign-in. EMPTY IT outside demos
+// KrakowOpenData.Api/appsettings.json, optional
+"Safety": { "Routing": { "BaseUrl": "https://routing.openstreetmap.de/routed-foot/" } }   // OSRM-compatible foot router
+```
+
+### Where things are
+
+```
+src/KrakowOpenData.Application/Safety/   scoring model, grid, reports, alerts, planner summary, agencies (all documented)
+src/KrakowOpenData.Infrastructure/Safety/ JSON-file store, simulated agency gateway;  OpenStreetMap/SafetyPlaces*  (parks, libraries, …)
+src/KrakowOpenData.Api/Endpoints/SafetyEndpoints.cs
+src/KrakowOpenData.Web/wwwroot/safety/   the web app: index.html, sw.js (offline), manifest, css/, js/ (no build step)
+  js/resident.js report.js walk.js alerts.js      resident view
+  js/planner*.js charts.js                        planner dashboard
+  js/api.js db.js chrome.js                       API client + offline cache, IndexedDB, outbox
+  js/strings-*.js                                 Polish / English / Ukrainian texts
+```
+
+### Known limits (read before relying on it)
+
+- **No crime data.** Police maps and statistics for Kraków are not open data; the scores say so on screen. Citizen reports are the only incident signal.
+- OpenStreetMap can miss lamps, fountains and pharmacy hours; scores reflect what is mapped. Lighting is lamp density, not measured light.
+- Population is not known per square; **exposure** is a proxy from lamps and stops. The district table has no boundaries to improve it.
+- **Agency contact is simulated**: it records a reference and prefilled text; nothing is sent. The two phone numbers (ZDMK 24 h line, Crisis Management Centre) come from press coverage and are flagged "verify number".
+- The planner key is a shared demo secret; use the city's identity provider before real use. The JSON store suits a demo, not production.
+- The service worker could not be exercised in the in-app browser used for development (it does not support service workers); the data-level offline behaviour (cache, queue, auto-send) was tested there, the installable shell should be checked in Chrome or Edge.
+- Street routing uses the public OpenStreetMap Germany foot router (`Safety:Routing:BaseUrl`), which is fair-use with no guarantee; self-host OSRM or Valhalla for production. If it is unreachable the API returns only a straight-line check and the app says so. Routes are scored with the same model as the map, so a "safer" route means better lit and better served, not a crime-checked one.
+- **Address search depends on a third-party service** (Photon, free and fair-use). Typed text and coordinates are sent to it by this API, not by the browser; self-host it for production.
+- Water points are sparse in OpenStreetMap (see [Water data](#water-data)); low heat scores partly reflect missing map data.
 
 ## Consuming the data
 
