@@ -2,6 +2,8 @@
 // back buttons, and walk checks that follow the chosen view. Entries here override older ones with the same key. [en, pl, uk]
 export const residentStringsV2 = {
   // ── Navigation ──
+  'nav.home': ['Home page', 'Strona główna', 'Головна'],
+  'nav.homeHint': ['Kraków Open Data home page (the data catalog)', 'Strona główna Kraków Open Data (katalog danych)', 'Головна сторінка Kraków Open Data (каталог даних)'],
   'nav.backMenu': ['Back to menu', 'Wróć do menu', 'Назад до меню'],
   'nav.backDashboard': ['Back to dashboard', 'Wróć do panelu', 'Назад до панелі'],
 

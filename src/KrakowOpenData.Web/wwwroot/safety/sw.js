@@ -1,7 +1,7 @@
 // Service worker: keeps the app itself (and map tiles you have looked at) available offline.
 // API answers are NOT cached here; the app saves them itself in IndexedDB so it controls freshness and shows "saved" labels.
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL = `krk-safety-shell-${VERSION}`;
 const TILES = 'krk-safety-tiles';
 const LIB = 'krk-safety-lib';
