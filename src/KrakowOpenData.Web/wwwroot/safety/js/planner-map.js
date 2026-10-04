@@ -57,7 +57,10 @@ export function mount(host) {
   const info = mapInfo();
   const mapEl = h('div', { class: 'map', role: 'application', 'aria-label': t('pm.mapLabel') });
   const note = h('div', { class: 'map-note' });
-  const legend = h('div', { class: 'legend open' });
+  // The colour key is hidden until the planner asks for it (map layers box or the '!' next to it).
+  let showLegend = false;
+  const legend = h('div', { class: 'legend', hidden: true });
+  const setLegend = (on) => { showLegend = on; legend.hidden = !on; legend.classList.toggle('open', on); paintCtl(); };
   const ctl = h('div', { class: 'card map-ctl', style: { position: 'absolute', left: '.6rem', top: '.6rem', zIndex: 800, padding: '.6rem', maxWidth: 'min(92vw, 320px)' } });
   const wrap = h('div', { class: 'map-wrap' }, mapEl, note, ctl, legend);
   host.append(h('div', { class: 'pl-page fill' }, wrap));
@@ -90,6 +93,9 @@ export function mount(host) {
           [['priority', t('pm.priority')], ['score', t('pm.score')]].map(([m, l]) => h('button', { type: 'button', 'aria-pressed': String(metric === m), onclick: () => { metric = m; paintCtl(); draw(); } }, l))),
         h('label', { class: 'row small' }, h('input', { type: 'checkbox', checked: showReports ? true : null, onchange: (e) => { showReports = e.target.checked; drawOverlay(); } }), t('pm.reports')),
         h('label', { class: 'row small' }, h('input', { type: 'checkbox', checked: showAlerts ? true : null, onchange: (e) => { showAlerts = e.target.checked; drawOverlay(); } }), t('pm.alerts')),
+        h('div', { class: 'row small' },
+          h('label', { class: 'row small grow' }, h('input', { type: 'checkbox', checked: showLegend ? true : null, onchange: (e) => setLegend(e.target.checked) }), t('pm.legend')),
+          infoButton(() => setLegend(true), t('pm.legendShow'))),
         P.event === 'access' ? null : h('label', { class: 'row small' }, h('input', { type: 'checkbox', checked: showPlaces ? true : null, onchange: (e) => { showPlaces = e.target.checked; places.setEnabled(showPlaces); } }), `${t('map.places')} (${t('map.placesZoom')})`),
         h('button', { class: `btn sm ${pickForAlert ? 'primary' : ''}`, type: 'button', onclick: () => { pickForAlert = !pickForAlert; paintCtl(); if (pickForAlert) toast(t('pm.pickHint')); } }, icon('bell', 'sm'), pickForAlert ? t('pm.tapMap') : t('pm.newAlert')),
         info.el));
@@ -97,6 +103,7 @@ export function mount(host) {
 
   function paintLegend() {
     clear(legend);
+    legend.append(h('button', { class: 'btn icon quiet', type: 'button', style: { float: 'right', minHeight: '1.8rem', minWidth: '1.8rem' }, 'aria-label': t('common.close'), onclick: () => setLegend(false) }, icon('x', 'sm')));
     if (metric === 'priority') {
       legend.append(h('div', { class: 'small', style: { fontWeight: 700 } }, t('pm.priorityLegend', { event: t(`event.${P.event}`) })),
         h('div', { class: 'items' }, h('span', null, t('pm.lower')), PRIORITY_RAMP.map((c) => h('i', { style: { background: c, width: '1.1rem' } })), h('span', null, t('pm.higher'))),
