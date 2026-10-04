@@ -4,7 +4,7 @@
 import { h, icon, clear, toast } from './util.js';
 import { t } from './i18n.js';
 import { P, pOn, loadGridFor, loadReports, loadAlerts, openCellDrawer, openAlertDialog, staleBanner, closeDrawer } from './planner-common.js';
-import { createMap, GridLayer, PlacesLayer, iconMarker, watchResize, mapInfo, KRAKOW } from './map.js';
+import { createMap, GridLayer, PlacesLayer, iconMarker, watchResize, mapInfo, KRAKOW, keyboardPick } from './map.js';
 import { legendBody, loadMethod, openMethod, openScoreExplainer } from './explain.js';
 import { cachedGet, getFeatures } from './api.js';
 import { BAND_FILL, PRIORITY_RAMP, COL, RELIEF, cellId, LAYERS, modeOfEvent, REPORT_LAYER } from './model.js';
@@ -32,7 +32,7 @@ export function mount(host) {
   host.append(h('div', { class: 'pl-page fill' }, wrap));
 
   const map = createMap(mapEl, { center: KRAKOW, zoom: 12 });
-  cleanups.push(watchResize(map, wrap), () => map.remove());
+  cleanups.push(watchResize(map, wrap), keyboardPick(map, t('a11y.mapHint')), () => map.remove());
   const overlay = L.layerGroup().addTo(map);
   const places = new PlacesLayer(map, { getFeatures: () => features, getKeys: () => RELIEF[modeOfEvent(P.event)] });
   places.setEnabled(false);

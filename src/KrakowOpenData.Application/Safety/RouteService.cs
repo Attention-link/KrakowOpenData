@@ -53,7 +53,9 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
         {
             candidates = await CandidatesAsync(from, to, straight, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException and not SafetyValidationException)
+        // An HttpClient timeout is a TaskCanceledException too: only the caller's own cancellation may escape, a slow router
+        // must fall back to the straight-line check instead of failing the request.
+        catch (Exception ex) when (!ct.IsCancellationRequested && ex is not SafetyValidationException)
         {
             candidates = [];
         }
@@ -167,7 +169,7 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
         {
             return await router.RouteAsync(waypoints, false, ct);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception) when (!ct.IsCancellationRequested)   // a timed-out via route is just one candidate fewer
         {
             return [];
         }

@@ -10,6 +10,7 @@ namespace KrakowOpenData.Domain.Safety;
 /// For parks only: half the side of a square with the same bounding-box area, so a large park counts as
 /// reachable from its edge, not only from its centre point. Zero for point-like places.
 /// </param>
+/// <param name="Wheelchair">OSM wheelchair tag, normalised to yes | limited | no; null = no data (never "accessible").</param>
 public sealed record SafetyPlace(
     string Id,
     SafetyPlaceKind Kind,
@@ -17,7 +18,8 @@ public sealed record SafetyPlace(
     GeoPoint Location,
     string? OpeningHours,
     double EquivalentRadiusMeters,
-    string Source) : IEntity
+    string Source,
+    string? Wheelchair = null) : IEntity
 {
     /// <summary>True when OSM says the place is open around the clock (<c>opening_hours=24/7</c>).</summary>
     public bool IsOpenAllNight => string.Equals(OpeningHours?.Trim(), "24/7", StringComparison.OrdinalIgnoreCase);

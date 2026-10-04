@@ -13,6 +13,7 @@ public sealed class OsmPreloadService(
     OverpassClient amenities,
     StreetLightsClient streetLights,
     SafetyPlacesClient safetyPlaces,
+    AccessFeaturesClient accessFeatures,
     IOptions<KrakowDataOptions> options,
     ILogger<OsmPreloadService> logger) : BackgroundService
 {
@@ -27,6 +28,7 @@ public sealed class OsmPreloadService(
             await WarmUp(amenities.Dataset.WarmUpAsync, "amenities", stoppingToken);
             await WarmUp(streetLights.Dataset.WarmUpAsync, "street lights", stoppingToken);
             await WarmUp(safetyPlaces.Dataset.WarmUpAsync, "parks, libraries, pharmacies, hospitals and police", stoppingToken);
+            await WarmUp(accessFeatures.Dataset.WarmUpAsync, "accessibility barriers and amenities", stoppingToken);
 
             try
             {

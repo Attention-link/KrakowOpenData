@@ -98,7 +98,7 @@ a { color: var(--accent); }
 .text-bg-success { background-color: var(--green) !important; color: var(--ink) !important; }
 .text-bg-info { background-color: var(--cyan) !important; color: var(--ink) !important; }
 .text-primary { color: var(--accent) !important; }
-.form-control:focus, input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 .2rem rgba(34, 211, 238, .25); outline: 0; }
+.form-control:focus, input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 .2rem rgba(34, 211, 238, .25); }
 .start-icon.bg-primary { background: var(--accent) !important; }
 .start-icon.bg-dark { background: var(--ink) !important; color: var(--cyan); }
 .start-icon.bg-secondary { background: #164e63 !important; }
@@ -111,8 +111,11 @@ code { color: #9d174d; }
 .sb-sidenav-dark .sb-sidenav-menu .sb-sidenav-menu-heading { color: #9fb0c6; }
 footer .text-muted { color: #495057 !important; }
 .landmark, .landmark-label, .map-legend { fill: #4f575f; }
-:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; } /* cyan is only 1.8:1 on white; it stays on the dark bars below */
 .sb-topnav :focus-visible, .sb-sidenav-dark :focus-visible { outline-color: #67e8f9; }
+/* Skip link: first Tab on every page; shown above the fixed top bar while it has focus. */
+.skip-link:focus { position: fixed; top: .5rem; left: .5rem; z-index: 2100; background: #fff; color: var(--accent); font-weight: 700; padding: .55rem 1rem; border-radius: .375rem; box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .25); }
+main:focus-visible { outline-offset: -3px; }
 
 /* ── Home hero: ink panel with the shield mark behind the title ── */
 .home-hero { position: relative; overflow: hidden; border-radius: .75rem; padding: 2.5rem 2rem; margin-bottom: 1.5rem; color: #e9eef6;

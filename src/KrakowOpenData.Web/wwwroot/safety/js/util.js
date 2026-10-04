@@ -88,6 +88,30 @@ export function announce(message) {
   setTimeout(() => { live.textContent = message; }, 50);
 }
 
+/** True when the user asked the system for less motion (no map fly / pan animations then). */
+export const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * Re-renders part of the page without losing keyboard focus. Elements that can hold focus carry a stable data-fk key;
+ * after render() the element with the same key gets focus back (with the caret where it was). When focus was inside
+ * `root` but its element is gone, it moves to `fallback` (e.g. the panel title) instead of falling to <body>.
+ */
+export function keepFocus(root, render, fallback = null) {
+  const el = document.activeElement;
+  const inside = !!el && el !== document.body && root.contains(el);
+  const key = inside ? el.getAttribute('data-fk') : null;
+  const caret = key && typeof el.selectionStart === 'number' ? [el.selectionStart, el.selectionEnd] : null;
+  const out = render();
+  if (inside && !root.contains(document.activeElement)) {
+    const next = key ? root.querySelector(`[data-fk="${CSS.escape(key)}"]`) : null;
+    if (next && !next.disabled) {
+      next.focus({ preventScroll: true });
+      if (caret && typeof next.setSelectionRange === 'function') { try { next.setSelectionRange(caret[0], caret[1]); } catch { /* not a text field */ } }
+    } else fallback?.focus({ preventScroll: true });
+  }
+  return out;
+}
+
 /** Shows a toast. opts: {error, action:{label,onClick}, ms} */
 export function toast(message, opts = {}) {
   const host = document.getElementById('toasts');
@@ -100,14 +124,21 @@ export function toast(message, opts = {}) {
   return el;
 }
 
+// Texts util.js needs but cannot translate itself (i18n imports state, which imports util): main.js plugs in t().
+let uiText = (key) => ({ 'common.close': 'Close' })[key] || key;
+export function setUiText(fn) { uiText = fn; }
+
+let dialogCount = 0;
 /** Opens a modal <dialog>. Returns {dialog, close}. `build(close)` returns {title, body, footer}. */
 export function openDialog(build, { onClose } = {}) {
   const dialog = document.createElement('dialog');
   const close = (value) => { dialog.close(value); };
   const { title, body, footer } = build(close);
-  const closeBtn = h('button', { class: 'btn icon quiet', type: 'button', 'aria-label': 'Close', onclick: () => close('x') }, icon('x'));
+  const titleId = `dlg-title-${++dialogCount}`;
+  dialog.setAttribute('aria-labelledby', titleId);
+  const closeBtn = h('button', { class: 'btn icon quiet', type: 'button', 'aria-label': uiText('common.close'), onclick: () => close('x') }, icon('x'));
   dialog.append(
-    h('div', { class: 'dlg-head' }, h('h2', { class: 'grow' }, title), closeBtn),
+    h('div', { class: 'dlg-head' }, h('h2', { class: 'grow', id: titleId }, title), closeBtn),
     h('div', { class: 'dlg-body' }, body),
     footer ? h('div', { class: 'dlg-foot' }, footer) : '');
   dialog.addEventListener('close', () => { dialog.remove(); onClose?.(dialog.returnValue); });

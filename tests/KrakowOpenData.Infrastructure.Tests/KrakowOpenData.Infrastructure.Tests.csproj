@@ -2,4 +2,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\KrakowOpenData.Infrastructure\KrakowOpenData.Infrastructure.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Fixtures\osm-access-sample.json" Link="Fixtures\osm-access-sample.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

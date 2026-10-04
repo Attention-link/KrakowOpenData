@@ -1,4 +1,6 @@
 using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Application.Accessibility;
+using KrakowOpenData.Domain.Accessibility;
 using KrakowOpenData.Application.Catalog;
 using KrakowOpenData.Application.Safety;
 using KrakowOpenData.Domain.Safety;
@@ -22,6 +24,7 @@ using KrakowOpenData.Infrastructure.OpenDataPortal;
 using KrakowOpenData.Infrastructure.OpenStreetMap;
 using KrakowOpenData.Infrastructure.Options;
 using KrakowOpenData.Infrastructure.Repositories;
+using KrakowOpenData.Infrastructure.Telegram;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -63,6 +66,8 @@ public static class DependencyInjection
         services.AddSingleton<OverpassClient>();
         services.AddSingleton<StreetLightsClient>();
         services.AddSingleton<SafetyPlacesClient>();
+        services.AddSingleton<AccessFeaturesClient>();
+        services.AddSingleton<IAccessDataStatus>(sp => sp.GetRequiredService<AccessFeaturesClient>());
         services.AddHostedService<OsmPreloadService>();
         services.AddHttpClient(PhotonGeocoder.HttpClientName, client =>
         {
@@ -109,6 +114,7 @@ public static class DependencyInjection
         AddRepository<Amenity>(services, sp => From<Amenity>(async ct => (await Osm(sp).GetAsync(ct)).Amenities));
         AddRepository<StreetLight>(services, sp => From<StreetLight>(sp.GetRequiredService<StreetLightsClient>().GetAsync));
         AddRepository<SafetyPlace>(services, sp => From<SafetyPlace>(sp.GetRequiredService<SafetyPlacesClient>().GetAsync));
+        AddRepository<AccessFeature>(services, sp => From<AccessFeature>(sp.GetRequiredService<AccessFeaturesClient>().GetAsync));
 
         // ── Public services: city Open Data API ───────────────────────────────
         AddRepository<CityServiceCard>(services, sp => From<CityServiceCard>(async ct => CityTableMapper.ServiceCards(
@@ -141,6 +147,10 @@ public static class DependencyInjection
         services.AddSingleton<AgencyService>();
         services.AddSingleton<PlannerService>();
         services.AddSingleton<DemoDataService>();
+        services.AddSafetyNotifications(configuration); // events, Workers AI triage / voice, Telegram bot (all off without config)
+
+        // ── Accessibility ("Kraków bez barier"): barriers and amenities for wheelchairs, prams and limited mobility ──
+        services.AddSingleton<AccessService>();
 
         return services;
     }

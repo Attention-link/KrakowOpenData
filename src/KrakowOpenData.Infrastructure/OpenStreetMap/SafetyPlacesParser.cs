@@ -69,7 +69,8 @@ public static class SafetyPlacesParser
             };
 
             places.Add(new SafetyPlace(
-                $"osm-{type[0]}{osmId}", kind.Value, Tag(tags, "name"), location, Tag(tags, "opening_hours"), Math.Round(radius), SourceName));
+                $"osm-{type[0]}{osmId}", kind.Value, Tag(tags, "name"), location, Tag(tags, "opening_hours"), Math.Round(radius), SourceName,
+                AccessTagNormaliser.Wheelchair(Tag(tags, "wheelchair"))));
         }
 
         return places;

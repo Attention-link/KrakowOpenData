@@ -4,7 +4,8 @@
 // The API finds the fastest street route and, when one scores clearly better, a safer / cooler / better one to compare with it.
 // Offline (or when street routing is down) the straight line between the two points is estimated from the saved map.
 
-import { h, icon, clear, formatDistance, haversine } from './util.js';
+import { h, icon, clear, formatDistance, haversine, keepFocus, announce } from './util.js';
+import { readAloudButton } from './chrome.js';
 import { state, isOffline, eventForMode } from './state.js';
 import { t } from './i18n.js';
 import { getRoutes, errorText } from './api.js';
@@ -13,6 +14,7 @@ import { bandOf, kindOf, BAND_FILL, cellOf, COL, nearestFromFeatures, FACTOR_ICO
 import { searchBox } from './search.js';
 import { addressLine, reverseLabel, coords } from './geo.js';
 import { bandText, infoButton, openScoreExplainer } from './explain.js';
+import { accessRouteBlock } from './access.js';
 
 const SCORE_KEY = { safety: 'safety', heat: 'heat', flood: 'flood', air: 'air', both: 'combined' };
 const HELP_KEYS = { safety: ['openPlaces', 'aed'], heat: ['water', 'green', 'refuge', 'toilets'], flood: ['emergency'], air: ['green', 'refuge'], both: ['water', 'green', 'openPlaces'] };
@@ -143,6 +145,8 @@ export function renderWalkView(ctx, body) {
     ws.loading = false;
     drawMap(true);
     paint();
+    const sel = selectedRoute();
+    announce(sel ? t('a11y.routeReady', { n: sel.walkingMinutes, m: formatDistance(sel.lengthMeters), band: bandText(bandOf(sel.worst, ctx.grid?.grid, kind), kind) }) : ws.error || '');
   }
 
   /** The same idea from the saved grid: a straight line, 50 m samples, the scores of the cell each sample falls in. */
@@ -176,21 +180,27 @@ export function renderWalkView(ctx, body) {
       label: t(`route.${which}`), placeholder: t(`walk.${which}Placeholder`), filters: false, near: () => value || [ctx.map.getCenter().lat, ctx.map.getCenter().lng],
       initial: ws[`${which}Label`] || '', onPick: (r) => set(which, [r.lat, r.lon], r.label)
     });
+    box.querySelector('input').dataset.fk = `walk-${which}-q`;
     return h('div', { class: 'card flat stack tight' },
       box,
       value ? addressLine(value[0], value[1], { fallback: ws[`${which}Label`] }) : h('p', { class: 'small muted' }, t('walk.notSet')),
       h('div', { class: 'row wrap' },
-        h('button', { class: `btn sm ${picking ? 'primary' : ''}`, type: 'button', onclick: () => { ws.pick = picking ? null : which; paint(); } }, icon('pin', 'sm'), picking ? t('walk.tapMap') : t('walk.pick')),
-        state.me ? h('button', { class: 'btn sm', type: 'button', onclick: () => set(which, [state.me.lat, state.me.lon], null) }, t('walk.useMine')) : null,
-        ctx.selected ? h('button', { class: 'btn sm', type: 'button', onclick: () => set(which, [ctx.selected.lat, ctx.selected.lon], ctx.selected.label || null) }, t('walk.useSelected')) : null));
+        h('button', { class: `btn sm ${picking ? 'primary' : ''}`, type: 'button', 'data-fk': `walk-${which}-pick`, onclick: () => { ws.pick = picking ? null : which; paint(); } }, icon('pin', 'sm'), picking ? t('walk.tapMap') : t('walk.pick')),
+        state.me ? h('button', { class: 'btn sm', type: 'button', 'data-fk': `walk-${which}-mine`, onclick: () => set(which, [state.me.lat, state.me.lon], null) }, t('walk.useMine')) : null,
+        ctx.selected ? h('button', { class: 'btn sm', type: 'button', 'data-fk': `walk-${which}-sel`, onclick: () => set(which, [ctx.selected.lat, ctx.selected.lon], ctx.selected.label || null) }, t('walk.useSelected')) : null));
   }
 
   function paint() {
     // The search boxes are rebuilt with the card, so keep it cheap: only repaint on real state changes.
+    // keepFocus puts keyboard focus back on the same control (data-fk) after the rebuild.
+    keepFocus(host, paintNow, ctx.panelTitle);
+  }
+
+  function paintNow() {
     clear(host);
     host.append(h('p', null, t(`walk.intro.${mode}`)), endCard('from'), endCard('to'));
     if (ws.from && ws.to) {
-      host.append(h('button', { class: 'btn sm', type: 'button', onclick: () => {
+      host.append(h('button', { class: 'btn sm', type: 'button', 'data-fk': 'walk-swap', onclick: () => {
         [ws.from, ws.to] = [ws.to, ws.from];
         [ws.fromLabel, ws.toLabel] = [ws.toLabel, ws.fromLabel];
         ws.routes = null; drawMap(false); compute(); paint();
@@ -215,7 +225,7 @@ export function renderWalkView(ctx, body) {
     const pressed = selectedRoute() === route;
     const fastest = ws.routes.fastest;
     const label = t(`route.${route.kind}`);
-    return h('button', { class: 'route-card', type: 'button', 'aria-pressed': String(pressed), onclick: () => select(which) },
+    return h('button', { class: 'route-card', type: 'button', 'data-fk': `route-${which}`, 'aria-pressed': String(pressed), onclick: () => select(which) },
       h('div', { class: 'row between wrap' },
         h('h3', null, h('span', { class: `swatch ${which === 'fastest' && ws.routes.better ? 'dashed' : 'solid'}` }), label),
         h('b', null, `${t('route.min', { n: route.walkingMinutes })} · ${formatDistance(route.lengthMeters)}`)),
@@ -227,6 +237,16 @@ export function renderWalkView(ctx, body) {
         h('span', { class: 'band', 'data-band': worstBand }, t(`route.worst.${mode}`, { n: Math.round(route.worst) })),
         route.openReportsNearby ? h('span', { class: 'chip warn' }, icon('flag', 'sm'), route.openReportsNearby) : null),
       h('div', { class: 'tiny muted', style: { marginTop: '.25rem' } }, pressed ? t('route.shown') : t('route.show')));
+  }
+
+  /** The route result as one text for "Read aloud": the shown route, its scores and the advice. */
+  function routeSpeech(r, sel, worstBand, group) {
+    const parts = [`${t(`route.${sel.kind}`)}: ${t('route.min', { n: sel.walkingMinutes })}, ${formatDistance(sel.lengthMeters)}`,
+      `${t(`route.avg.${mode}`, { n: Math.round(sel.average) })}, ${bandText(bandOf(sel.average, ctx.grid?.grid, kind), kind)}`,
+      `${t(`route.worst.${mode}`, { n: Math.round(sel.worst) })}, ${bandText(worstBand, kind)}`,
+      t(`walk.advice.${mode}.${group}`)];
+    if (r.source === 'street') parts.push(r.better ? t(`route.better.${mode}`, { g: Math.round(r.scoreGain * 10) / 10 }) : t(`route.none.${mode}`));
+    return parts.join('. ');
   }
 
   function comparison(r) {
@@ -250,6 +270,7 @@ export function renderWalkView(ctx, body) {
         ? h('div', { class: `banner small ${r.better ? 'ok' : 'info'}` }, icon(r.better ? 'check' : 'info', 'sm'),
           h('span', null, r.better ? t(`route.better.${mode}`, { g: Math.round(r.scoreGain * 10) / 10 }) : t(`route.none.${mode}`)))
         : null,
+      readAloudButton(() => routeSpeech(r, sel, worstBand, group), 'route'),
       h('div', { class: 'card' },
         h('p', null, t(`walk.advice.${mode}.${group}`)),
         sel.openReportsNearby ? h('p', { class: 'small', style: { marginTop: '.4rem' } }, icon('flag', 'sm'), ' ', t('walk.reports', { n: sel.openReportsNearby })) : null),
@@ -257,6 +278,8 @@ export function renderWalkView(ctx, body) {
         ? h('div', { class: 'card flat stack tight' }, h('b', null, t(`walk.weakAt.${mode}`)), addressLine(w.latitude, w.longitude),
           help.length ? h('ul', { class: 'list small' }, help.map((n) => h('li', { class: 'row' }, icon(FACTOR_ICON[n.key] || 'pin', 'sm'),
             h('span', null, `${n.name || t(`kind.${n.kind}`)} · ${formatDistance(n.distanceMeters)}`)))) : h('p', { class: 'small muted' }, t('walk.noHelp')))
-        : null);
+        : null,
+      // Accessibility: barrier summary of the shown route for the chosen profile (wheelchair / pram / limited mobility).
+      r.source === 'street' ? accessRouteBlock(sel, { layer: ctx.walkLayer, onChangeProfile: () => ctx.showView('access') }) : null);
   }
 }

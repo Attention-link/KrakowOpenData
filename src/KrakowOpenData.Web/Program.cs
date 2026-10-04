@@ -47,7 +47,7 @@ app.Use(async (context, next) =>
     headers.XContentTypeOptions = "nosniff";
     headers.XFrameOptions = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()";
+    headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=(self)";   // microphone: "Nagraj głosem" voice notes
     var host = context.Request.Host.Value;   // Blazor's circuit WebSocket goes back to this host
     headers["Content-Security-Policy-Report-Only"] = csp.Replace("{ws}", $"ws://{host} wss://{host}");
     await next();
@@ -65,8 +65,10 @@ app.UseStaticFiles(new StaticFileOptions
 // Demo convenience: when Safety:PlannerDemoKey is set, the planner dashboard signs in with it so the menu link opens it directly.
 // It is the same shared demo key the API checks (Safety:PlannerKey). Leave it empty outside demos: the planner then asks for the key.
 var plannerAutoKey = builder.Configuration["Safety:PlannerDemoKey"] ?? string.Empty;
+// Where people report accessibility problems (an e-mail address or a link), shown in the accessibility statement (#/accessibility).
+var accessibilityContact = builder.Configuration["Safety:AccessibilityContact"] ?? string.Empty;
 app.MapGet("/safety/config.js", () => Results.Text(
-    $"window.KRK_CONFIG = {{ apiBase: {System.Text.Json.JsonSerializer.Serialize(publicApi.TrimEnd('/'))}, plannerAutoKey: {System.Text.Json.JsonSerializer.Serialize(plannerAutoKey)} }};",
+    $"window.KRK_CONFIG = {{ apiBase: {System.Text.Json.JsonSerializer.Serialize(publicApi.TrimEnd('/'))}, plannerAutoKey: {System.Text.Json.JsonSerializer.Serialize(plannerAutoKey)}, accessibilityContact: {System.Text.Json.JsonSerializer.Serialize(accessibilityContact)} }};",
     "application/javascript"));
 // One route covers /safety and /safety/ (two would clash and answer 500).
 app.MapGet("/safety", () => Results.Redirect("/safety/index.html"));
