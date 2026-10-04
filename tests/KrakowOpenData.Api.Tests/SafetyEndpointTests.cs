@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Hosting;
 using KrakowOpenData.Contracts;
 
 namespace KrakowOpenData.Api.Tests;
@@ -168,6 +169,52 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         for (var i = 0; i < 5; i++)
             Assert.Equal(HttpStatusCode.Created, (await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest("HeatSpot", Lat + 0.02 + i * 0.01, Lon, null, "device-api-flood"))).StatusCode);
         Assert.Equal(HttpStatusCode.TooManyRequests, (await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest("HeatSpot", Lat + 0.09, Lon, null, "device-api-flood"))).StatusCode);
+    }
+
+    [Theory]
+    [InlineData("99")]
+    [InlineData("1")]
+    public async Task A_numeric_report_type_is_a_400_and_never_reaches_the_lists(string type)
+    {
+        var bad = await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest(type, Lat, Lon, null, "device-api-numeric"));
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/safety/reports")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await _client.GetAsync("/api/safety/grid")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Writes_are_limited_per_client_address_and_reads_are_not()
+    {
+        using var limited = factory.WithWebHostBuilder(b => b.UseSetting("Safety:WriteRequestsPerMinute", "3"));
+        var client = limited.CreateClient();
+        HttpRequestMessage Post(string ip)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "/api/safety/reports") { Content = JsonContent.Create(new CreateReportRequest("Nope", Lat, Lon, null, "device-api-limit")) };
+            request.Headers.Add("CF-Connecting-IP", ip);
+            return request;
+        }
+
+        for (var i = 0; i < 3; i++) Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(Post("203.0.113.7"))).StatusCode);
+        var rejected = await client.SendAsync(Post("203.0.113.7"));
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejected.StatusCode);
+        Assert.Contains("Too many requests", await rejected.Content.ReadAsStringAsync());
+        var confirm = new HttpRequestMessage(HttpMethod.Post, "/api/safety/reports/rep-x/confirm") { Content = JsonContent.Create(new ConfirmReportRequest("device-api-limit")) };
+        confirm.Headers.Add("CF-Connecting-IP", "203.0.113.7");
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await client.SendAsync(confirm)).StatusCode);   // "still true" shares the window
+
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(Post("198.51.100.1"))).StatusCode);   // another address has its own window
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/safety/report-types")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Every_answer_carries_the_security_headers()
+    {
+        var response = await _client.GetAsync("/health");
+        Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
+        Assert.Equal("DENY", response.Headers.GetValues("X-Frame-Options").Single());
+        Assert.Equal("strict-origin-when-cross-origin", response.Headers.GetValues("Referrer-Policy").Single());
+        Assert.Contains("frame-ancestors 'none'", response.Headers.GetValues("Content-Security-Policy").Single());
+        Assert.StartsWith("max-age=", response.Headers.GetValues("Strict-Transport-Security").Single());   // "Testing" is not Development
     }
 
     // ── Planner ──────────────────────────────────────────────────────────────

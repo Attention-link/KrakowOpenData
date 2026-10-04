@@ -8,7 +8,8 @@ import { BAND_FILL, bandOf, bandRange } from './model.js';
 /** Score histogram: 10 bins of 10 points, each bar coloured by the band its range falls in. */
 export function histogram(bins, meta, kind = 'good', onClick = null) {
   const max = Math.max(1, ...bins.map((b) => b.cells));
-  const wrap = h('div', { class: 'hist', role: 'img', 'aria-label': t('chart.histAria') });
+  // A group, not an image: the bars inside are buttons that must stay reachable.
+  const wrap = h('div', { class: 'hist', role: 'group', 'aria-label': t('chart.histAria') });
   for (const b of bins) {
     const band = bandOf(b.from + 5, meta, kind);
     const bar = h(onClick ? 'button' : 'div', { class: 'bar', type: onClick ? 'button' : null, title: `${b.from}–${b.to}: ${b.cells}${onClick ? ' · ' + t('explain.click') : ''}`,

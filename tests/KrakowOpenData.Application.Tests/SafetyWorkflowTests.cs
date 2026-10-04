@@ -48,6 +48,9 @@ public class ReportServiceTests
 
     [Theory]
     [InlineData("Nonsense", "device-0001", 50.06, 19.93, "type")]
+    [InlineData("99", "device-0001", 50.06, 19.93, "type")]          // a number is not a type, even an undefined one
+    [InlineData("1", "device-0001", 50.06, 19.93, "type")]           // ... nor a defined one
+    [InlineData("LightOut,NoShade", "device-0001", 50.06, 19.93, "type")]
     [InlineData("LightOut", "short", 50.06, 19.93, "deviceId")]
     [InlineData("LightOut", "bad device!!", 50.06, 19.93, "deviceId")]
     [InlineData("LightOut", "device-0001", 10.0, 19.93, "lat,lon")]
@@ -108,6 +111,33 @@ public class ReportServiceTests
 
         world.Clock.UtcNow = world.Clock.UtcNow.AddDays(40);
         Assert.Empty(await world.Reports().ListAsync(null, 0, includeResolved: true, includeNotes: false, 100));
+    }
+
+    [Fact]
+    public async Task A_stored_report_with_an_undefined_type_is_skipped_instead_of_breaking_lists_and_scores()
+    {
+        var world = new SafetyWorld();
+        var good = await world.Reports().CreateAsync(Request());
+        await world.Store.SaveReportAsync((await world.Store.GetReportAsync(good.Id))! with { Id = "rep-poisoned", Type = (ReportType)99 });
+
+        Assert.Equal(new[] { good.Id }, (await world.Reports().ListAsync(null, 0, includeResolved: true, includeNotes: true, 100)).Select(r => r.Id).ToArray());
+        Assert.Single(await world.Reports().ListAsync(new ReportFilter(Text: "light"), includeNotes: true, 100));
+        Assert.Single((await world.Scores().OpenReportsByCellAsync(CancellationToken.None)).Values.SelectMany(r => r));
+        Assert.Single((await world.Scores().GetPlaceAsync(SafetyWorld.Centre, PlanningEvent.Both)).Reports);
+    }
+
+    [Fact]
+    public async Task The_public_view_rounds_the_position_and_the_planner_view_keeps_it()
+    {
+        var world = new SafetyWorld();
+        var point = new GeoPoint(50.0612347, 19.9387654);
+        var created = await world.Reports().CreateAsync(Request(lat: point.Latitude, lon: point.Longitude));
+
+        Assert.Equal(50.0612, created.Latitude);
+        Assert.Equal(19.9388, created.Longitude);
+        Assert.Equal(point, (await world.Store.GetReportAsync(created.Id))!.Location);   // exact point kept internally
+        var planner = (await world.Reports().ListAsync(null, 0, includeResolved: false, includeNotes: true, 100)).Single();
+        Assert.Equal(50.061235, planner.Latitude);
     }
 }
 
@@ -178,6 +208,8 @@ public class AlertServiceTests
 
     [Theory]
     [InlineData("Severe", 800, 60, "severity")]
+    [InlineData("7", 800, 60, "severity")]
+    [InlineData("1", 800, 60, "severity")]
     [InlineData("Warning", 20, 60, "radiusMeters")]
     [InlineData("Warning", 9000, 60, "radiusMeters")]
     [InlineData("Warning", 800, 1, "durationMinutes")]
@@ -195,6 +227,46 @@ public class AlertServiceTests
         Assert.Equal("lat,lon", (await Assert.ThrowsAsync<SafetyValidationException>(() => svc.CreateAsync(Alert(lat: 52.2, lon: 21.0)))).Field);
         Assert.Equal("title", (await Assert.ThrowsAsync<SafetyValidationException>(() => svc.CreateAsync(Alert() with { Title = " " }))).Field);
         Assert.Equal("message", (await Assert.ThrowsAsync<SafetyValidationException>(() => svc.CreateAsync(Alert() with { Message = "" }))).Field);
+    }
+
+    [Theory]
+    [InlineData("99")]
+    [InlineData("0")]
+    [InlineData("Nope")]
+    public async Task The_layer_must_be_a_layer_name(string layer)
+    {
+        var ex = await Assert.ThrowsAsync<SafetyValidationException>(() => Service(new SafetyWorld(), out _).CreateAsync(Alert(layer: layer)));
+        Assert.Equal("layer", ex.Field);
+    }
+
+    [Theory]
+    [InlineData("54-93x")]
+    [InlineData("<b>1-2</b>")]
+    [InlineData("054-93")]
+    [InlineData("1-2-3")]
+    [InlineData("111111111111111111111111111111111-1")]
+    public async Task A_cell_id_must_be_a_grid_id(string cellId)
+    {
+        var ex = await Assert.ThrowsAsync<SafetyValidationException>(() => Service(new SafetyWorld(), out _).CreateAsync(Alert() with { CellId = cellId }));
+        Assert.Equal("cellId", ex.Field);
+        Assert.Equal("54-93", (await Service(new SafetyWorld(), out _).CreateAsync(Alert() with { CellId = "54-93" })).CellId);
+    }
+
+    [Fact]
+    public void A_full_presence_tracker_keeps_known_phones_but_adds_no_new_ones()
+    {
+        var clock = new FakeClock(DateTimeOffset.UtcNow);
+        var presence = new PresenceTracker(clock);
+        for (var i = 0; i < PresenceTracker.MaxEntries; i++) presence.Touch($"phone-{i}", SafetyWorld.Centre);
+
+        presence.Touch("phone-new", SafetyWorld.Centre);
+        presence.Touch("phone-0", SafetyWorld.Remote);
+        Assert.Equal(PresenceTracker.MaxEntries, presence.CountActive());
+        Assert.Equal(1, presence.CountNear(SafetyWorld.Remote, 100));
+
+        clock.UtcNow = clock.UtcNow.AddMinutes(16);   // everything expired: room again
+        presence.Touch("phone-new", SafetyWorld.Centre);
+        Assert.Equal(1, presence.CountActive());
     }
 
     [Fact]
@@ -237,6 +309,7 @@ public class AgencyServiceTests
         Assert.Equal("agencyId", (await Assert.ThrowsAsync<SafetyValidationException>(() => svc.DispatchAsync(new DispatchRequest("nobody", "Subject", "Body text", null, null, null)))).Field);
         Assert.Equal("subject", (await Assert.ThrowsAsync<SafetyValidationException>(() => svc.DispatchAsync(new DispatchRequest("zdmk", "", "Body text", null, null, null)))).Field);
         Assert.Equal("lat,lon", (await Assert.ThrowsAsync<SafetyValidationException>(() => svc.DispatchAsync(new DispatchRequest("zdmk", "Subject", "Body", 10, 10, null)))).Field);
+        Assert.Equal("cellId", (await Assert.ThrowsAsync<SafetyValidationException>(() => svc.DispatchAsync(new DispatchRequest("zdmk", "Subject", "Body", null, null, new string('9', 40))))).Field);
     }
 
     [Fact]

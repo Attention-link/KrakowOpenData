@@ -102,7 +102,7 @@ export function statusPill({ savedAt } = {}) {
 
 // ── Language select ──────────────────────────────────────────────────────────
 export function langSelect() {
-  const sel = h('select', { class: 'lang-select', 'aria-label': t('lang.label'), style: { minHeight: '36px', width: 'auto', padding: '.2rem .5rem' } },
+  const sel = h('select', { class: 'lang-select', id: 'lang-select', 'aria-label': t('lang.label'), style: { minHeight: '36px', width: 'auto', padding: '.2rem .5rem' } },
     LANGS.map(([code, name]) => h('option', { value: code, selected: code === state.lang }, name)));
   sel.addEventListener('change', () => setLang(sel.value));
   return sel;
@@ -120,7 +120,92 @@ export function topbar({ subtitle, right = [], pill } = {}) {
     pill || '',
     ...right,
     themeToggle(),
+    h('button', { class: 'btn sm quiet', type: 'button', 'aria-label': t('display.short'), title: t('display.open'), onclick: openAccessibilityMenu },
+      icon('a11y', 'sm'), h('span', { class: 'hide-sm' }, t('display.short'))),
     langSelect());
+}
+
+// ── Display settings (high contrast, larger text) ────────────────────────────
+// Saved as localStorage 'display' = {contrast, large}; js/display-boot.js applies them before the first paint.
+export function applyDisplay(d = ls.get('display') || {}) {
+  const root = document.documentElement;
+  if (d.contrast) root.dataset.contrast = 'high'; else delete root.dataset.contrast;
+  if (d.large) root.dataset.text = 'large'; else delete root.dataset.text;
+}
+
+/** The "Display" toggle group: two switches, each with aria-pressed. */
+export function displayToggles() {
+  const toggle = (key, label) => {
+    const btn = h('button', { class: 'btn sm toggle', type: 'button', 'data-fk': `display-${key}` });
+    const paint = () => {
+      const on = !!(ls.get('display') || {})[key];
+      btn.setAttribute('aria-pressed', String(on));
+      btn.replaceChildren(icon(on ? 'check' : 'plus', 'sm'), label);
+    };
+    btn.addEventListener('click', () => {
+      const d = { ...(ls.get('display') || {}) };
+      d[key] = !d[key];
+      ls.set('display', d);
+      applyDisplay(d);
+      paint();
+    });
+    paint();
+    return btn;
+  };
+  return h('div', { class: 'stack tight' },
+    h('div', { class: 'row wrap', role: 'group', 'aria-label': t('display.title') }, toggle('contrast', t('display.contrast')), toggle('large', t('display.large'))),
+    h('p', { class: 'tiny muted' }, t('display.help')));
+}
+
+/** The accessibility button in the top bar: display settings and the accessibility statement. */
+export function openAccessibilityMenu() {
+  openDialog((close) => ({
+    title: t('display.open'),
+    body: h('div', { class: 'stack' },
+      h('h3', null, t('display.title')), displayToggles(),
+      h('p', null, h('a', { href: '#/accessibility', onclick: () => close('x') }, icon('a11y', 'sm'), ' ', t('stmt.link')))),
+    footer: h('button', { class: 'btn primary', type: 'button', onclick: () => close('ok') }, t('common.done'))
+  }));
+}
+
+// ── Read aloud ───────────────────────────────────────────────────────────────
+const VOICE_LANG = { en: 'en-GB', pl: 'pl-PL', uk: 'uk-UA' };
+let speakingKey = null;
+
+/** A "Read aloud" button that speaks getText() in the app language. Null when the browser cannot speak (then nothing is shown). */
+export function readAloudButton(getText, key) {
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return null;
+  const btn = h('button', { class: 'btn sm', type: 'button', 'data-fk': `read-${key}`, 'data-read': key });
+  // The panel may be rebuilt while speaking: every button with the same key shows the same state.
+  btn.paint = () => {
+    const on = speakingKey === key;
+    btn.replaceChildren(icon(on ? 'x' : 'speaker', 'sm'), on ? t('read.stop') : t('read.aloud'));
+  };
+  btn.addEventListener('click', () => {
+    const wasMe = speakingKey === key;
+    stopReading();
+    if (wasMe) return;
+    const lang = getLang();
+    const u = new SpeechSynthesisUtterance(getText());
+    u.lang = VOICE_LANG[lang] || lang;
+    const voice = speechSynthesis.getVoices().find((v) => (v.lang || '').toLowerCase().startsWith(lang));
+    if (voice) u.voice = voice;
+    u.onend = u.onerror = () => { if (speakingKey === key) { speakingKey = null; repaintReaders(); } };
+    speakingKey = key;
+    repaintReaders();
+    speechSynthesis.speak(u);
+  });
+  btn.paint();
+  return btn;
+}
+
+function repaintReaders() { document.querySelectorAll('[data-read]').forEach((b) => b.paint?.()); }
+
+export function stopReading() {
+  if (!('speechSynthesis' in window)) return;
+  speakingKey = null;
+  speechSynthesis.cancel();
+  repaintReaders();
 }
 
 /** A switch for device notifications about alerts; asks the browser for permission when turned on. */

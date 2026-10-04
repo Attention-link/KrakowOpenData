@@ -20,6 +20,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
         builder.UseSetting("KrakowData:PreloadOnStartup", "false"); // no OpenStreetMap downloads in tests
         builder.UseSetting("Safety:Persist", "false");               // reports and alerts stay in memory
+        builder.UseSetting("Safety:WriteRequestsPerMinute", "0");    // the shared test client would trip the per-IP limit; its own test turns it on
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IGtfsDatasetProvider, FakeGtfsDatasetProvider>();
@@ -28,6 +29,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IWaitingListSource, FakeWaitingListSource>();
             services.AddSingleton<IGeocoder, FakeGeocoder>();
             services.AddSingleton<IWalkingRouter, FakeWalkingRouter>();
+            // Telegram and AI are not configured here (no token, no worker), so nothing leaves the process; events are only recorded.
+            services.AddSingleton<CapturingSafetyEventSink>();
+            services.AddSingleton<KrakowOpenData.Application.Safety.ISafetyEventSink>(sp => sp.GetRequiredService<CapturingSafetyEventSink>());
 
             services.AddSingleton(FakeData.Of(FakeData.Weather));
             services.AddSingleton(FakeData.Of(FakeData.AirQuality));
@@ -39,6 +43,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton(FakeData.Of(FakeData.Amenities));
             services.AddSingleton(FakeData.Of(FakeData.StreetLights));
             services.AddSingleton(FakeData.Of(FakeData.SafetyPlaces));
+            services.AddSingleton(FakeData.Of(FakeData.AccessFeatures));
         });
     }
 }

@@ -65,7 +65,7 @@ export function mountPlanner(root, page) {
   const demoChip = demoAccess ? h('span', { class: 'chip', title: t('pl.demoAccess') }, icon('info', 'sm'), t('pl.demoChip')) : null;
   const tools = h('div', { class: 'pl-tools' }, backBtn, h('span', { class: 'small muted hide-sm' }, t('pl.planningFor')), eventSeg, conds, demoChip, updated, refreshBtn);
 
-  const body = h('div', { class: 'pl-body', id: 'main' });
+  const body = h('main', { class: 'pl-body', id: 'main', tabindex: '-1' }, h('h1', { class: 'sr-only' }, `${t('app.title')} · ${t('a11y.planner')}`));
   const col = h('div', { class: 'pl-col' }, tools, body);
   P.root = col;
   P.event = state.event;

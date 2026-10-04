@@ -9,6 +9,7 @@ import { gauge } from './charts.js';
 import { addressLine } from './geo.js';
 import { bandOf, kindOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, LAYERS, modeOfEvent } from './model.js';
 import { explainable, openFactorExplainer, openKpiExplainer, openScoreExplainer, bandText } from './explain.js';
+import { aiSuggestion } from './planner-ai.js';
 
 // ── Shared planner state and a tiny event bus ────────────────────────────────
 export const P = {
@@ -59,26 +60,40 @@ export const agencyForAction = (code) => AGENCY_FOR_ACTION[code] || 'portal';
 
 // ── Drawer ───────────────────────────────────────────────────────────────────
 let current = null;
+let opener = null;      // what had focus when the drawer opened: focus returns there on close
+let onKey = null;       // the Esc listener of the open drawer (removed however the drawer closes)
 
+/** Closes the drawer and gives focus back to the control that opened it. */
 export function closeDrawer() {
+  removeDrawer();
+  if (opener?.isConnected) opener.focus({ preventScroll: true });
+  opener = null;
+}
+
+function removeDrawer() {
+  if (onKey) document.removeEventListener('keydown', onKey);
+  onKey = null;
   current?.remove();
   current?.scrim?.remove();
   current = null;
 }
 
 export function openDrawer({ title, build, footer }) {
-  closeDrawer();
-  const scrim = h('div', { class: 'scrim', onclick: closeDrawer });
+  // Opening a drawer from inside another one keeps the first opener.
+  const active = document.activeElement;
+  if (!current || !current.contains(active)) opener = active;
+  removeDrawer();
+  const scrim = h('div', { class: 'scrim', onclick: () => closeDrawer() });
   const body = h('div', { class: 'dr-body' });
   const drawer = h('aside', { class: 'drawer', role: 'dialog', 'aria-modal': 'false', 'aria-label': title },
     h('div', { class: 'dr-head' }, h('h2', { class: 'grow', tabindex: '-1' }, title),
-      h('button', { class: 'btn icon quiet', type: 'button', 'aria-label': t('common.close'), onclick: closeDrawer }, icon('x'))),
+      h('button', { class: 'btn icon quiet', type: 'button', 'aria-label': t('common.close'), onclick: () => closeDrawer() }, icon('x'))),
     body, footer ? h('div', { class: 'dr-foot' }, footer) : '');
   drawer.scrim = scrim;
   P.root.append(scrim, drawer);
   current = drawer;
   drawer.querySelector('h2').focus({ preventScroll: true });
-  const onKey = (e) => { if (e.key === 'Escape') { closeDrawer(); document.removeEventListener('keydown', onKey); } };
+  onKey = (e) => { if (e.key === 'Escape' && !document.querySelector('dialog[open]')) closeDrawer(); };
   document.addEventListener('keydown', onKey);
   build(body, drawer);
   return { drawer, body };
@@ -192,6 +207,7 @@ export function reportItem(r, onChange) {
         h('b', null, t(`rtype.${r.type}`)), ' ', demo ? h('span', { class: 'tag-demo' }, 'DEMO') : null,
         h('div', { class: 'small muted' }, `${t('report.supporters', { n: r.supporters })} · ${timeAgo(r.lastActivityAt, t, getLang())} · ${r.status === 'Resolved' ? t('rep.resolved') : r.verifiedByPlanner ? t('report.verified') : t('rep.unverified')}`),
         r.note && !demo ? h('p', { class: 'small', style: { marginTop: '.25rem' } }, r.note) : null,
+        aiSuggestion(r), // "Sugestia AI · niezweryfikowane" (planner-ai.js)
         r.resolutionNote ? h('p', { class: 'small muted' }, `${t('rep.resolution')}: ${r.resolutionNote}`) : null),
       r.status === 'Open' ? h('div', { class: 'row wrap' },
         r.verifiedByPlanner ? null : h('button', { class: 'btn sm', type: 'button', onclick: async () => { if (!requireOnline()) return; try { await verifyReport(r.id); toast(t('rep.verifiedToast')); dataChanged(); onChange?.(); } catch (e) { toast(errorText(e, t), { error: true }); } } }, icon('check', 'sm'), t('rep.verify')),

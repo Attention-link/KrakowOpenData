@@ -6,6 +6,13 @@ services:
       dockerfile: src/KrakowOpenData.Api/Dockerfile
     environment:
       - Cors__AllowedOrigins__0=http://localhost:5090
+      # Optional Telegram bot and Workers AI (see README, "AI (Cloudflare Workers AI) i Telegram"); empty = off.
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN:-}
+      - Telegram__BotUsername=${TELEGRAM_BOT_USERNAME:-}
+      - Telegram__StaffChatId=${TELEGRAM_STAFF_CHAT_ID:-}
+      - Telegram__Polling=${TELEGRAM_POLLING:-true}
+      - Ai__BaseUrl=${AI_BASE_URL:-}
+      - Ai__Key=${AI_KEY:-}
     ports:
       - "5080:8080"
     healthcheck:

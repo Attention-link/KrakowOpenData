@@ -7,4 +7,8 @@
     <ProjectReference Include="..\..\src\KrakowOpenData.Api\KrakowOpenData.Api.csproj" />
     <ProjectReference Include="..\..\src\KrakowOpenData.Client\KrakowOpenData.Client.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\Fixtures\osm-access-sample.json" Link="Fixtures\osm-access-sample.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

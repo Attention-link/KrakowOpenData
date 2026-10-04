@@ -24,7 +24,7 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
 
     public async Task<ReportDto> CreateAsync(CreateReportRequest request, CancellationToken ct = default)
     {
-        if (!Enum.TryParse<ReportType>(request.Type, ignoreCase: true, out var type))
+        if (!SafetyEnum.TryParseName<ReportType>(request.Type, out var type))
             throw new SafetyValidationException("type", $"Use one of: {string.Join(", ", Enum.GetNames<ReportType>())}.");
 
         var point = new GeoPoint(request.Latitude, request.Longitude);
@@ -97,7 +97,7 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
         var cutoff = clock.UtcNow - ReportRules.ListAge;
         var text = filter.Text?.Trim();
         return (await store.ListReportsAsync(ct))
-            .Where(r => r.LastActivityAt >= cutoff)
+            .Where(r => r.LastActivityAt >= cutoff && ReportRules.IsKnown(r.Type))
             .Where(r => filter.Status switch
             {
                 ReportStatusFilter.Open => r.Status == ReportStatus.Open,
@@ -129,6 +129,20 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
             DeviceIds = report.DeviceIds.Contains(device) ? report.DeviceIds : [.. report.DeviceIds, device],
             LastActivityAt = now
         };
+
+    /// <summary>
+    /// Device ids the Telegram bot uses for reports filed in a chat: this prefix plus a hash of the chat id. The hash is not secret
+    /// (a private chat id is the person's Telegram user id), so the public endpoints refuse these ids; otherwise anyone could act
+    /// as a bot user or link their own chat to that user's reports.
+    /// </summary>
+    public const string BotDevicePrefix = "tg-";
+
+    /// <summary>Throws for a device id reserved for the bot (see <see cref="BotDevicePrefix"/>). Call it on every public input.</summary>
+    public static void RejectBotDevice(string? deviceId)
+    {
+        if (deviceId?.TrimStart().StartsWith(BotDevicePrefix, StringComparison.OrdinalIgnoreCase) == true)
+            throw new SafetyValidationException("deviceId", "This deviceId is reserved.");
+    }
 
     /// <summary>
     /// The device id is a random value made by the app. It is only used to count independent supporters and to

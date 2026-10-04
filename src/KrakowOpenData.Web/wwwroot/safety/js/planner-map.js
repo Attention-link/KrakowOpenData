@@ -4,7 +4,7 @@
 import { h, icon, clear, toast } from './util.js';
 import { t } from './i18n.js';
 import { P, pOn, loadGridFor, loadReports, loadAlerts, openCellDrawer, openAlertDialog, staleBanner, closeDrawer } from './planner-common.js';
-import { createMap, GridLayer, PlacesLayer, iconMarker, watchResize, mapInfo, KRAKOW } from './map.js';
+import { createMap, GridLayer, PlacesLayer, iconMarker, watchResize, mapInfo, KRAKOW, keyboardPick } from './map.js';
 import { legendBody, loadMethod, openMethod, openScoreExplainer } from './explain.js';
 import { cachedGet, getFeatures } from './api.js';
 import { BAND_FILL, PRIORITY_RAMP, COL, RELIEF, cellId, LAYERS, modeOfEvent, REPORT_LAYER } from './model.js';
@@ -33,7 +33,7 @@ export function mount(host) {
   host.append(h('div', { class: 'pl-page fill' }, wrap));
 
   const map = createMap(mapEl, { center: KRAKOW, zoom: 12 });
-  cleanups.push(watchResize(map, wrap), () => map.remove());
+  cleanups.push(watchResize(map, wrap), keyboardPick(map, t('a11y.mapHint')), () => map.remove());
   const overlay = L.layerGroup().addTo(map);
   const places = new PlacesLayer(map, { getFeatures: () => features, getKeys: () => RELIEF[modeOfEvent(P.event)] });
   places.setEnabled(false);
@@ -93,7 +93,8 @@ export function mount(host) {
       const wanted = LAYERS[modeOfEvent(P.event)].api;
       for (const r of reports.filter((x) => x.status === 'Open' && x.layer === wanted)) {
         const m = iconMarker([r.latitude, r.longitude], TYPE_ICON[r.type] || 'flag', REPORT_LAYER[r.type] || 'safety', { small: true, title: t(`rtype.${r.type}`) });
-        m.bindTooltip(`${t(`rtype.${r.type}`)} · ${t('report.supporters', { n: r.supporters })}`);
+        // Leaflet treats a string tooltip as HTML: pass an element so API text is only ever text.
+        m.bindTooltip(h('span', null, `${t(`rtype.${r.type}`)} · ${t('report.supporters', { n: r.supporters })}`));
         m.on('click', () => openCellDrawer(r.cellId, { meta: gridRes?.data.grid }));
         m.addTo(overlay);
       }
@@ -101,7 +102,7 @@ export function mount(host) {
     if (showAlerts) {
       for (const a of alerts.filter((x) => x.status === 'Active' && new Date(x.expiresAt) > new Date())) {
         L.circle([a.latitude, a.longitude], { radius: a.radiusMeters, color: SEV_COLOR[a.severity], weight: 2, dashArray: '6 4', fillOpacity: 0.08, interactive: true })
-          .bindTooltip(`${a.title} · ${a.devicesInArea ?? 0} ${t('al.phones')}`).addTo(overlay);
+          .bindTooltip(h('span', null, `${a.title} · ${a.devicesInArea ?? 0} ${t('al.phones')}`)).addTo(overlay);
       }
     }
   }

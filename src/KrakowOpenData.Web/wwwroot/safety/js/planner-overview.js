@@ -100,11 +100,12 @@ export function mount(host) {
       const body = [h('div', { class: 'v num' }, k.unit === '%' ? Math.round(k.value) : k.unit === 'score' ? Math.round(k.value) : k.value, k.unit === '%' ? h('small', null, '%') : k.unit === 'score' ? h('small', null, '/100') : null),
         h('div', { class: 'l' }, t(`kpi.${key}`)), h('div', { class: 'h' }, t(`kpi.${key}.help`))];
       // Every tile opens its explanation: what it is, how it is computed, the data source and the numbers behind it.
-      return h('button', { class: `kpi ${alertish ? 'alertish' : ''}`, type: 'button', role: 'listitem', title: t('explain.click'),
+      // The list item is a wrapper: a button cannot take role="listitem" without losing its button role.
+      return h('div', { role: 'listitem', class: 'kpi-item' }, h('button', { class: `kpi ${alertish ? 'alertish' : ''}`, type: 'button', title: t('explain.click'),
         onclick: () => openKpiExplainer(key, {
           value: k.value, unit: k.unit, factorKey: FACTOR_OF[key], extra: kpiExtra(key, s, k),
           links: go[key] ? [{ href: go[key][0], label: t(go[key][1]) }] : []
-        }) }, body);
+        }) }, body));
     }));
   }
 

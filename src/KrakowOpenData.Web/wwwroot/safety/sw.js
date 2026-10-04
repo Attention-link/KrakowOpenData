@@ -1,7 +1,7 @@
 // Service worker: keeps the app itself (and map tiles you have looked at) available offline.
 // API answers are NOT cached here; the app saves them itself in IndexedDB so it controls freshness and shows "saved" labels.
 
-const VERSION = 'v16';
+const VERSION = 'v20';
 const SHELL = `krk-safety-shell-${VERSION}`;
 const TILES = 'krk-safety-tiles';
 const LIB = 'krk-safety-lib';
@@ -11,7 +11,10 @@ const SHELL_FILES = [
   './', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'css/app.css',
   'js/main.js', 'js/geo.js', 'js/search.js', 'js/strings-resident-v2.js', 'js/strings-layers.js', 'js/strings-theme.js', 'js/strings-thresholds.js', 'js/strings-resident-v3.js', 'js/strings-planner-v2.js', 'js/explain.js', 'js/util.js', 'js/db.js', 'js/state.js', 'js/api.js', 'js/i18n.js', 'js/strings-resident.js', 'js/strings-planner.js',
   'js/model.js', 'js/map.js', 'js/chrome.js', 'js/resident.js', 'js/report.js', 'js/walk.js', 'js/alerts.js',
-  'js/planner.js', 'js/planner-overview.js', 'js/planner-map.js', 'js/planner-reports.js', 'js/planner-alerts.js', 'js/planner-contacts.js', 'js/planner-weights.js', 'js/charts.js', 'js/planner-common.js'
+  'js/strings-a11y.js', 'js/display-boot.js', 'js/accessibility.js',
+  'js/planner.js', 'js/planner-overview.js', 'js/planner-map.js', 'js/planner-reports.js', 'js/planner-alerts.js', 'js/planner-contacts.js', 'js/planner-weights.js', 'js/charts.js', 'js/planner-common.js',
+  'js/access.js', 'js/wheelchair.js', 'js/strings-access.js',
+  'js/telegram.js', 'js/voice.js', 'js/ai-explain.js', 'js/planner-ai.js'
 ];
 
 const LIB_FILES = [
@@ -23,7 +26,9 @@ self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const shell = await caches.open(SHELL);
     // Missing optional files must not break the install.
-    await Promise.all(SHELL_FILES.map((f) => shell.add(f).catch(() => {})));
+    // cache: 'reload' skips the browser's HTTP cache: Cloudflare gives browsers a 4 h TTL, so a plain add() could fill the
+    // new version's cache with the previous build's files.
+    await Promise.all(SHELL_FILES.map((f) => shell.add(new Request(f, { cache: 'reload' })).catch(() => {})));
     const lib = await caches.open(LIB);
     await Promise.all(LIB_FILES.map((u) => fetch(u, { mode: 'cors' }).then((r) => r.ok && lib.put(u, r)).catch(() => {})));
     self.skipWaiting();
@@ -68,7 +73,10 @@ self.addEventListener('fetch', (event) => {
 async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
-    const res = await fetch(req);
+    // no-cache: always revalidate with the server (a cheap 304 when unchanged), never trust the browser's 4 h copy.
+    // A navigation request cannot be re-created with options, so it is fetched by URL.
+    const fresh = req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : new Request(req, { cache: 'no-cache' });
+    const res = await fetch(fresh);
     if (res.ok) cache.put(req, res.clone());
     return res;
   } catch {

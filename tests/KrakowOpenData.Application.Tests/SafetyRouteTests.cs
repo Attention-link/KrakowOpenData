@@ -17,6 +17,22 @@ public sealed class DownRouter : IWalkingRouter
         throw new HttpRequestException("routing is down");
 }
 
+/// <summary>Answers the direct request with the given paths; every via-point request times out the way HttpClient does.</summary>
+public sealed class SlowViaRouter(params RoutePath[] paths) : IWalkingRouter
+{
+    public Task<IReadOnlyList<RoutePath>> RouteAsync(IReadOnlyList<GeoPoint> waypoints, bool alternatives, CancellationToken ct = default) =>
+        waypoints.Count == 2
+            ? Task.FromResult<IReadOnlyList<RoutePath>>(paths)
+            : throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout of 12 seconds elapsing.");
+}
+
+/// <summary>Times out like HttpClient on every request.</summary>
+public sealed class TimingOutRouter : IWalkingRouter
+{
+    public Task<IReadOnlyList<RoutePath>> RouteAsync(IReadOnlyList<GeoPoint> waypoints, bool alternatives, CancellationToken ct = default) =>
+        throw new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout of 12 seconds elapsing.");
+}
+
 public class PathSamplerTests
 {
     [Fact]
@@ -116,6 +132,32 @@ public class RouteServiceTests
         Assert.Null(routes.Better);
         Assert.Contains("straight-line", routes.Note);
         Assert.True(routes.Fastest.Samples.Count > 5);
+    }
+
+    [Fact]
+    public async Task A_timed_out_via_route_is_skipped_instead_of_failing_the_request()
+    {
+        var routes = await Service(new SlowViaRouter(Unserved(), Served(700))).GetRoutesAsync(Far, FarEnd, PlanningEvent.Night);
+
+        Assert.Equal("street", routes.Source);
+        Assert.Equal(600, routes.Fastest.LengthMeters);
+        Assert.Equal("safest", routes.BetterKind);
+    }
+
+    [Fact]
+    public async Task A_router_timeout_falls_back_to_the_straight_line()
+    {
+        var routes = await Service(new TimingOutRouter()).GetRoutesAsync(Far, FarEnd, PlanningEvent.Night);
+
+        Assert.Equal("straight-line", routes.Source);
+    }
+
+    [Fact]
+    public async Task The_callers_own_cancellation_still_cancels()
+    {
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Service(new ScriptedRouter(Unserved())).GetRoutesAsync(Far, FarEnd, PlanningEvent.Night, cts.Token));
     }
 
     [Fact]

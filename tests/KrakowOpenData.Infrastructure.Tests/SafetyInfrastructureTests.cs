@@ -202,6 +202,17 @@ public sealed class JsonFileSafetyStoreTests : IDisposable
         await store.SaveReportAsync(Report("rep-1"));
         Assert.Single(await Store(file: path).ListReportsAsync());
     }
+
+    [Fact]
+    public async Task A_stored_report_with_an_undefined_type_is_dropped_on_load()
+    {
+        var first = Store();
+        await first.SaveReportAsync(Report("rep-ok"));
+        await first.SaveReportAsync(Report("rep-bad") with { Type = (ReportType)99 });   // what an older build let in from "99"
+
+        var report = (await Store().ListReportsAsync()).Single();
+        Assert.Equal("rep-ok", report.Id);
+    }
 }
 
 public class NightServiceStopsTests

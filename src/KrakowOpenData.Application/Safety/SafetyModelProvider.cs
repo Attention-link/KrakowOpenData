@@ -132,15 +132,38 @@ public sealed class SafetyModelProvider(
 
     private static IReadOnlyList<Feature> AmenityFeatures(IReadOnlyList<Amenity> all, AmenityKind kind) =>
         all.Where(a => a.Kind == kind)
-            .Select(a => new Feature(a.Id, kind.ToString(), a.Name, a.Location, 0, OpeningHoursFrom(a.Details)))
+            .Select(a => new Feature(a.Id, kind.ToString(), a.Name, a.Location, 0, OpeningHoursFrom(a.Details), WheelchairFrom(a.Details)))
             .ToList();
 
     private static IReadOnlyList<Feature> PlaceFeatures(IReadOnlyList<SafetyPlace> all, Func<SafetyPlace, bool> filter) =>
         all.Where(filter)
-            .Select(p => new Feature(p.Id, p.Kind.ToString(), p.Name, p.Location, p.EquivalentRadiusMeters, p.OpeningHours))
+            .Select(p => new Feature(p.Id, p.Kind.ToString(), p.Name, p.Location, p.EquivalentRadiusMeters, p.OpeningHours, p.Wheelchair))
             .ToList();
 
-    private static Feature StopFeature(TransitStop s) => new(s.Id, "Stop", s.Name, s.Location, 0, null);
+    private static Feature StopFeature(TransitStop s) =>
+        new(s.Id, "Stop", s.Name, s.Location, 0, null, s.WheelchairAccessible switch { true => "yes", false => "no", null => null });
+
+    /// <summary>
+    /// The wheelchair access of an amenity from its details ("wheelchair: yes", or "toilets:wheelchair: yes" for toilets):
+    /// yes | limited | no, or null when not mapped. "designated" counts as yes.
+    /// </summary>
+    public static string? WheelchairFrom(string? details)
+    {
+        if (details is null) return null;
+        string? Value(string key) => details.Split("; ")
+            .Select(part => part.Split(": ", 2))
+            .Where(kv => kv.Length == 2 && kv[0] == key)
+            .Select(kv => kv[1].Trim().ToLowerInvariant())
+            .FirstOrDefault();
+
+        return (Value("wheelchair") ?? Value("toilets:wheelchair")) switch
+        {
+            "yes" or "designated" => "yes",
+            "limited" => "limited",
+            "no" => "no",
+            _ => null
+        };
+    }
 
     private static Dictionary<(int Row, int Col), int> CountPerCell(IEnumerable<GeoPoint> points)
     {

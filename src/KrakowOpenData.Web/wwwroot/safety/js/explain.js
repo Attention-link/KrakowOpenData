@@ -6,6 +6,7 @@ import { h, icon, clear, openDialog, formatDistance } from './util.js';
 import { t } from './i18n.js';
 import { cachedGet, getMethod, peek } from './api.js';
 import { BAND_FILL, kindOf, bandOf, bandRange, FACTOR_ICON, LAYERS, layerOfApi } from './model.js';
+import { aiExplainSection } from './ai-explain.js';
 
 // ── Method data (loaded once, saved for offline) ─────────────────────────────
 let method = null;
@@ -140,6 +141,7 @@ export function openScoreExplainer({ layer, place = null, meta = null }) {
         key === 'heat' ? liveHeat() : null));
     }
 
+    sections.push(aiExplainSection({ layer, place, method, meta })); // "Wyjaśnij prostym językiem" (ai-explain.js); null without a place
     sections.push(section(t('explain.reportsTitle'), h('p', { class: 'small' }, method.reportRule)));
     sections.push(h('ul', { class: 'list tiny muted' }, method.limits.map((l) => h('li', null, l))));
 

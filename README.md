@@ -24,6 +24,7 @@ The MVP proves the model on **night safety, heat, flood and air**:
 - **Resident app** (installable, offline, English/Polish/Ukrainian): map with streets and places, a heat-relief score (0 very hot – 100 plenty of relief) and a night-safety score (0 unsafe – 100 safe), plus flood and clean-air scores with explanations of weights and sources, fastest versus safer/cooler street routes, address search, reporting with neighbour confirmation, alerts for "my area".
 - **Planner dashboard**: ranked areas to act on, gap charts, clickable figures with their data sources, reports to verify or resolve, alerts to a map area, simulated agency contact.
 - Scores are **environmental (mapped infrastructure plus resident reports), not crime statistics.**
+- **Dostępność (Kraków bez barier)**: steps, kerbs, ramps, lifts, entrances, surfaces, accessible toilets and benches for wheelchair users, prams and limited mobility, each with source, last OSM edit and reliability; see [Dostępność](#dostępność-kraków-bez-barier).
 
 **Remaining for the MVP:** a "possibly missing data" flag on the dashboard, a simple "add a missing place" form for planners, and a final pass on Polish texts and demo data. Everything under "Goal" beyond heat and night safety is future work.
 
@@ -72,6 +73,7 @@ Everything is live, public data that needs no API key. The API fetches it from t
 | Urban space | AEDs, drinking water, toilets, EV chargers, bike parking | OpenStreetMap (Overpass API) | daily |
 | Urban space | Street lights (~27,000: position; LED/sodium, mount, height where mapped) | OpenStreetMap (Overpass API) | daily |
 | Urban space | Parks (with extent), libraries, pharmacies (with opening hours), hospitals, police stations (used by the safety scores) | OpenStreetMap (Overpass API) | daily |
+| Accessibility | Steps, kerbs, lifts, entrances, wheelchair tags, toilets, benches, tactile paving, path surface and slope (central Kraków box) | OpenStreetMap (Overpass API, `out meta` for last-edit dates) | daily |
 | Safety app | Address search and reverse lookup | Photon (OpenStreetMap geocoder), proxied by the API | cached 1 h / 24 h |
 | Safety app | Walking routes along streets (foot profile) | OpenStreetMap Germany OSRM router (`Safety:Routing:BaseUrl`), proxied by the API | cached 30 min |
 | Public services | City service cards (every BIP procedure) | City of Kraków Open Data API | 6 h |
@@ -341,7 +343,8 @@ All under `/api/safety` (see Swagger for schemas). Planner endpoints need the `X
 "Safety": {
   "PlannerKey": "demo-planner",   // CHANGE THIS. Shared key: demo-grade, not real authentication
   "Persist": true,                // keep reports, alerts and contacts in a JSON file across restarts
-  "StorePath": ""                 // default: %LOCALAPPDATA%\KrakowOpenData\safety-store.json
+  "StorePath": "",                // default: %LOCALAPPDATA%\KrakowOpenData\safety-store.json
+  "WriteRequestsPerMinute": 20    // POST/PUT/DELETE under /api/safety per client IP (CF-Connecting-IP / X-Forwarded-For); 0 = off
 }
 // KrakowOpenData.Web/appsettings.json
 "Safety": { "PublicApiBaseUrl": "http://localhost:5080/",    // the API address as the browser sees it (docker-compose sets it)
@@ -374,6 +377,130 @@ src/KrakowOpenData.Web/wwwroot/safety/   the web app: index.html, sw.js (offline
 - Street routing uses the public OpenStreetMap Germany foot router (`Safety:Routing:BaseUrl`), which is fair-use with no guarantee; self-host OSRM or Valhalla for production. If it is unreachable the API returns only a straight-line check and the app says so. Routes are scored with the same model as the map, so a "safer" route means better lit and better served, not a crime-checked one.
 - **Address search depends on a third-party service** (Photon, free and fair-use). Typed text and coordinates are sent to it by this API, not by the browser; self-host it for production.
 - Water points are sparse in OpenStreetMap (see [Water data](#water-data)); low heat-relief scores partly reflect missing map data.
+
+### AI (Cloudflare Workers AI) i Telegram
+
+Both are **optional**: with no configuration nothing is sent anywhere and the app works exactly as before (tests run that way).
+
+**What it does**
+
+- **Report triage.** Every new report with a note is sent to the AI Worker (`workers/ai`, Llama 3.1 8B on Workers AI), which
+  suggests a category, a severity 1–3, a short Polish summary without personal data, abuse / personal-data flags and a likely
+  duplicate. Planners see it on the report as **"Sugestia AI · niezweryfikowane"**; it never changes the score, the type or the
+  verification. Residents never see it.
+- **Voice notes (accessibility).** For people who cannot type easily: "🎙 Nagraj głosem" in the report form records up to 60 s
+  (MediaRecorder; hidden when the browser cannot record), the API passes the audio to the Worker (Whisper), and the transcript
+  fills the note (max 200 characters) and preselects the AI-suggested category, which the resident can change.
+- **Telegram bot** (ported from SafeWalk Kraków). "Powiadomienia w Telegramie" on the resident home links the app to the
+  resident's own chat (one-time link, valid 15 min, stored hashed). The bot then sends: planner alerts covering the resident's
+  last known position or "my area", "report received", and "verified" / "resolved" for their reports. `/stop` (or the app)
+  unlinks. Residents can also report directly in the bot by voice or text: the bot transcribes, suggests a category, asks for the
+  location (Telegram's location button) and files an unverified report. Optional staff chat: a digest of every new report.
+- **"Wyjaśnij prostym językiem"** in the score dialog: the Worker turns the numbers on screen into ≤ 4 plain sentences
+  (hidden with `window.KRK_CONFIG.ai === false`; "AI chwilowo niedostępne" on any error, the table stays).
+
+**Guardrails and privacy**
+
+- AI output is validated twice (Worker and API): type by name only, severity 1–3, summary ≤ 120 characters, duplicates only among
+  the reports sent; a missing personal-data flag counts as "yes". The explain prompt uses only the given facts, says "brak danych"
+  for gaps, never calls a place accessible or safe when data is missing, keeps resident reports apart, and cites the source.
+- Telegram messages never contain the device id, report ids or a resident's note. The staff digest shows the category, the AI
+  summary only when the model flagged neither personal data nor abuse, and the location rounded to ~100 m. Plain text only.
+- The bot token and the AI key live only in environment variables; URLs (which contain the token) and exception messages are
+  never logged, only error classes (blocked, chat_not_found, rate_limited, http_5xx, timeout, network).
+- Audio is never stored: it is held in memory for the transcription and dropped; only the transcript is kept, as the note.
+- Bot-filed reports use the device id `tg-` + the first 16 hex characters of sha256(chat id).
+- Links, codes and the outbox are in `telegram-store.json` next to the safety store. The outbox retries after 5, 10, 15 and 30 s,
+  then gives up; a chat that blocked the bot is marked "not receiving".
+- Retention: a link is kept until `/stop` or unlinking in the app; a "not receiving" link is purged after 30 days; link codes
+  after 1 h; sent or failed outbox rows after 24 h.
+
+**Deploy the Worker** (manual, see `workers/ai/README.md` for costs):
+
+```sh
+cd workers/ai && npm install && npm run check && npm test
+npx wrangler login
+npx wrangler kv namespace create CACHE      # optional 24 h cache: put the id in wrangler.toml, uncomment [[kv_namespaces]]
+npx wrangler secret put AI_KEY              # e.g. openssl rand -hex 32
+npx wrangler deploy                         # route opendata.al.mt/ai/* (zone al.mt); "/ai/" never matches "/api/"
+```
+
+**Create the Telegram bot**
+
+1. In Telegram, talk to **@BotFather** → `/newbot` → pick a name and a username ending in `bot`; copy the token.
+2. Optional staff channel or group: create it, add the bot as an **administrator** (permission to post), post one message, then
+   read the chat id (`-100…`) from `https://api.telegram.org/bot<token>/getUpdates` in a private browser tab, or use `@channelname`.
+3. Only one process may poll a token. If SafeWalk's stack polls the same token, set `TELEGRAM_POLLING=false` on one of them
+   (sending still works there), or create a separate bot for Kompas Krakowa.
+
+**Environment (Dockhand stack variables; mapped in `docker-compose.dockhand.yml`)**
+
+| Variable | Config key | Meaning |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` (secret) | `Telegram__BotToken` | bot token; empty = Telegram off |
+| `TELEGRAM_BOT_USERNAME` | `Telegram__BotUsername` | bot username without `@`, for the `t.me/<bot>?start=<code>` link; empty = linking off |
+| `TELEGRAM_STAFF_CHAT_ID` | `Telegram__StaffChatId` | optional staff chat for the new-report digest |
+| `TELEGRAM_POLLING` | `Telegram__Polling` | `true` (default) runs the bot's long polling; `false` = send only |
+| — | `Telegram__PublicBaseUrl` | link in messages; set from `PUBLIC_HOST` |
+| `AI_BASE_URL` | `Ai__BaseUrl` | `https://opendata.al.mt/ai` or the workers.dev URL; empty = AI off |
+| `AI_KEY` (secret) | `Ai__Key` | same value as the Worker's `AI_KEY` secret |
+
+**AI use disclosure.** Category, severity and summary suggestions, voice transcripts and plain-language explanations are
+generated by open models (Llama 3.1 8B, Whisper) on Cloudflare Workers AI. They are labelled as AI and unverified, may be wrong,
+and never decide anything: a planner verifies reports, and the scores come only from mapped data and the published method.
+
+## Dostępność (Kraków bez barier)
+
+Built for the City of Kraków HackYeah 2026 challenge **"Kraków bez barier"**: concrete barriers and amenities for getting around
+the city, inside the same resident app (menu → **♿ Dostępność**) and API.
+
+**Who it is for:** wheelchair users, parents with prams and people with limited mobility. The app asks only *which barriers to
+look out for* (wheelchair / pram / limited mobility) and says so on screen: no health or disability information is asked or
+stored, and the choice stays on the device.
+
+**What it shows** (never a bare "accessible / inaccessible"):
+
+- **Barriers and amenities** around a point (radius up to 1 km): steps (step count, ramp for wheelchairs or prams, handrail),
+  kerbs (raised / lowered / flush), lifts, entrances (wheelchair, steps, ramp, door width, door type), places with a wheelchair
+  tag (and wheelchair toilet), toilets (wheelchair, baby changing table), benches (backrest), tactile paving, and path stretches
+  with their surface (sett, cobblestones, unpaved), slope and width.
+- **For every item: the source, the date of the last edit in OpenStreetMap and a reliability level** (`osm_recent` < 24 months,
+  `osm_old`, `user_unverified`, `unknown`; `confirmed` reserved for owner data). The date is labelled "ostatnia edycja w
+  OpenStreetMap", never "verified".
+- **Missing data is never shown as accessible**: it is a grey, dashed "brak danych" symbol and status, and the panel shows
+  coverage ("5 z 85 wejść ma dane o dostępności") with a warning when coverage is thin.
+- **Map and a text alternative**: symbols differ by **shape and mark**, not only colour (circle ✓ yes, diamond ! limited,
+  square ✕ no, grey dashed circle ? no data, plus a glyph per kind); the same items are in an accessible list (one card per item:
+  status in words, key facts, distance, source, date, reliability, actions).
+- **Routes**: on every walking route the app adds a barrier summary for the chosen profile, e.g. "Schody bez rampy: 2, Wysokie
+  krawężniki: 1, Nierówna nawierzchnia (bruk, kostka): 120 m, Bez danych o nawierzchni: 30% trasy", with "brak danych ≠ dostępne".
+- **Corrections**: "Popraw w OpenStreetMap" opens the element in the OSM editor; "Zgłoś problem" sends an anonymous report
+  (closed choice: wrong / outdated / temporary obstacle / missing) that is shown **separately, as unverified**, and reaches planners
+  in the existing report workflow.
+- Place cards, the nearby-help list and map popups also show **♿ tak / ograniczona / nie / brak danych** for parks, pharmacies,
+  libraries, toilets and public transport stops (OSM `wheelchair`, GTFS `wheelchair_boarding`).
+- Texts in Polish (first), English and Ukrainian; keyboard and screen-reader friendly (native radio buttons and selects, table
+  with caption and headers, live regions for loading results, links that say they open a new tab).
+
+**Data sources and licence:** OpenStreetMap through Overpass (ODbL 1.0, © OpenStreetMap contributors), downloaded in the
+background daily and cached on disk; ZTP Kraków GTFS for stops. No sample data is used; if a dataset ever is sample data the
+app labels it "dane przykładowe". Details: [docs/ACCESSIBILITY-DATA.md](docs/ACCESSIBILITY-DATA.md).
+
+**Reliability method:** facts come only from tags that are present (normalised as in *Kraków bez barier*: surface classes,
+kerb heights, ramp types, slopes in %, widths in m); a profile turns them into yes / limited / no; anything not mapped stays
+unknown. Route checks sample the path every 10 m and count items within 15 m.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/safety/access?lat&lon&radius&profile&kinds&limit` | Items within `radius` (≤ 1000 m), nearest first, with counts, coverage, `dataNote` and unverified resident reports. `profile` = wheelchair \| pram \| mobility; `kinds` = steps, kerb, elevator, entrance, place, toilets, bench, tactile, path |
+| `GET /api/safety/access/route?from&to&profile` | Barrier summary of the fastest walking route |
+| `POST /api/safety/access/route` `{ path: [[lat, lon], …], profile }` | The same for a path you already have (the app sends the routes from `/api/safety/route`) |
+
+**Done:** data pipeline, API with tests, map layer, accessible list, profiles, route summaries, wheelchair status on places
+and stops, corrections via OSM and unverified reports.
+**Next steps:** routing that avoids barriers (a graph with the profile's costs, as in *Kraków bez barier*), the whole city
+instead of the central box, entrances linked to their buildings, three-confirmation `confirmed` status for resident reports,
+owner data from the city (e.g. ZTP stop platforms, municipal buildings), and a review of the wording by users.
 
 ## Consuming the data
 

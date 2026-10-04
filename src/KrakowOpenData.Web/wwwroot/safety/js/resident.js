@@ -3,19 +3,22 @@
 // Night safety = night-safety score, factors, help and reports; Heat = heat score, factors, help and reports.
 // Phones get a bottom sheet; wide screens get a side panel. Works offline from saved data.
 
-import { h, icon, clear, toast, openDialog, timeAgo, formatDistance, clamp, directionsLink, announce } from './util.js';
+import { h, icon, clear, toast, openDialog, timeAgo, formatDistance, clamp, directionsLink, announce, keepFocus } from './util.js';
 import { state, set, on, eventForMode, isOffline } from './state.js';
 import { t, getLang } from './i18n.js';
 import { cachedGet, peek, getConditions, getGrid, getPlace, getFeatures, getReportTypes, confirmReport, errorText, ApiError, DOCS_URL } from './api.js';
-import { createMap, GridLayer, PlacesLayer, iconMarker, pinMarker, watchResize, mapInfo, coverageCircle, KRAKOW } from './map.js';
+import { createMap, GridLayer, PlacesLayer, iconMarker, pinMarker, watchResize, mapInfo, coverageCircle, KRAKOW, keyboardPick } from './map.js';
 import { bandOf, kindOf, BAND_FILL, scoreOf, indexGrid, cellOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, nearestFromFeatures, COL, LAYERS, MODE_KEYS, asMode } from './model.js';
 import { bandText, infoButton, legendBody, loadMethod, openFactorExplainer, openMethod, openScoreExplainer, scoreSummary } from './explain.js';
-import { topbar, statusPill, openHowItWorks, flushOutbox, notificationToggle } from './chrome.js';
+import { topbar, statusPill, openHowItWorks, flushOutbox, notificationToggle, displayToggles, readAloudButton, stopReading } from './chrome.js';
 import { renderReportView } from './report.js';
 import { renderWalkView } from './walk.js';
 import { startAlerts } from './alerts.js';
 import { searchBox } from './search.js';
 import { addressLine, coords } from './geo.js';
+import { telegramCard } from './telegram.js';
+import { renderAccessView } from './access.js';
+import { wheelchairBadge } from './wheelchair.js';
 
 /** Which score layers a view shows: exactly one. Night safety, heat, flood and air never mix. */
 export const layersOf = (mode) => [asMode(mode)];
@@ -33,19 +36,21 @@ export function mountResident(root) {
   const bar = topbar({ pill });
 
   const modeSeg = h('div', { class: 'seg', role: 'group', 'aria-label': t('mode.label') });
-  const condStrip = h('div', { class: 'cond-strip', 'aria-label': t('cond.title') });
+  const condStrip = h('div', { class: 'cond-strip', role: 'region', 'aria-label': t('cond.title') });
   const resBar = h('div', { class: 'res-bar' }, h('span', { class: 'small muted hide-sm' }, t('mode.label')), modeSeg,
     h('button', { class: 'btn sm quiet', type: 'button', onclick: openHowItWorks }, icon('info', 'sm'), h('span', null, t('how.link'))));
 
   const mapEl = h('div', { class: 'map', role: 'application', 'aria-label': t('map.label') });
   const info = mapInfo();
   ctx.info = info;
-  const alertStack = h('div', { class: 'alert-stack', 'aria-live': 'polite' });
+  // Not a live region: the stack is repainted on every poll. New alerts are announced once (js/alerts.js).
+  const alertStack = h('div', { class: 'alert-stack' });
   const mapTop = h('div', { class: 'map-top' }, info.el, alertStack);
   const mapNote = h('div', { class: 'map-note' });
-  const legend = h('div', { class: 'legend' });
+  const legend = h('div', { class: 'legend', id: 'map-legend' });
   const locateBtn = h('button', { class: 'btn icon', type: 'button', 'aria-label': t('map.locate'), title: t('map.locate'), onclick: () => locateMe() }, icon('locate'));
-  const legendBtn = h('button', { class: 'btn icon', type: 'button', 'aria-label': t('map.legend'), title: t('map.legend'), onclick: () => legend.classList.toggle('open') }, icon('layers'));
+  const legendBtn = h('button', { class: 'btn icon', type: 'button', 'aria-label': t('map.legend'), title: t('map.legend'), 'aria-expanded': 'false', 'aria-controls': 'map-legend',
+    onclick: () => legendBtn.setAttribute('aria-expanded', String(legend.classList.toggle('open'))) }, icon('layers'));
   let placesOn = true;
   const placesBtn = h('button', { class: 'btn icon', type: 'button', 'aria-pressed': 'true', 'aria-label': t('map.places'), title: `${t('map.places')} (${t('map.placesZoom')})`,
     onclick: () => { placesOn = !placesOn; placesBtn.setAttribute('aria-pressed', String(placesOn)); ctx.places.setEnabled(placesOn); } }, icon('building'));
@@ -55,12 +60,13 @@ export function mountResident(root) {
   const panelTitle = h('h2', { id: 'panel-title', tabindex: '-1' });
   const panelBack = h('button', { class: 'btn sm', type: 'button', onclick: () => showView('home') }, icon('left', 'sm'), t('nav.backMenu'));
   const panelHead = h('div', { class: 'panel-head' }, panelBack, panelTitle);
-  const panelBody = h('div', { class: 'panel-body' });
-  const handle = h('button', { class: 'handle', type: 'button', 'aria-label': t('sheet.toggle') });
+  const panelBody = h('div', { class: 'panel-body', id: 'panel-body' });
+  const handle = h('button', { class: 'handle', type: 'button', 'aria-label': t('sheet.toggle'), 'aria-controls': 'panel-body' });
   // Phones start with the map as the hero and a small sheet; picking a place opens the sheet.
   const panel = h('section', { class: 'panel', 'data-state': matchMedia('(max-width: 959.98px)').matches ? 'peek' : 'half', 'aria-labelledby': 'panel-title' }, handle, panelHead, panelBody);
 
-  const main = h('div', { class: 'res-main', id: 'main' }, mapWrap, panel);
+  // The panel comes first in reading and Tab order (on wide screens it is also drawn on the left); the map follows.
+  const main = h('main', { class: 'res-main', id: 'main', tabindex: '-1' }, h('h1', { class: 'sr-only' }, t('app.title')), panel, mapWrap);
   root.append(bar, resBar, condStrip, main);
   Object.assign(ctx, { panel, panelBody, panelTitle, mapWrap });
 
@@ -68,6 +74,7 @@ export function mountResident(root) {
   const map = createMap(mapEl, { center: state.me ? [state.me.lat, state.me.lon] : KRAKOW, zoom: state.me ? 15 : 13 });
   ctx.map = map;
   cleanups.push(watchResize(map, mapWrap));
+  cleanups.push(keyboardPick(map, t('a11y.mapHint')));
   ctx.gridLayer = new GridLayer(map, {
     onSelect: (latlng) => {
       if (ctx.pick && ctx.pick(latlng)) return;      // the walk check is waiting for a point
@@ -104,7 +111,7 @@ export function mountResident(root) {
 
   // ── Bottom sheet ───────────────────────────────────────────────────────────
   const STATES = ['peek', 'half', 'full'];
-  const setSheet = (s) => { panel.dataset.state = s; main.dataset.sheet = s; };
+  const setSheet = (s) => { panel.dataset.state = s; main.dataset.sheet = s; handle.setAttribute('aria-expanded', String(s !== 'peek')); };
   setSheet(panel.dataset.state);
   ctx.setSheet = setSheet;
   let drag = null;
@@ -143,7 +150,11 @@ export function mountResident(root) {
   ctx.mode = mode;
 
   function paintModes() {
-    clear(modeSeg);
+    // Built once; later only aria-pressed changes, so the pressed button keeps keyboard focus.
+    if (modeSeg.childElementCount) {
+      modeSeg.querySelectorAll('button[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(mode() === b.dataset.mode)));
+      return;
+    }
     for (const m of MODE_KEYS) {
       modeSeg.append(h('button', {
         type: 'button', 'data-mode': m, 'aria-pressed': String(mode() === m), 'aria-label': t(`mode.${m}`), title: t(`mode.${m}`),
@@ -352,6 +363,8 @@ export function mountResident(root) {
       Object.assign(ctx.selected, { loading: false, error: e });
     }
     renderView();
+    const m = asMode(mode()), layer = ctx.selected.place?.[m];
+    if (layer && ctx.view === 'place') announce(t('a11y.placeScore', { label: t(`mode.${m}.score`), n: Math.round(layer.score), band: bandText(layer.band, kindOf(m)), dir: t(`explain.dir.${m}`) }));
   }
   ctx.selectPoint = selectPoint;
 
@@ -369,11 +382,13 @@ export function mountResident(root) {
 
   // ── Views in the panel ─────────────────────────────────────────────────────
   function showView(name, props) {
+    stopReading();
     ctx.view = name;
     ctx.viewProps = props;
     if (name === 'home') clearSelection();
     if (name !== 'walk') ctx.walkCleanup?.();
     if (name !== 'report') ctx.reportCleanup?.();
+    if (name !== 'access') ctx.accessCleanup?.();
     if (name !== 'place' && name !== 'home') { coverage?.remove(); coverage = null; }
     renderView(true);
   }
@@ -382,12 +397,16 @@ export function mountResident(root) {
   function renderView(focus = false) {
     const body = panelBody;
     const scroll = body.scrollTop;
-    clear(body);
-    panelBack.hidden = ctx.view === 'home';
-    if (ctx.view === 'home') { panelTitle.textContent = t('home.title'); renderHome(body); }
-    else if (ctx.view === 'place') { panelTitle.textContent = t('place.title'); renderPlace(body); }
-    else if (ctx.view === 'report') { panelTitle.textContent = t('report.title'); renderReportView(ctx, body); }
-    else if (ctx.view === 'walk') { panelTitle.textContent = t(`walk.title.${mode()}`); renderWalkView(ctx, body); }
+    // A rebuild keeps keyboard focus on the same control (data-fk keys); if that control is gone, focus goes to the title.
+    keepFocus(body, () => {
+      clear(body);
+      panelBack.hidden = ctx.view === 'home';
+      if (ctx.view === 'home') { panelTitle.textContent = t('home.title'); renderHome(body); }
+      else if (ctx.view === 'place') { panelTitle.textContent = t('place.title'); renderPlace(body); }
+      else if (ctx.view === 'report') { panelTitle.textContent = t('report.title'); renderReportView(ctx, body); }
+      else if (ctx.view === 'walk') { panelTitle.textContent = t(`walk.title.${mode()}`); renderWalkView(ctx, body); }
+      else if (ctx.view === 'access') { panelTitle.textContent = t('acc.title'); renderAccessView(ctx, body); }
+    }, panelTitle);
     if (focus) panelTitle.focus({ preventScroll: true });
     else body.scrollTop = scroll;
   }
@@ -414,15 +433,21 @@ export function mountResident(root) {
       label: t('home.searchLabel'), placeholder: t('home.searchPlaceholder'), near: () => [map.getCenter().lat, map.getCenter().lng],
       onPick: (r) => selectPoint(r.lat, r.lon, { fly: true, label: r.label })
     });
+    box.querySelector('input').dataset.fk = 'home-q';
     box.querySelector('input').addEventListener('focus', () => { if (panel.dataset.state === 'peek') setSheet('half'); });
     stack.append(box);
 
     // 2. Do something
     stack.append(h('div', { class: 'row wrap' },
-      h('button', { class: 'btn primary', type: 'button', onclick: () => locateMe() }, icon('locate'), t('home.useLocation')),
-      h('button', { class: 'btn cta', 'data-layer': mode(), type: 'button', onclick: () => showView('walk') }, icon('walk'), t(`home.walk.${mode()}`))),
+      h('button', { class: 'btn primary', type: 'button', 'data-fk': 'home-locate', onclick: () => locateMe() }, icon('locate'), t('home.useLocation')),
+      h('button', { class: 'btn cta', 'data-layer': mode(), type: 'button', 'data-fk': 'home-walk', onclick: () => showView('walk') }, icon('walk'), t(`home.walk.${mode()}`))),
       h('p', { class: 'small muted' }, t(`home.walkHelp.${mode()}`)),
       h('p', { class: 'small muted' }, t('home.tapHint')));
+
+    // 2b. Accessibility (Kraków bez barier): barriers and amenities for a wheelchair, a pram or limited mobility
+    stack.append(h('div', { class: 'card flat stack tight' },
+      h('button', { class: 'btn', type: 'button', onclick: () => showView('access') }, h('span', { 'aria-hidden': 'true' }, '♿'), t('acc.open')),
+      h('p', { class: 'small muted' }, t('acc.homeHelp'))));
 
     // 3. Alerts
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.alertsTitle')),
@@ -431,19 +456,25 @@ export function mountResident(root) {
           h('p', { class: 'small muted' }, icon('bell', 'sm'), ' ', t('home.alertsOn'), ctx.alerts?.lastChecked ? ` · ${t('alerts.checked', { when: timeAgo(ctx.alerts.lastChecked, t, getLang()) })}` : ''),
           addressLine(state.me.lat, state.me.lon),
           h('div', { class: 'row wrap' }, notificationToggle(),
-            h('button', { class: 'btn sm quiet', type: 'button', onclick: () => { set({ me: null }); ctx.alerts?.refresh(); } }, t('home.clearArea'))))
+            h('button', { class: 'btn sm quiet', type: 'button', 'data-fk': 'home-clear-area', onclick: () => { set({ me: null }); ctx.alerts?.refresh(); } }, t('home.clearArea'))))
         : h('div', { class: 'stack tight' }, h('p', { class: 'small muted' }, t('home.alertsHelp')),
-          h('div', { class: 'row wrap' }, h('button', { class: 'btn sm', type: 'button', onclick: () => locateMe(true) }, icon('bell', 'sm'), t('home.alertsSet')),
+          h('div', { class: 'row wrap' }, h('button', { class: 'btn sm', type: 'button', 'data-fk': 'home-alerts-set', onclick: () => locateMe(true) }, icon('bell', 'sm'), t('home.alertsSet')),
             notificationToggle()))));
+
+    stack.append(telegramCard()); // "Powiadomienia w Telegramie" (telegram.js); hidden when the server has no bot
 
     // 4. How to read the colours
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.read')),
       ...legendBody(mode(), ctx.grid?.grid, { onExplain: (layer) => openScoreExplainer({ layer, meta: ctx.grid?.grid }) }),
-      h('button', { class: 'btn sm quiet', type: 'button', style: { marginTop: '.4rem' }, onclick: () => openMethod(ctx.grid?.grid) }, icon('list', 'sm'), t('explain.fullMethod'))));
+      h('button', { class: 'btn sm quiet', type: 'button', 'data-fk': 'home-method', style: { marginTop: '.4rem' }, onclick: () => openMethod(ctx.grid?.grid) }, icon('list', 'sm'), t('explain.fullMethod'))));
+
+    // 5. Display: high contrast and larger text
+    stack.append(h('div', { class: 'card flat' }, h('h3', null, t('display.title')), displayToggles()));
 
     stack.append(h('div', { class: 'row wrap small' },
-      h('button', { class: 'btn sm quiet', type: 'button', onclick: openHowItWorks }, icon('info', 'sm'), t('how.link')),
+      h('button', { class: 'btn sm quiet', type: 'button', 'data-fk': 'home-how', onclick: openHowItWorks }, icon('info', 'sm'), t('how.link')),
       h('a', { class: 'btn sm quiet', href: '#/planner' }, icon('dash', 'sm'), t('about.planner')),
+      h('a', { class: 'btn sm quiet', href: '#/accessibility' }, icon('a11y', 'sm'), t('stmt.link')),
       h('a', { class: 'btn sm quiet', href: DOCS_URL, target: '_blank', rel: 'noopener' }, icon('external', 'sm'), t('about.api'))),
       h('p', { class: 'tiny muted' }, t('how.notCrime')));
     body.append(stack);
@@ -492,6 +523,8 @@ export function mountResident(root) {
 
     // The score of the chosen view
     stack.append(h('div', { class: 'place-scores' }, layers.map((k) => scoreBox(k, data[k], true, place))));
+    const reader = readAloudButton(() => placeSpeech(body, sel, place, m, data[m]), 'place');
+    if (reader) stack.append(h('div', { class: 'row wrap' }, reader));
 
     if (approx) stack.append(h('div', { class: 'banner info small' }, icon('offline', 'sm'), h('span', null, t('place.approx'))));
     if (sel.loading) stack.append(h('div', { class: 'skeleton', style: { height: '120px' } }));
@@ -520,6 +553,17 @@ export function mountResident(root) {
     if (reports.length) stack.append(h('section', null, h('h3', null, t('place.reportsTitle')), h('ul', { class: 'list' }, reports.slice(0, 6).map(reportRow))));
     stack.append(h('p', { class: 'tiny muted' }, t('how.notCrime')));
     body.append(stack);
+  }
+
+  /** The place card as one text for "Read aloud": where, the score in words, what it is made of, and help nearby. */
+  function placeSpeech(body, sel, place, m, layer) {
+    const where = body.querySelector('.addr')?.textContent.trim() || sel.label || coords(sel.lat, sel.lon);
+    const parts = [where, t('a11y.placeScore', { label: t(`mode.${m}.score`), n: Math.round(layer.score), band: bandText(layer.band, kindOf(m)), dir: t(`explain.dir.${m}`) })];
+    if (place?.[m]?.factors?.length) parts.push(`${t('read.factors')}: ${place[m].factors.map((f) => `${t(`factor.${f.key}`)} ${factorValue(f)}`).join('; ')}`);
+    const keys = RELIEF[m];
+    const near = place ? place.nearest.filter((n) => keys.includes(n.key)).slice(0, 3) : [];
+    if (near.length) parts.push(`${t('read.near')}: ${near.map((n) => `${n.name || t(`kind.${n.kind}`)}, ${formatDistance(n.distanceMeters)}`).join('; ')}`);
+    return parts.join('. ');
   }
 
   /** What the numbers on the card cover (matches the dashed circle on the map). */
@@ -576,14 +620,18 @@ export function mountResident(root) {
   /** A factor of the score. Clicking it explains the factor: weight, why, data source and how many are mapped. */
   function factorRow(f, layerKey) {
     const band = bandOf(f.score, ctx.grid?.grid);
-    const valueText = f.unit === 'm' ? (f.value === null ? t(f.score === 50 && (f.key === 'river' || f.key === 'traffic') ? 'factor.unknown' : f.key === 'river' || f.key === 'traffic' ? 'factor.noneAway' : 'factor.none', { r: formatDistance(searchRadius()) }) : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`;
+    const valueText = factorValue(f);
     const effect = t(layerKey === 'safety' ? 'explain.addsSafety' : `explain.adds.${layerKey}`, { n: Math.round(f.contribution * 10) / 10, max: f.weight });
-    return h('button', { class: 'factor', type: 'button', title: `${t(`factor.${f.key}`)}: ${valueText} · ${effect} · ${t('explain.click')}`,
+    return h('button', { class: 'factor', type: 'button', 'data-fk': `factor-${layerKey}-${f.key}`, title: `${t(`factor.${f.key}`)}: ${valueText} · ${effect} · ${t('explain.click')}`,
       onclick: () => openFactorExplainer(f.key, { factor: f, layer: layerKey, meta: ctx.grid?.grid }) },
       h('span', { class: `chip ${FACTOR_LAYER[f.key] || 'heat'}`, style: { padding: '.15rem' } }, icon(FACTOR_ICON[f.key] || 'info', 'sm')),
       h('div', null, h('div', { style: { fontWeight: 600 } }, t(`factor.${f.key}`)), f.nearestName ? h('div', { class: 'tiny muted truncate' }, f.nearestName) : h('div', { class: 'tiny muted' }, effect)),
       h('div', { class: 'val' }, valueText),
       h('div', { class: 'meter', 'data-band': band, role: 'presentation' }, h('span', { style: { width: `${clamp(f.score, 0, 100)}%` } })));
+  }
+
+  function factorValue(f) {
+    return f.unit === 'm' ? (f.value === null ? t(f.score === 50 && (f.key === 'river' || f.key === 'traffic') ? 'factor.unknown' : f.key === 'river' || f.key === 'traffic' ? 'factor.noneAway' : 'factor.none', { r: formatDistance(searchRadius()) }) : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`;
   }
 
   function nearRow(n) {
@@ -592,7 +640,8 @@ export function mountResident(root) {
       h('div', { class: `ico ${layer}` }, icon(FACTOR_ICON[n.key] || 'pin')),
       h('div', { class: 'grow' },
         h('div', { style: { fontWeight: 600 } }, n.name || t(`kind.${n.kind}`)),
-        h('div', { class: 'small muted' }, `${t(`factor.${n.key}`)} · ${formatDistance(n.distanceMeters)} · ${t('place.walkMin', { n: n.walkingMinutes })}${n.openingHours ? ` · ${n.openingHours}` : ''}`)),
+        h('div', { class: 'small muted' }, `${t(`factor.${n.key}`)} · ${formatDistance(n.distanceMeters)} · ${t('place.walkMin', { n: n.walkingMinutes })}${n.openingHours ? ` · ${n.openingHours}` : ''}`),
+        h('div', { class: 'small' }, wheelchairBadge(n.wheelchair))),
       h('a', { class: 'btn icon quiet', href: directionsLink(n.latitude, n.longitude), target: '_blank', rel: 'noopener', 'aria-label': `${t('place.directions')}: ${n.name || t(`kind.${n.kind}`)}` }, icon('external', 'sm')));
   }
 
@@ -602,7 +651,7 @@ export function mountResident(root) {
     return h('li', { class: 'row between wrap' },
       h('div', null, h('div', { style: { fontWeight: 600 } }, t(`rtype.${r.type}`)),
         h('div', { class: 'small muted' }, `${t('report.supporters', { n: r.supporters })} · ${timeAgo(r.lastActivityAt, t, getLang())}${r.verifiedByPlanner ? ' · ' + t('report.verified') : ''}`)),
-      h('button', { class: 'btn sm', type: 'button', disabled: mine || isOffline() ? true : null, onclick: async (e) => {
+      h('button', { class: 'btn sm', type: 'button', 'data-fk': `confirm-${r.id}`, disabled: mine || isOffline() ? true : null, onclick: async (e) => {
         e.currentTarget.disabled = true;
         try {
           await confirmReport(r.id);
@@ -617,10 +666,10 @@ export function mountResident(root) {
 
   function placeActions(sel) {
     return h('div', { class: 'row wrap' },
-      h('button', { class: 'btn primary', type: 'button', onclick: () => showView('report') }, icon('flag', 'sm'), t('place.report')),
-      h('button', { class: 'btn cta', 'data-layer': mode(), type: 'button', onclick: () => showView('walk', { to: [sel.lat, sel.lon], toLabel: sel.label }) }, icon('walk', 'sm'), t(`place.walkTo.${mode()}`)),
-      h('button', { class: 'btn', type: 'button', onclick: () => { set({ me: { lat: sel.lat, lon: sel.lon, source: 'manual' } }); ctx.alerts?.refresh(); toast(t('place.areaSet')); } }, icon('bell', 'sm'), t('place.setArea')),
-      h('a', { class: 'btn', href: directionsLink(sel.lat, sel.lon), target: '_blank', rel: 'noopener' }, icon('external', 'sm'), t('place.directions')));
+      h('button', { class: 'btn primary', type: 'button', 'data-fk': 'pa-report', onclick: () => showView('report') }, icon('flag', 'sm'), t('place.report')),
+      h('button', { class: 'btn cta', 'data-layer': mode(), type: 'button', 'data-fk': 'pa-walk', onclick: () => showView('walk', { to: [sel.lat, sel.lon], toLabel: sel.label }) }, icon('walk', 'sm'), t(`place.walkTo.${mode()}`)),
+      h('button', { class: 'btn', type: 'button', 'data-fk': 'pa-area', onclick: () => { set({ me: { lat: sel.lat, lon: sel.lon, source: 'manual' } }); ctx.alerts?.refresh(); toast(t('place.areaSet')); } }, icon('bell', 'sm'), t('place.setArea')),
+      h('a', { class: 'btn', href: directionsLink(sel.lat, sel.lon), target: '_blank', rel: 'noopener', 'data-fk': 'pa-directions' }, icon('external', 'sm'), t('place.directions')));
   }
 
   // ── Locate ─────────────────────────────────────────────────────────────────
@@ -643,7 +692,8 @@ export function mountResident(root) {
   ctx.locateMe = locateMe;
 
   // ── Alerts ─────────────────────────────────────────────────────────────────
-  ctx.alerts = startAlerts(ctx, alertStack, () => { if (ctx.view === 'home') softRender(); });
+  // The poll runs every minute: never rebuild the menu under the keyboard (the alert banners on the map still update).
+  ctx.alerts = startAlerts(ctx, alertStack, () => { if (ctx.view === 'home' && !panelBody.contains(document.activeElement)) softRender(); });
   cleanups.push(() => ctx.alerts.stop());
 
   // ── Welcome ────────────────────────────────────────────────────────────────
@@ -657,6 +707,7 @@ export function mountResident(root) {
           h('li', { class: 'row' }, icon('sun'), h('span', null, t('welcome.heat'))),
           h('li', { class: 'row' }, icon('wave'), h('span', null, t('welcome.flood'))),
           h('li', { class: 'row' }, icon('wind'), h('span', null, t('welcome.air'))),
+          h('li', { class: 'row' }, h('span', { class: 'ico', 'aria-hidden': 'true' }, '♿'), h('span', null, t('welcome.access'))),
           h('li', { class: 'row' }, icon('flag'), h('span', null, t('welcome.report'))),
           h('li', { class: 'row' }, icon('offline'), h('span', null, t('welcome.offline')))),
         h('p', { class: 'banner info small' }, icon('info'), h('span', null, t('how.notCrime')))),

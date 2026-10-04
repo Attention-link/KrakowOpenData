@@ -14,7 +14,7 @@ namespace KrakowOpenData.Application.Safety;
 public sealed class PresenceTracker(IClock clock)
 {
     public static readonly TimeSpan Window = TimeSpan.FromMinutes(15);
-    private const int MaxEntries = 50_000;
+    public const int MaxEntries = 50_000;
 
     private readonly ConcurrentDictionary<string, (GeoPoint Point, DateTimeOffset Seen)> _devices = new();
 
@@ -22,6 +22,8 @@ public sealed class PresenceTracker(IClock clock)
     {
         if (string.IsNullOrWhiteSpace(deviceId) || deviceId.Length > 64) return;
         if (_devices.Count >= MaxEntries) Prune();
+        // Still full of live entries (e.g. a flood of random ids): known phones are refreshed, new ones are not added.
+        if (_devices.Count >= MaxEntries && !_devices.ContainsKey(deviceId)) return;
         _devices[deviceId] = (point, clock.UtcNow);
     }
 
@@ -37,6 +39,10 @@ public sealed class PresenceTracker(IClock clock)
         var since = clock.UtcNow - Window;
         return _devices.Values.Count(d => d.Seen >= since);
     }
+
+    /// <summary>Where the device last asked for alerts, if that was within the last 15 minutes.</summary>
+    public GeoPoint? LastSeen(string deviceId) =>
+        _devices.TryGetValue(deviceId, out var d) && d.Seen >= clock.UtcNow - Window ? d.Point : null;
 
     private void Prune()
     {
@@ -58,13 +64,13 @@ public sealed class AlertService(ISafetyStore store, PresenceTracker presence, I
 
     public async Task<PlannerAlertDto> CreateAsync(CreateAlertRequest request, CancellationToken ct = default)
     {
-        if (!Enum.TryParse<AlertSeverity>(request.Severity, ignoreCase: true, out var severity))
+        if (!SafetyEnum.TryParseName<AlertSeverity>(request.Severity, out var severity))
             throw new SafetyValidationException("severity", $"Use one of: {string.Join(", ", Enum.GetNames<AlertSeverity>())}.");
 
         ScoreLayer? layer = null;
         if (!string.IsNullOrWhiteSpace(request.Layer))
         {
-            if (!Enum.TryParse<ScoreLayer>(request.Layer, ignoreCase: true, out var parsed))
+            if (!SafetyEnum.TryParseName<ScoreLayer>(request.Layer, out var parsed))
                 throw new SafetyValidationException("layer", "Use Heat or Safety, or leave empty.");
             layer = parsed;
         }
@@ -85,10 +91,11 @@ public sealed class AlertService(ISafetyStore store, PresenceTracker presence, I
             .Where(kv => kv.Key is "pl" or "en" or "uk" && !string.IsNullOrWhiteSpace(kv.Value))
             .ToDictionary(kv => kv.Key, kv => kv.Value.Trim().Length > 500 ? kv.Value.Trim()[..500] : kv.Value.Trim());
 
+        var cellId = GridSpec.CleanCellId(request.CellId);
         var now = clock.UtcNow;
         var alert = new PlannerAlert(
             $"alt-{Guid.NewGuid():N}"[..16], layer, severity, title, message, translations, center, request.RadiusMeters,
-            now, now.AddMinutes(request.DurationMinutes), request.CellId, AlertStatus.Active);
+            now, now.AddMinutes(request.DurationMinutes), cellId, AlertStatus.Active);
         await store.SaveAlertAsync(alert, ct);
         return alert.ToDto(presence.CountNear(center, alert.RadiusMeters));
     }

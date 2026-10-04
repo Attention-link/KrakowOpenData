@@ -47,7 +47,8 @@ export function startAlerts(ctx, host, onChange) {
   }
 
   function notify(a) {
-    toast(`${a.title}`, { ms: 8000 });
+    // The toast is announced to screen readers once, for this newly seen alert; the banners themselves are not live.
+    toast(t('a11y.newAlert', { title: a.title }), { ms: 8000 });
     if (state.notify && 'Notification' in window && Notification.permission === 'granted' && document.hidden) {
       try { new Notification(a.title, { body: textOf(a), tag: a.id, icon: 'icon.svg' }); } catch { /* not allowed here */ }
     }
@@ -61,7 +62,8 @@ export function startAlerts(ctx, host, onChange) {
     const visible = alerts.filter((a) => relevant(a) && !state.dismissedAlerts.includes(a.id)).slice(0, 3);
     for (const a of visible) {
       const kind = a.severity === 'Critical' ? 'critical' : a.severity === 'Info' ? 'info' : '';
-      host.append(h('div', { class: `banner ${kind}`, role: a.severity === 'Critical' ? 'alert' : 'status' },
+      // No role="alert"/"status" here: this is repainted on every poll and would be read out again each minute.
+      host.append(h('div', { class: `banner ${kind}` },
         icon(ALERT_ICON[a.layer] || 'bell'),
         h('div', { class: 'grow' }, h('b', null, a.title), h('span', { class: 'small' }, textOf(a)),
           h('span', { class: 'tiny', style: { opacity: 0.85, display: 'block', marginTop: '.2rem' } }, `${t('alerts.from')} · ${timeLeft(a.expiresAt, t)}${isOffline() ? ' · ' + t('alerts.offline') : ''}`)),

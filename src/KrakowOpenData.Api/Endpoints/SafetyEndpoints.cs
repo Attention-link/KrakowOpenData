@@ -22,6 +22,7 @@ public static class SafetyEndpoints
     public static RouteGroupBuilder MapSafetyEndpoints(this RouteGroupBuilder api)
     {
         var g = api.MapGroup("/safety").WithTags("Safety").AddEndpointFilter<SafetyErrorsFilter>();
+        g.MapNotificationEndpoints(); // Telegram link / unlink and voice notes (NotificationEndpoints.cs)
 
         // ── Public: scores and conditions ────────────────────────────────────
         g.MapGet("/conditions", async (ConditionsService svc, CancellationToken ct) => Results.Ok(await svc.GetAsync(ct)))
@@ -92,6 +93,9 @@ public static class SafetyEndpoints
             .Produces<MethodDto>()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
+        // ── Public: accessibility (Kraków bez barier) — see AccessEndpoints ──
+        g.MapAccessEndpoints();
+
         // ── Public: citizen reports and alerts ───────────────────────────────
         g.MapGet("/report-types", () => Results.Ok(ReportService.Types))
             .WithName("GetReportTypes")
@@ -105,7 +109,7 @@ public static class SafetyEndpoints
             ScoreLayer? parsedLayer = null;
             if (!string.IsNullOrWhiteSpace(layer))
             {
-                if (!Enum.TryParse<ScoreLayer>(layer, ignoreCase: true, out var l) || !Enum.IsDefined(l))
+                if (!SafetyEnum.TryParseName<ScoreLayer>(layer, out var l))
                     return Results.ValidationProblem(Problem("layer", $"Use one of: {string.Join(", ", Enum.GetNames<ScoreLayer>())}."));
                 parsedLayer = l;
             }
@@ -113,7 +117,7 @@ public static class SafetyEndpoints
             ReportType? parsedType = null;
             if (!string.IsNullOrWhiteSpace(type))
             {
-                if (!Enum.TryParse<ReportType>(type, ignoreCase: true, out var t) || !Enum.IsDefined(t))
+                if (!SafetyEnum.TryParseName<ReportType>(type, out var t))
                     return Results.ValidationProblem(Problem("type", $"Use one of: {string.Join(", ", Enum.GetNames<ReportType>())}."));
                 parsedType = t;
             }
@@ -121,7 +125,7 @@ public static class SafetyEndpoints
             var parsedStatus = includeResolved == true ? ReportStatusFilter.All : ReportStatusFilter.Open;
             if (!string.IsNullOrWhiteSpace(status))
             {
-                if (!Enum.TryParse<ReportStatusFilter>(status, ignoreCase: true, out var st) || !Enum.IsDefined(st))
+                if (!SafetyEnum.TryParseName<ReportStatusFilter>(status, out var st))
                     return Results.ValidationProblem(Problem("status", $"Use one of: {string.Join(", ", Enum.GetNames<ReportStatusFilter>())}."));
                 parsedStatus = st;
             }
@@ -144,9 +148,11 @@ public static class SafetyEndpoints
             .Produces<IReadOnlyList<ReportDto>>()
             .ProducesValidationProblem();
 
-        g.MapPost("/reports", async (CreateReportRequest request, ReportService svc, CancellationToken ct) =>
+        g.MapPost("/reports", async (CreateReportRequest request, ReportService svc, ISafetyEventSink events, CancellationToken ct) =>
         {
+            ReportService.RejectBotDevice(request.DeviceId);
             var created = await svc.CreateAsync(request, ct);
+            events.ReportFiled(created, request.DeviceId); // AI triage + Telegram (new report or a merged repeat); never blocks
             return Results.Created($"/api/safety/reports/{created.Id}", created);
         })
             .WithName("CreateReport")
@@ -156,7 +162,10 @@ public static class SafetyEndpoints
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         g.MapPost("/reports/{id}/confirm", async (string id, ConfirmReportRequest request, ReportService svc, CancellationToken ct) =>
-            await svc.ConfirmAsync(id, request.DeviceId, ct) is { } r ? Results.Ok(r) : Results.NotFound())
+        {
+            ReportService.RejectBotDevice(request.DeviceId);
+            return await svc.ConfirmAsync(id, request.DeviceId, ct) is { } r ? Results.Ok(r) : Results.NotFound();
+        })
             .WithName("ConfirmReport")
             .WithSummary("\"Still true\": adds the device as an independent supporter and keeps the report alive.")
             .Produces<ReportDto>()
@@ -167,6 +176,7 @@ public static class SafetyEndpoints
         {
             var point = new GeoPoint(lat, lon);
             if (!GridSpec.IsInArea(point)) return Results.ValidationProblem(Problem("lat,lon", "The location must be in or around Kraków."));
+            ReportService.RejectBotDevice(deviceId);
             return Results.Ok(await svc.ForPointAsync(point, deviceId, ct));
         })
             .WithName("GetAlertsForPoint")
@@ -225,13 +235,13 @@ public static class SafetyEndpoints
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
-        p.MapPost("/reports/{id}/verify", async (string id, ReportService svc, CancellationToken ct) =>
-            await svc.VerifyAsync(id, ct) is { } r ? Results.Ok(r) : Results.NotFound())
+        p.MapPost("/reports/{id}/verify", async (string id, ReportService svc, ISafetyEventSink events, CancellationToken ct) =>
+            await svc.VerifyAsync(id, ct) is { } r ? Published(events, SafetyEventKind.ReportVerified, r) : Results.NotFound())
             .WithName("VerifyReport").WithSummary("Marks a report as checked so it counts in full.")
             .Produces<ReportDto>().ProducesProblem(StatusCodes.Status404NotFound);
 
-        p.MapPost("/reports/{id}/resolve", async (string id, ResolveReportRequest request, ReportService svc, CancellationToken ct) =>
-            await svc.ResolveAsync(id, request.Note, ct) is { } r ? Results.Ok(r) : Results.NotFound())
+        p.MapPost("/reports/{id}/resolve", async (string id, ResolveReportRequest request, ReportService svc, ISafetyEventSink events, CancellationToken ct) =>
+            await svc.ResolveAsync(id, request.Note, ct) is { } r ? Published(events, SafetyEventKind.ReportResolved, r) : Results.NotFound())
             .WithName("ResolveReport").WithSummary("Marks a report fixed or dismissed; it stops affecting the score.")
             .Produces<ReportDto>().ProducesProblem(StatusCodes.Status404NotFound);
 
@@ -252,9 +262,10 @@ public static class SafetyEndpoints
             .WithName("GetPlannerAlerts").WithSummary("Alerts with the number of phones currently in each area.")
             .Produces<IReadOnlyList<PlannerAlertDto>>();
 
-        p.MapPost("/alerts", async (CreateAlertRequest request, AlertService svc, CancellationToken ct) =>
+        p.MapPost("/alerts", async (CreateAlertRequest request, AlertService svc, ISafetyEventSink events, CancellationToken ct) =>
         {
             var created = await svc.CreateAsync(request, ct);
+            events.Publish(new SafetyEvent(SafetyEventKind.AlertCreated, created.Id)); // Telegram to linked residents in the area
             return Results.Created($"/api/safety/planner/alerts/{created.Id}", created);
         })
             .WithName("CreateAlert").WithSummary("Creates an alert for everyone currently inside a circle.")
@@ -291,6 +302,13 @@ public static class SafetyEndpoints
     }
 
     private static Dictionary<string, string[]> Problem(string field, string message) => new() { [field] = [message] };
+
+    /// <summary>Tells the resident(s) behind a report that a planner verified or resolved it (Telegram, if they linked it).</summary>
+    private static IResult Published(ISafetyEventSink events, SafetyEventKind kind, ReportDto report)
+    {
+        events.Publish(new SafetyEvent(kind, report.Id));
+        return Results.Ok(report);
+    }
 
     internal static bool IsPlanner(HttpContext http, SafetyOptions options) =>
         http.Request.Headers.TryGetValue(PlannerKeyHeader, out var value) && KeyMatches(value.ToString(), options.PlannerKey);

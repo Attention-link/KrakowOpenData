@@ -42,6 +42,18 @@ services:
       - KrakowData__CacheDirectory=/data/cache
       # DEMO ONLY shared key (see SafetyOptions.PlannerKey). Must match the web app's Safety__PlannerDemoKey below.
       - Safety__PlannerKey=${PLANNER_KEY:-demo-planner}
+      # Telegram notification bot (optional; without a token nothing is sent or polled). Secret: set TELEGRAM_BOT_TOKEN in Dockhand.
+      # Only ONE poller per token may run anywhere: if SafeWalk's stack still polls the same token, set TELEGRAM_POLLING=false
+      # here (sending still works) or give this stack its own bot. Links, codes and the outbox live on the volume (telegram-store.json).
+      - Telegram__BotToken=${TELEGRAM_BOT_TOKEN:-}
+      - Telegram__BotUsername=${TELEGRAM_BOT_USERNAME:-}
+      - Telegram__StaffChatId=${TELEGRAM_STAFF_CHAT_ID:-}
+      - Telegram__Polling=${TELEGRAM_POLLING:-true}
+      - Telegram__PublicBaseUrl=https://${PUBLIC_HOST:-opendata.al.mt}
+      # Cloudflare Workers AI (workers/ai): report triage and voice notes. Optional; empty = no AI. AI_BASE_URL is the zone route
+      # (https://opendata.al.mt/ai) or the workers.dev URL. AI_KEY (secret) must match the Worker's AI_KEY secret.
+      - Ai__BaseUrl=${AI_BASE_URL:-}
+      - Ai__Key=${AI_KEY:-}
     volumes:
       - opendata-data:/data
     labels:
