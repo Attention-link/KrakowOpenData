@@ -7,6 +7,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddKrakowOpenData(builder.Configuration);
 builder.Services.AddProblemDetails();
+builder.Services.AddSafetyRateLimiter();
+// Every request body here is a small JSON object; refuse anything bigger before it is read.
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 64 * 1024);
 
 // OpenAPI: spec at /swagger/v1/swagger.json, interactive docs at /swagger.
 builder.Services.AddEndpointsApiExplorer();
@@ -40,7 +43,21 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
+// Security headers on every answer. HSTS is set directly (not UseHsts) because TLS ends at Cloudflare, so the app sees plain HTTP.
+var sendHsts = !app.Environment.IsDevelopment();
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    if (sendHsts) headers.StrictTransportSecurity = "max-age=31536000";
+    headers.XContentTypeOptions = "nosniff";
+    headers.XFrameOptions = "DENY";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()";
+    headers.ContentSecurityPolicy = "frame-ancestors 'none'";   // Swagger UI needs its inline scripts, so only framing is restricted
+    await next();
+});
 app.UseCors();
+app.UseRateLimiter();
 
 app.UseSwagger();
 app.UseSwaggerUI(o =>

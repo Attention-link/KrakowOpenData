@@ -25,9 +25,13 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      # The input goes through env, not ${{ }} inside the script, so it cannot inject shell commands.
       - name: Work out the version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then v="${{ github.event.inputs.version }}"; else v="${GITHUB_REF_NAME#v}"; fi
+          if [ -n "$INPUT_VERSION" ]; then v="$INPUT_VERSION"; else v="${GITHUB_REF_NAME#v}"; fi
+          case "$v" in *[!0-9A-Za-z.+-]*|"") echo "Invalid version: $v" >&2; exit 1;; esac
           echo "VERSION=$v" >> "$GITHUB_ENV"
 
       - name: Test
@@ -35,8 +39,8 @@ jobs:
 
       - name: Pack
         run: |
-          dotnet pack src/KrakowOpenData.Contracts -c Release -p:Version=$VERSION -o artifacts
-          dotnet pack src/KrakowOpenData.Client -c Release -p:Version=$VERSION -o artifacts
+          dotnet pack src/KrakowOpenData.Contracts -c Release "-p:Version=$VERSION" -o artifacts
+          dotnet pack src/KrakowOpenData.Client -c Release "-p:Version=$VERSION" -o artifacts
 
       - name: Push to GitHub Packages
         run: >

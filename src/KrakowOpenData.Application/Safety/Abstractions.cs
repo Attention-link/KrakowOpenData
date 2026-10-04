@@ -52,3 +52,17 @@ public sealed class SafetyValidationException(string field, string message) : Ex
 
 /// <summary>Too many requests from one device (reports are limited to 5 per hour).</summary>
 public sealed class SafetyRateLimitException(string message) : Exception(message);
+
+/// <summary>
+/// Strict enum parsing for request input. <see cref="Enum.TryParse{TEnum}(string?, bool, out TEnum)"/> also accepts numbers
+/// ("99") and comma lists, which would let an undefined value into the store; here only a member's name (any case) is accepted.
+/// </summary>
+public static class SafetyEnum
+{
+    public static bool TryParseName<T>(string? value, out T result) where T : struct, Enum
+    {
+        var name = Enum.GetNames<T>().FirstOrDefault(n => string.Equals(n, value?.Trim(), StringComparison.OrdinalIgnoreCase));
+        result = name is null ? default : Enum.Parse<T>(name);
+        return name is not null;
+    }
+}

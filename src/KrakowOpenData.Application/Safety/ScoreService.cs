@@ -287,7 +287,7 @@ public sealed class ScoreService(
     {
         var cutoff = clock.UtcNow - ReportRules.ListAge;
         return (await store.ListReportsAsync(ct))
-            .Where(r => r.Status == ReportStatus.Open && r.LastActivityAt >= cutoff)
+            .Where(r => r.Status == ReportStatus.Open && r.LastActivityAt >= cutoff && ReportRules.IsKnown(r.Type))
             .GroupBy(r => GridSpec.IdOf(r.Location))
             .ToDictionary(g => g.Key, g => g.ToList());
     }
@@ -382,8 +382,12 @@ public static class SafetyMapping
             f.Definition.Kind == FactorKind.Density ? "lamps/km²" : "m", Math.Round(f.Score, 1), Math.Round(f.Points, 1), f.NearestName,
             Math.Round(f.Points, 1));
 
+    /// <summary>
+    /// <paramref name="includeNote"/> marks the planner view. The public view rounds the position to 4 decimals (about 10 m) so a
+    /// report does not pinpoint a doorstep; the exact point is kept internally for cell assignment and distances.
+    /// </summary>
     public static ReportDto ToDto(this CitizenReport r, bool includeNote) =>
-        new(r.Id, r.Type.ToString(), ReportRules.For(r.Type).Layer.ToString(), Math.Round(r.Location.Latitude, 6), Math.Round(r.Location.Longitude, 6),
+        new(r.Id, r.Type.ToString(), ReportRules.For(r.Type).Layer.ToString(), Math.Round(r.Location.Latitude, includeNote ? 6 : 4), Math.Round(r.Location.Longitude, includeNote ? 6 : 4),
             GridSpec.IdOf(r.Location), r.CreatedAt, r.LastActivityAt, r.Supporters, r.VerifiedByPlanner, r.Status.ToString(),
             includeNote ? r.Note : null, includeNote ? r.ResolutionNote : null);
 

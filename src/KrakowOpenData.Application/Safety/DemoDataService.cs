@@ -16,7 +16,7 @@ public sealed class DemoDataService(ScoreService scores, ISafetyStore store, ICl
     public async Task<int> SeedAsync(CancellationToken ct = default)
     {
         var existing = await store.ListReportsAsync(ct);
-        var demo = existing.Where(r => r.Note?.StartsWith(Marker, StringComparison.Ordinal) == true).ToList();
+        var demo = existing.Where(r => r.Note?.StartsWith(Marker, StringComparison.Ordinal) == true && ReportRules.IsKnown(r.Type)).ToList();
         var hasNightAndHeat = demo.Any(r => ReportRules.For(r.Type).Layer is ScoreLayer.Safety or ScoreLayer.Heat);
         var hasFloodAndAir = demo.Any(r => ReportRules.For(r.Type).Layer is ScoreLayer.Flood or ScoreLayer.Air);
         if (hasNightAndHeat && hasFloodAndAir) return 0;

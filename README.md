@@ -340,7 +340,8 @@ All under `/api/safety` (see Swagger for schemas). Planner endpoints need the `X
 "Safety": {
   "PlannerKey": "demo-planner",   // CHANGE THIS. Shared key: demo-grade, not real authentication
   "Persist": true,                // keep reports, alerts and contacts in a JSON file across restarts
-  "StorePath": ""                 // default: %LOCALAPPDATA%\KrakowOpenData\safety-store.json
+  "StorePath": "",                // default: %LOCALAPPDATA%\KrakowOpenData\safety-store.json
+  "WriteRequestsPerMinute": 20    // POST/PUT/DELETE under /api/safety per client IP (CF-Connecting-IP / X-Forwarded-For); 0 = off
 }
 // KrakowOpenData.Web/appsettings.json
 "Safety": { "PublicApiBaseUrl": "http://localhost:5080/",    // the API address as the browser sees it (docker-compose sets it)
