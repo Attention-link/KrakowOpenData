@@ -5,6 +5,8 @@
 export const plannerAccessStrings = {
   // ── The tab and the pages ──
   'event.access': ['Accessibility', 'Dostępność', 'Доступність'],
+  'pm.legend': ['Colour legend', 'Legenda kolorów', 'Легенда кольорів'],
+  'pm.legendShow': ['Show the colour legend', 'Pokaż legendę kolorów', 'Показати легенду кольорів'],
   'ov.low.access': ['Very difficult (0)', 'Bardzo trudno (0)', 'Дуже важко (0)'],
   'ov.high.access': ['Easy (100)', 'Łatwo (100)', 'Легко (100)'],
   'ov.distHelp.access': ['Number of squares with data by accessibility score for the chosen profile (higher = easier to get around). Click a bar for what the range means.', 'Liczba kwadratów z danymi wg wskaźnika dostępności dla wybranego profilu (wyżej = łatwiej się poruszać). Kliknij słupek, aby zobaczyć znaczenie przedziału.', 'Кількість квадратів з даними за індексом доступності для вибраного профілю (вище = легше пересуватися). Натисніть стовпчик, щоб побачити значення діапазону.'],
