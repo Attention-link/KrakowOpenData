@@ -8,7 +8,7 @@ A small Cloudflare Worker that gives the Kompas Krakowa API three optional AI he
 | `GET /ai/health` | anyone | `{ok, models, cache}` |
 | `POST /ai/triage` | the API (`X-Ai-Key`) | category, severity 1–3, a short Polish summary without personal data, abuse / personal-data flags, likely duplicate |
 | `POST /ai/transcribe` | the API (`X-Ai-Key`) | audio (webm/ogg/mp3/mp4/wav, ≤ 1 MB ≈ 60 s) → Whisper → `{text, language, triage}`; audio is never stored |
-| `POST /ai/explain` | the browser (same origin), 20/min per IP | plain-language explanation of a score built only from the facts sent (≤ 8 KB body) |
+| `POST /ai/explain` | the browser (same origin), 30/min per IP (a venue shares one IP) | plain-language explanation of a score built only from the facts sent (≤ 8 KB body) |
 
 Routing: the zone route `opendata.al.mt/ai/*` (zone `al.mt`) sends only `/ai/...` here. **"/ai/" never matches
 "/api/"**, so the .NET API behind the tunnel is untouched. On `workers.dev` the same paths work with or without `/ai`

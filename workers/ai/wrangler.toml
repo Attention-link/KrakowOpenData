@@ -12,12 +12,15 @@ routes = [
 [ai]
 binding = "AI"
 
-# Public /ai/explain: 6 requests a minute per visitor IP (keyed calls from the API are not limited here).
+# Public /ai/explain: 30 requests a minute per visitor IP (keyed calls from the API are not limited here).
+# The key is the visitor's IP, and at a venue hundreds of phones share ONE public (NAT) address, so 6/min would lock
+# out everyone after a handful of taps. Explain is already same-origin only and JSON only, so other sites cannot spend
+# it; the free tier's daily neuron budget (and the optional KV cache below) is the real cap, not this limit.
 [[ratelimits]]
 name = "LIMITER"
 namespace_id = "1001"
   [ratelimits.simple]
-  limit = 6
+  limit = 30
   period = 60
 
 # Optional 24 h cache of triage / explain answers (saves neurons). Create it and paste the id, then uncomment:
