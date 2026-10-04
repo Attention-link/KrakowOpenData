@@ -2,7 +2,7 @@
 // The grid is drawn from cached data, so the map still works with no tiles and no connection (grey background).
 
 import { cellBounds, cellOf, bandOf, kindOf, BAND_FILL, priorityColor, scoreOf, COL, indexGrid, FACTOR_ICON, FACTOR_LAYER } from './model.js';
-import { h, icon, clear, formatDistance } from './util.js';
+import { h, icon, clear, formatDistance, reducedMotion } from './util.js';
 import { addressLine } from './geo.js';
 import { t } from './i18n.js';
 
@@ -10,10 +10,19 @@ export const KRAKOW = [50.0617, 19.9373];
 const MAX_BOUNDS = [[49.88, 19.68], [50.2, 20.32]];
 
 export function createMap(el, { center = KRAKOW, zoom = 13 } = {}) {
+  const still = reducedMotion();
   const map = L.map(el, {
     center, zoom, minZoom: 10, maxZoom: 19, zoomControl: false, preferCanvas: true,
-    maxBounds: MAX_BOUNDS, maxBoundsViscosity: 0.6, attributionControl: true
+    maxBounds: MAX_BOUNDS, maxBoundsViscosity: 0.6, attributionControl: true,
+    ...(still ? { zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false, inertia: false } : {})
   });
+  // Reduced motion: flying and panning jump straight to the target (panTo and setView pan through panBy).
+  if (still) {
+    const panBy = map.panBy.bind(map);
+    map.panBy = (offset, options) => panBy(offset, { ...options, animate: false });
+    map.flyTo = (latlng, z, options) => map.setView(latlng, z, { ...options, animate: false });
+    map.flyToBounds = (bounds, options) => map.fitBounds(bounds, { ...options, animate: false });
+  }
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -37,6 +46,29 @@ export function pinMarker(latlng, opts = {}) {
     icon: L.divIcon({ html: wrap.outerHTML, className: '', iconSize: [34, 34], iconAnchor: [17, 34] }),
     draggable: !!opts.draggable, title: opts.title, zIndexOffset: 1000
   });
+}
+
+let hintCount = 0;
+/**
+ * Keyboard use of a map (Leaflet already pans with the arrows and zooms with + / −): a hint read with the map, and
+ * Enter / Space "clicks" the centre of the map, so the grid and the report pin answer it exactly as they answer a click
+ * there. A crosshair marks the centre while the map has keyboard focus (css: .map:focus-visible). Returns a cleanup.
+ */
+export function keyboardPick(map, hint) {
+  const el = map.getContainer();
+  const id = `map-hint-${++hintCount}`;
+  const note = h('p', { id, class: 'sr-only' }, hint);
+  el.after(note);
+  el.setAttribute('aria-describedby', id);
+  if (el.tabIndex < 0) el.tabIndex = 0;
+  const onKey = (e) => {
+    if (e.target !== el || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    const latlng = map.getCenter();
+    map.fire('click', { latlng, layerPoint: map.latLngToLayerPoint(latlng), containerPoint: map.latLngToContainerPoint(latlng), originalEvent: e });
+  };
+  el.addEventListener('keydown', onKey);
+  return () => { el.removeEventListener('keydown', onKey); note.remove(); };
 }
 
 /**
@@ -191,7 +223,7 @@ export class PlacesLayer {
       const dot = h('div', { class: `poi ${layer}` }, icon(FACTOR_ICON[f.key] || 'pin', 'sm'));
       const m = L.marker([f.latitude, f.longitude], {
         icon: L.divIcon({ html: dot.outerHTML, className: '', iconSize: [22, 22], iconAnchor: [11, 11] }),
-        title: f.name || t(`kind.${f.kind}`), keyboard: false
+        title: f.name || t(`kind.${f.kind}`), keyboard: true   // Tab reaches each place, Enter opens its popup
       });
       m.bindPopup(() => this.popup(f), { minWidth: 160 });
       m.addTo(this.group);

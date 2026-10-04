@@ -2,7 +2,7 @@
 // address), add a note, send. Only the report types of the chosen view are offered (Heat: heat reports, Night safety: night reports).
 // Offline, the report is queued on the device and sent automatically when the connection is back.
 
-import { h, icon, clear, toast } from './util.js';
+import { h, icon, clear, toast, keepFocus, announce } from './util.js';
 import { state, isOffline } from './state.js';
 import { t } from './i18n.js';
 import { postReport, errorText, NetworkError } from './api.js';
@@ -83,7 +83,18 @@ export function renderReportView(ctx, body) {
   showInfo();
   paint();
 
+  // Every step rebuilds the form; keepFocus puts keyboard focus back on the same control (data-fk), else on the panel title.
   function paint() {
+    keepFocus(host, paintNow, ctx.panelTitle);
+  }
+
+  function goStep(n) {
+    rs.step = n;
+    paint();
+    announce(t('report.step', { n, total: 2 }));
+  }
+
+  function paintNow() {
     clear(host);
     if (rs.done) { host.append(donePane()); return; }
 
@@ -93,45 +104,46 @@ export function renderReportView(ctx, body) {
     if (rs.step === 1) {
       host.append(h('p', null, t(`report.intro.${ctx.mode()}`)),
         h('div', { class: 'type-grid', role: 'group', 'aria-label': t('report.what') },
-          types.map((ty) => h('button', { class: 'type-card', type: 'button', 'aria-pressed': String(rs.type === ty.type), onclick: () => { rs.type = ty.type; paint(); } },
+          types.map((ty) => h('button', { class: 'type-card', type: 'button', 'data-fk': `type-${ty.type}`, 'aria-pressed': String(rs.type === ty.type), onclick: () => { rs.type = ty.type; paint(); } },
             h('span', { class: `ico ${ty.layer.toLowerCase()}` }, icon(TYPE_ICON[ty.type] || 'flag')),
             h('b', null, t(`rtype.${ty.type}`)),
             h('span', { class: 'tiny muted' }, t(`mode.${layerOfApi(ty.layer) || 'safety'}`))))),
         h('div', { class: 'banner small danger' }, icon('alert', 'sm'), h('span', null, t('report.emergency'))),
         h('div', { class: 'row' }, h('div', { class: 'grow' }),
-          h('button', { class: 'btn primary', type: 'button', disabled: rs.type ? null : true, onclick: () => { rs.step = 2; paint(); } }, t('common.next'), icon('right', 'sm'))));
+          h('button', { class: 'btn primary', type: 'button', 'data-fk': 'rep-next', disabled: rs.type ? null : true, onclick: () => goStep(2) }, t('common.next'), icon('right', 'sm'))));
       return;
     }
 
-    const noteInput = h('textarea', { maxlength: '200', rows: '3', placeholder: t('report.notePlaceholder'), 'aria-describedby': 'note-count' });
+    const noteInput = h('textarea', { 'data-fk': 'rep-note', maxlength: '200', rows: '3', placeholder: t('report.notePlaceholder'), 'aria-describedby': 'note-count' });
     noteInput.value = rs.note;
     const count = h('span', { id: 'note-count', class: 'hint' }, `${rs.note.length}/200`);
     noteInput.addEventListener('input', () => { rs.note = noteInput.value; count.textContent = `${rs.note.length}/200`; });
 
-    const sendBtn = h('button', { class: 'btn primary', type: 'button', disabled: rs.sending ? true : null, onclick: send },
+    const sendBtn = h('button', { class: 'btn primary', type: 'button', 'data-fk': 'rep-send', disabled: rs.sending ? true : null, onclick: send },
       icon('send', 'sm'), rs.sending ? t('report.sending') : isOffline() ? t('report.saveOffline') : t('report.send'));
 
     const where = searchBox({
       label: t('report.searchLabel'), placeholder: t('report.searchPlaceholder'), near: () => rs.latlng, filters: false,
       onPick: (r) => { setLocation([r.lat, r.lon], true); ctx.map.panTo([r.lat, r.lon]); }
     });
+    where.querySelector('input').dataset.fk = 'rep-q';
 
     host.append(
       h('div', { class: 'row' }, h('span', { class: 'chip' }, icon(TYPE_ICON[rs.type] || 'flag', 'sm'), t(`rtype.${rs.type}`)),
-        h('button', { class: 'btn sm quiet', type: 'button', onclick: () => { rs.step = 1; paint(); } }, t('report.change'))),
+        h('button', { class: 'btn sm quiet', type: 'button', 'data-fk': 'rep-change', onclick: () => goStep(1) }, t('report.change'))),
       h('div', { class: 'card flat stack tight' }, h('b', null, t('report.where')),
         addressLine(rs.latlng[0], rs.latlng[1]),
         h('p', { class: 'small muted' }, icon('target', 'sm'), ' ', t('cov.report')),
         h('p', { class: 'small' }, t('report.drag')),
         where,
         h('div', { class: 'row wrap' },
-          ctx.selected ? h('button', { class: 'btn sm', type: 'button', onclick: () => moveTo([ctx.selected.lat, ctx.selected.lon]) }, t('report.useSelected')) : null,
-          state.me ? h('button', { class: 'btn sm', type: 'button', onclick: () => moveTo([state.me.lat, state.me.lon]) }, t('report.useMine')) : null)),
+          ctx.selected ? h('button', { class: 'btn sm', type: 'button', 'data-fk': 'rep-sel', onclick: () => moveTo([ctx.selected.lat, ctx.selected.lon]) }, t('report.useSelected')) : null,
+          state.me ? h('button', { class: 'btn sm', type: 'button', 'data-fk': 'rep-mine', onclick: () => moveTo([state.me.lat, state.me.lon]) }, t('report.useMine')) : null)),
       h('label', { class: 'field' }, t('report.note'), noteInput, count),
       h('p', { class: 'tiny muted' }, icon('shield', 'sm'), ' ', t('report.privacy')),
       rs.error ? h('p', { class: 'err', role: 'alert' }, rs.error) : null,
       isOffline() ? h('div', { class: 'banner small' }, icon('offline', 'sm'), h('span', null, t('report.offlineNote'))) : null,
-      h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', onclick: () => { rs.step = 1; paint(); } }, icon('left', 'sm'), t('common.back')), h('div', { class: 'grow' }), sendBtn));
+      h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', 'data-fk': 'rep-back', onclick: () => goStep(1) }, icon('left', 'sm'), t('common.back')), h('div', { class: 'grow' }), sendBtn));
   }
 
   function moveTo(ll) {
@@ -161,6 +173,11 @@ export function renderReportView(ctx, body) {
     ctx.reportPin = null;
     if (rs.done && !rs.done.queued) ctx.refreshGrid();
     paint();
+    // The result replaces the form: say it, and put focus on its heading.
+    if (rs.done) {
+      host.querySelector('h2')?.focus({ preventScroll: true });
+      announce(rs.done.queued ? `${t('report.queued')}. ${t('report.queuedHelp')}` : t('report.thanks'));
+    }
   }
 
   function donePane() {
@@ -168,7 +185,7 @@ export function renderReportView(ctx, body) {
     return h('div', { class: 'stack', style: { textAlign: 'center', alignItems: 'center', padding: '1rem 0' } },
       h('div', { class: 'ico', style: { width: '56px', height: '56px', borderRadius: '50%', background: d.queued ? 'var(--warn-soft)' : 'var(--ok-soft)', color: d.queued ? 'var(--warn-ink)' : 'var(--ok)', display: 'grid', placeItems: 'center' } },
         icon(d.queued ? 'clock' : 'check', 'lg')),
-      h('h2', null, d.queued ? t('report.queued') : t('report.thanks')),
+      h('h2', { tabindex: '-1' }, d.queued ? t('report.queued') : t('report.thanks')),
       h('p', { class: 'muted' }, d.queued ? t('report.queuedHelp') : d.supporters > 1 ? t('report.merged', { n: d.supporters }) : t('report.single')),
       h('div', { class: 'row wrap', style: { justifyContent: 'center' } },
         h('button', { class: 'btn primary', type: 'button', onclick: () => {
