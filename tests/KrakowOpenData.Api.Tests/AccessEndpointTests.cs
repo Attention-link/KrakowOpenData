@@ -155,4 +155,15 @@ public class AccessEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var bad = await _client.PostAsJsonAsync("/api/safety/access/route", new AccessRouteRequest([[50.06, 19.93]], null));
         Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
     }
+
+    [Fact]
+    public async Task Place_features_carry_their_wheelchair_status_and_missing_means_null()
+    {
+        var features = await _client.GetFromJsonAsync<List<FeatureDto>>("/api/safety/features");
+        Assert.Contains(features!, f => f.Name == "Apteka" && f.Wheelchair == "yes");
+        Assert.Contains(features!, f => f.Name == "AED Rynek" && f.Wheelchair is null);
+
+        var place = await _client.GetFromJsonAsync<PlaceScoreDto>("/api/safety/place?lat=50.0617&lon=19.9373&event=heat");
+        Assert.Contains(place!.Nearest, n => n.Name == "Apteka" && n.Wheelchair == "yes");
+    }
 }

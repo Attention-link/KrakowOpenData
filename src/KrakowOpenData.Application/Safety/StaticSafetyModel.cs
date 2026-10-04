@@ -2,8 +2,11 @@ using KrakowOpenData.Domain.Common;
 
 namespace KrakowOpenData.Application.Safety;
 
-/// <summary>A mapped thing that scores a factor: a water point, a stop, a park, … <see cref="RadiusMeters"/> is non-zero for parks only.</summary>
-public sealed record Feature(string Id, string Kind, string? Name, GeoPoint Location, double RadiusMeters, string? OpeningHours);
+/// <summary>
+/// A mapped thing that scores a factor: a water point, a stop, a park, … <see cref="RadiusMeters"/> is non-zero for parks only.
+/// <see cref="Wheelchair"/> is yes | limited | no from OSM (or the GTFS stop flag); null = no data.
+/// </summary>
+public sealed record Feature(string Id, string Kind, string? Name, GeoPoint Location, double RadiusMeters, string? OpeningHours, string? Wheelchair = null);
 
 /// <summary>
 /// One place measured against every factor, before citizen reports are applied: the factor results of both layers,

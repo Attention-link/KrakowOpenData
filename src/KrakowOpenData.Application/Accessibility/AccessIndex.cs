@@ -28,11 +28,11 @@ public sealed class AccessIndex
         for (var i = 0; i < features.Count; i++)
         {
             var f = features[i];
-            var points = f.Line ?? [f.Location];
-            foreach (var p in points)
+            // Only points decide the data area: roads crossing the download box carry geometry far outside it.
+            if (f.Line is null)
             {
-                minLat = Math.Min(minLat, p.Latitude); maxLat = Math.Max(maxLat, p.Latitude);
-                minLon = Math.Min(minLon, p.Longitude); maxLon = Math.Max(maxLon, p.Longitude);
+                minLat = Math.Min(minLat, f.Location.Latitude); maxLat = Math.Max(maxLat, f.Location.Latitude);
+                minLon = Math.Min(minLon, f.Location.Longitude); maxLon = Math.Max(maxLon, f.Location.Longitude);
             }
 
             if (f.Line is { Count: >= 2 } line)
@@ -56,7 +56,7 @@ public sealed class AccessIndex
             }
         }
 
-        Bounds = features.Count == 0 ? null : (minLat, minLon, maxLat, maxLon);
+        Bounds = minLat == double.MaxValue ? null : (minLat, minLon, maxLat, maxLon);
     }
 
     public bool Covers(GeoPoint p) =>

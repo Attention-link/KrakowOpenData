@@ -221,7 +221,8 @@ public sealed class AccessService(
         var barriers = found
             .Where(x => x.F.Kind is AccessKind.Steps or AccessKind.Kerb or AccessKind.Path)
             .Select(x => (x.F, x.D, x.Along, S: AccessRules.Status(x.F.Kind, x.F.Attributes, profile)))
-            .Where(x => x.S is AccessStatus.No or AccessStatus.Limited)
+            // Rough surface is summarised in metres rather than listed stretch by stretch; steep, unpaved or narrow stretches are listed.
+            .Where(x => x.S is AccessStatus.No || (x.S == AccessStatus.Limited && x.F.Kind != AccessKind.Path))
             .OrderBy(x => x.Along)
             .Take(80)
             .Select(x => Item(x.F, x.S, now, Math.Round(x.D), Math.Round(x.Along)))
@@ -255,7 +256,7 @@ public sealed class AccessService(
             Math.Round(f.Location.Longitude, 6),
             f.Name,
             StatusName(s),
-            s is AccessStatus.No or AccessStatus.Limited,
+            IsBarrier(f.Kind, s),
             AccessFacts.For(f),
             f.Source,
             f.LastEdited,
@@ -264,6 +265,13 @@ public sealed class AccessService(
             f.EditUrl,
             distance is null ? null : Math.Round(distance.Value),
             along);
+
+    /// <summary>
+    /// True when the item counts against the profile (status limited or no). Benches and tactile paving are amenities for these
+    /// profiles, never barriers: a crossing without tactile paving does not stop a wheelchair.
+    /// </summary>
+    public static bool IsBarrier(AccessKind kind, AccessStatus s) =>
+        kind is not (AccessKind.Bench or AccessKind.TactilePaving) && (s is AccessStatus.No or AccessStatus.Limited);
 
     /// <summary>How much is known around the point: per attribute, items with a value out of all items that could have one.</summary>
     public static IReadOnlyList<AccessCoverageDto> Coverage(IReadOnlyList<AccessFeature> around)

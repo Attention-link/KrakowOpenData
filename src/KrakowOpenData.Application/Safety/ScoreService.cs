@@ -209,7 +209,7 @@ public sealed class ScoreService(
         var model = await models.GetAsync(ct);
         return new[] { "water", "toilets", "green", "refuge", "openPlaces", "aed", "emergency" }
             .SelectMany(key => model.FeaturesOf(key).Select(f => new FeatureDto(
-                key, f.Kind, f.Name, Math.Round(f.Location.Latitude, 6), Math.Round(f.Location.Longitude, 6), f.RadiusMeters, f.OpeningHours)))
+                key, f.Kind, f.Name, Math.Round(f.Location.Latitude, 6), Math.Round(f.Location.Longitude, 6), f.RadiusMeters, f.OpeningHours, f.Wheelchair)))
             .ToList();
     }
 
@@ -344,7 +344,8 @@ public sealed class ScoreService(
                 Math.Round(feature.Location.Longitude, 6),
                 Math.Round(distance.Value),
                 (int)Math.Ceiling(distance.Value / SafetyModel.WalkMetersPerMinute),
-                feature.OpeningHours));
+                feature.OpeningHours,
+                feature.Wheelchair));
         }
 
         return list;

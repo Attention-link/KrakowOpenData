@@ -49,7 +49,7 @@ public static class OverpassParser
     }
 
     private static readonly string[] DetailKeys =
-        ["opening_hours", "operator", "access", "fee", "capacity", "indoor", "level", "location", "description", "socket:type2", "socket:chademo", "socket:type2_combo"];
+        ["opening_hours", "operator", "access", "fee", "capacity", "indoor", "level", "location", "description", "socket:type2", "socket:chademo", "socket:type2_combo", "wheelchair", "toilets:wheelchair", "changing_table"];
 
     public static OsmSnapshot Parse(string json)
     {

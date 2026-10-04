@@ -216,3 +216,32 @@ public class AccessRulesTests
         Assert.Null(AccessProfile.Parse("diagnosis"));
     }
 }
+
+public class WheelchairOnPlacesTests
+{
+    [Fact]
+    public void Amenities_keep_the_wheelchair_tags_in_their_details_and_the_model_reads_them()
+    {
+        const string json = """
+        {"elements":[{"type":"node","id":1,"lat":50.06,"lon":19.93,"tags":{"amenity":"toilets","toilets:wheelchair":"designated","changing_table":"yes"}},
+                     {"type":"node","id":2,"lat":50.06,"lon":19.93,"tags":{"amenity":"toilets"}}]}
+        """;
+        var amenities = OverpassParser.Parse(json).Amenities;
+        Assert.Contains("toilets:wheelchair: designated", amenities[0].Details);
+        Assert.Equal("yes", KrakowOpenData.Application.Safety.SafetyModelProvider.WheelchairFrom(amenities[0].Details));
+        Assert.Null(KrakowOpenData.Application.Safety.SafetyModelProvider.WheelchairFrom(amenities[1].Details));
+        Assert.Equal("no", KrakowOpenData.Application.Safety.SafetyModelProvider.WheelchairFrom("access: yes; wheelchair: no"));
+    }
+
+    [Fact]
+    public void Safety_places_carry_a_normalised_wheelchair_tag()
+    {
+        const string json = """
+        {"elements":[{"type":"node","id":1,"lat":50.06,"lon":19.93,"tags":{"amenity":"pharmacy","wheelchair":"limited"}},
+                     {"type":"node","id":2,"lat":50.06,"lon":19.93,"tags":{"amenity":"library"}}]}
+        """;
+        var places = SafetyPlacesParser.Parse(json);
+        Assert.Equal("limited", places[0].Wheelchair);
+        Assert.Null(places[1].Wheelchair);
+    }
+}

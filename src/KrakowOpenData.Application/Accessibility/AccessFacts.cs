@@ -62,6 +62,18 @@ public static class AccessFacts
         ["paved"] = "utwardzona"
     };
 
+    private static readonly Dictionary<string, string> Smoothness = new()
+    {
+        ["excellent"] = "bardzo dobra",
+        ["good"] = "dobra",
+        ["intermediate"] = "średnia",
+        ["bad"] = "zła",
+        ["very_bad"] = "bardzo zła",
+        ["horrible"] = "fatalna",
+        ["very_horrible"] = "fatalna",
+        ["impassable"] = "nieprzejezdna"
+    };
+
     private static readonly Dictionary<string, string> SurfaceClasses = new()
     {
         ["paved_smooth"] = "równa, utwardzona",
@@ -115,7 +127,7 @@ public static class AccessFacts
                 break;
             case AccessKind.Path:
                 facts.Add(SurfaceFact(a));
-                if (a.Smoothness is not null) facts.Add(Fact("smoothness", a.Smoothness, a.Smoothness));
+                if (a.Smoothness is not null) facts.Add(Fact("smoothness", a.Smoothness, Smoothness.GetValueOrDefault(a.Smoothness, a.Smoothness)));
                 facts.Add(InclineFact(a));
                 if (a.WidthMeters is not null) facts.Add(WidthFact(a));
                 break;

@@ -116,7 +116,7 @@ public static class AccessFeaturesParser
             id,
             kind.Value,
             location.Value,
-            Tag("name") ?? Tag("ref"),
+            Tag("name") ?? (kind == AccessKind.Entrance ? Tag("ref") : null),
             status,
             attrs,
             Timestamp(e),
