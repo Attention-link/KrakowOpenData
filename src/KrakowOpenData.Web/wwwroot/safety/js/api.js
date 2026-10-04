@@ -117,6 +117,9 @@ export const getAgencies = () => P('/agencies');
 export const createDispatch = (body) => P('/dispatches', { method: 'POST', body });
 export const getDispatches = () => P('/dispatches');
 export const seedDemo = () => P('/demo-data', { method: 'POST' });
+export const getWeights = () => P('/weights');
+export const setWeights = (weights) => P('/weights', { method: 'PUT', body: { weights } });
+export const resetWeights = () => P('/weights', { method: 'DELETE' });
 
 /** A readable message for an error, using the API's validation text when there is one. */
 export function errorText(e, t) {

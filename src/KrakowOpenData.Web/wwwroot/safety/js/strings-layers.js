@@ -19,12 +19,12 @@ export const layerStrings = {
   // ── Menu ──
   'home.suggest.flood': ['A river is above its warning level: the flood view is the most useful right now.', 'Rzeka przekroczyła stan ostrzegawczy: widok powodzi jest teraz najbardziej przydatny.', 'Річка вище попереджувального рівня: зараз найкорисніший погляд – повінь.'],
   'home.suggest.air': ['The air is polluted: the air view is the most useful right now.', 'Powietrze jest zanieczyszczone: widok powietrza jest teraz najbardziej przydatny.', 'Повітря забруднене: зараз найкорисніший погляд – повітря.'],
-  'home.walk.flood': ['Check a flood-safe walk', 'Sprawdź spacer bezpieczny przy powodzi', 'Перевірити прогулянку, безпечну під час повені'],
+  'home.walk.flood': ['Check a flood-safe path', 'Sprawdź trasę bezpieczną przy powodzi', 'Перевірити маршрут, безпечний під час повені'],
   'home.walkHelp.flood': ['Scores the way between two places for distance from rivers and for help and exits nearby.', 'Ocenia drogę między dwoma miejscami pod kątem odległości od rzek oraz pomocy i dróg wyjścia w pobliżu.', 'Оцінює шлях між двома місцями за відстанню від річок, допомогою та виходами поруч.'],
-  'home.walk.air': ['Check a clean-air walk', 'Sprawdź spacer czystym powietrzem', 'Перевірити прогулянку чистим повітрям'],
+  'home.walk.air': ['Check a clean-air path', 'Sprawdź trasę z czystym powietrzem', 'Перевірити маршрут із чистим повітрям'],
   'home.walkHelp.air': ['Scores the way between two places for distance from main roads, trees and indoor places.', 'Ocenia drogę między dwoma miejscami pod kątem odległości od głównych dróg, drzew i miejsc w budynkach.', 'Оцінює шлях між двома місцями за відстанню від головних доріг, деревами та приміщеннями.'],
-  'place.walkTo.flood': ['Flood-safe walk here', 'Spacer tutaj bezpieczny przy powodzi', 'Безпечна під час повені прогулянка сюди'],
-  'place.walkTo.air': ['Clean-air walk here', 'Spacer tutaj czystym powietrzem', 'Прогулянка сюди чистим повітрям'],
+  'place.walkTo.flood': ['Flood-safe path here', 'Trasa tutaj bezpieczna przy powodzi', 'Безпечний під час повені маршрут сюди'],
+  'place.walkTo.air': ['Clean-air path here', 'Trasa tutaj z czystym powietrzem', 'Маршрут сюди з чистим повітрям'],
 
   // ── Place card ──
   'place.near.safety': ['Safe places nearby', 'Bezpieczne miejsca w pobliżu', 'Безпечні місця поруч'],
@@ -78,8 +78,8 @@ export const layerStrings = {
   'rep.showing.air': ['Showing air reports only (planning for air quality).', 'Pokazuję tylko zgłoszenia dotyczące powietrza (planowanie jakości powietrza).', 'Показано лише звіти про повітря (планування якості повітря).'],
 
   // ── Walk check ──
-  'walk.title.flood': ['Flood-safe walk check', 'Sprawdzenie spaceru bezpiecznego przy powodzi', 'Перевірка прогулянки, безпечної під час повені'],
-  'walk.title.air': ['Clean-air walk check', 'Sprawdzenie spaceru czystym powietrzem', 'Перевірка прогулянки чистим повітрям'],
+  'walk.title.flood': ['Flood-safe path check', 'Sprawdzenie trasy bezpiecznej przy powodzi', 'Перевірка маршруту, безпечного під час повені'],
+  'walk.title.air': ['Clean-air path check', 'Sprawdzenie trasy z czystym powietrzem', 'Перевірка маршруту з чистим повітрям'],
   'walk.intro.flood': ['Choose a start and a destination. We score the way between them for distance from rivers, help and exits nearby, and resident reports.', 'Wybierz start i cel. Ocenimy drogę między nimi pod kątem odległości od rzek, pomocy i dróg wyjścia w pobliżu oraz zgłoszeń mieszkańców.', 'Оберіть початок і ціль. Ми оцінимо шлях між ними за відстанню від річок, допомогою та виходами поруч і звітами мешканців.'],
   'walk.intro.air': ['Choose a start and a destination. We score the way between them for distance from main roads, trees, indoor places and resident reports.', 'Wybierz start i cel. Ocenimy drogę między nimi pod kątem odległości od głównych dróg, drzew, miejsc w budynkach i zgłoszeń mieszkańców.', 'Оберіть початок і ціль. Ми оцінимо шлях між ними за відстанню від головних доріг, деревами, приміщеннями та звітами мешканців.'],
   'walk.weakest.flood': ['Most exposed spot', 'Najbardziej narażone miejsce', 'Найвразливіше місце'],
@@ -100,6 +100,8 @@ export const layerStrings = {
   'route.better.air': ['This route has {g} points cleaner air on average than the fastest.', 'Ta trasa ma średnio o {g} pkt czystsze powietrze niż najszybsza.', 'Цей маршрут у середньому має на {g} балів чистіше повітря, ніж найшвидший.'],
   'route.none.flood': ['No nearby street route is clearly safer from flooding, so the fastest route is also the best option.', 'Żadna pobliska trasa nie jest wyraźnie bezpieczniejsza przed powodzią, więc najszybsza jest też najlepsza.', 'Жоден сусідній маршрут не є помітно безпечнішим від повені, тож найшвидший теж найкращий.'],
   'route.none.air': ['No nearby street route has clearly cleaner air, so the fastest route is also the best option.', 'Żadna pobliska trasa nie ma wyraźnie czystszego powietrza, więc najszybsza jest też najlepsza.', 'Жоден сусідній маршрут не має помітно чистішого повітря, тож найшвидший теж найкращий.'],
+  'route.widened': ['The fastest route is weak here, so we searched farther for a safer one. It adds {m} min, because safety comes first.', 'Najszybsza trasa jest tu słaba, więc poszukaliśmy bezpieczniejszej dalej. Dodaje {m} min, bo bezpieczeństwo jest najważniejsze.', 'Найшвидший маршрут тут слабкий, тож ми пошукали безпечнішого далі. Він додає {m} хв, бо безпека важливіша.'],
+  'route.widenedNone': ['The fastest route is weak here and no route within reach is clearly better. Take extra care, or consider another way to travel.', 'Najszybsza trasa jest tu słaba, a żadna trasa w zasięgu nie jest wyraźnie lepsza. Zachowaj szczególną ostrożność lub rozważ inny środek transportu.', 'Найшвидший маршрут тут слабкий, а жоден маршрут поблизу не є помітно кращим. Будьте особливо обережні або розгляньте інший спосіб пересування.'],
   'route.driest': ['Safest from water', 'Najbezpieczniejsza przed wodą', 'Найбезпечніший від води'],
   'route.cleanest': ['Cleanest air', 'Najczystsze powietrze', 'Найчистіше повітря'],
 
@@ -109,6 +111,36 @@ export const layerStrings = {
   'welcome.flood': ['Flood: rivers, help nearby and ways out.', 'Powódź: rzeki, pomoc w pobliżu i drogi wyjścia.', 'Повінь: річки, допомога поруч і шляхи виходу.'],
   'welcome.air': ['Air: traffic, trees and clean places.', 'Powietrze: ruch, drzewa i czyste miejsca.', 'Повітря: рух, дерева та чисті місця.'],
   'brief.floodAir': ['Flood safety score: {flood} ({fb}); clean-air score: {air} ({ab}).', 'Wynik bezpieczeństwa powodziowego: {flood} ({fb}); wynik czystości powietrza: {air} ({ab}).', 'Оцінка безпеки від повені: {flood} ({fb}); оцінка чистоти повітря: {air} ({ab}).'],
+
+  // ── Staff-only marking ──
+  'pl.staffOnly': ['City staff only', 'Tylko dla pracowników miasta', 'Лише для працівників міста'],
+  'pl.staffHelp': ['This dashboard is for city staff. It changes what residents see.', 'Ten panel jest dla pracowników miasta. Zmienia to, co widzą mieszkańcy.', 'Ця панель для працівників міста. Вона змінює те, що бачать мешканці.'],
+
+  // ── Planner: factor weights ──
+  'pl.nav.weights': ['Weights', 'Wagi', 'Ваги'],
+  'wt.title': ['Factor weights', 'Wagi czynników', 'Ваги чинників'],
+  'wt.intro': ['Each score is built from factors. The weight says how many of the 100 points a factor can add. Type any numbers (for example 3, 1, 1 for "three times as important"): each score is scaled to add up to 100. Setting a weight to 0 leaves that factor out.', 'Każdy wynik składa się z czynników. Waga mówi, ile ze 100 punktów może dodać dany czynnik. Wpisz dowolne liczby (np. 3, 1, 1 dla „trzy razy ważniejszy”): każdy wynik zostanie przeskalowany do sumy 100. Waga 0 pomija czynnik.', 'Кожна оцінка складається з чинників. Вага показує, скільки зі 100 балів може додати чинник. Введіть будь-які числа (наприклад 3, 1, 1 для «втричі важливіше»): кожну оцінку буде приведено до суми 100. Вага 0 виключає чинник.'],
+  'wt.shared': ['Changes apply to every score for everyone, residents included, until you reset them. The reasons shown are the reasons for the default weights.', 'Zmiany dotyczą wszystkich wyników dla wszystkich, także mieszkańców, dopóki ich nie zresetujesz. Pokazane uzasadnienia dotyczą wag domyślnych.', 'Зміни стосуються всіх оцінок для всіх, зокрема мешканців, доки ви їх не скинете. Показані пояснення стосуються типових ваг.'],
+  'wt.customized': ['Some weights are customized. Scores use your weights, not the defaults.', 'Część wag jest zmieniona. Wyniki używają Twoich wag, a nie domyślnych.', 'Деякі ваги змінено. Оцінки використовують ваші ваги, а не типові.'],
+  'wt.custom': ['custom', 'zmienione', 'змінено'],
+  'wt.unsaved': ['unsaved', 'niezapisane', 'не збережено'],
+  'wt.weight': ['weight', 'waga', 'вага'],
+  'wt.share': ['Counts for', 'Liczy się na', 'Враховується на'],
+  'wt.default': ['default {n}', 'domyślnie {n}', 'типово {n}'],
+  'wt.isDefault': ['default', 'domyślna', 'типова'],
+  'wt.total': ['Typed total {n}, scaled to 100', 'Suma wpisanych {n}, przeskalowana do 100', 'Сума введених {n}, приведена до 100'],
+  'wt.why': ['Why this weight:', 'Dlaczego taka waga:', 'Чому така вага:'],
+  'wt.more': ['What it measures, data and limits', 'Co mierzy, dane i ograniczenia', 'Що вимірює, дані та обмеження'],
+  'wt.measures': ['Measures:', 'Mierzy:', 'Вимірює:'],
+  'wt.layerDefaults': ['Use the defaults for this score', 'Użyj wartości domyślnych dla tego wyniku', 'Типові значення для цієї оцінки'],
+  'wt.save': ['Save weights', 'Zapisz wagi', 'Зберегти ваги'],
+  'wt.saving': ['Saving…', 'Zapisywanie…', 'Збереження…'],
+  'wt.saved': ['Weights saved. Scores now use them.', 'Wagi zapisane. Wyniki już ich używają.', 'Ваги збережено. Оцінки вже їх використовують.'],
+  'wt.discard': ['Discard changes', 'Odrzuć zmiany', 'Скасувати зміни'],
+  'wt.resetAll': ['Reset all to defaults', 'Przywróć wszystkie domyślne', 'Скинути все до типових'],
+  'wt.resetConfirm': ['Go back to the default weights for every score?', 'Wrócić do domyślnych wag dla wszystkich wyników?', 'Повернутися до типових ваг для всіх оцінок?'],
+  'wt.resetDone': ['Default weights restored.', 'Przywrócono wagi domyślne.', 'Типові ваги відновлено.'],
+  'wt.note': ['Weights are first estimates for Kraków. Use them to test how sensitive a ranking is, or to reflect a local priority, and record why you changed them.', 'Wagi to pierwsze szacunki dla Krakowa. Użyj ich, aby sprawdzić wrażliwość rankingu lub uwzględnić lokalny priorytet, i zapisz, dlaczego je zmieniono.', 'Ваги – це перші оцінки для Кракова. Використовуйте їх, щоб перевірити чутливість рейтингу або врахувати місцевий пріоритет, і запишіть, чому їх змінено.'],
 
   // ── Alerts (planner) ──
   'al.tpl.flood': ['Flood: river rising', 'Powódź: wzbierająca rzeka', 'Повінь: річка піднімається'],

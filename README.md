@@ -204,9 +204,11 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
   feels unsafe, hazardous path; Flood: flooded street or underpass, blocked drain, river rising fast; Air: smoke or burning smell, strong fumes,
   dust cloud). Place it by dragging the pin, tapping the map or typing an address. Reports move the score of their square, see below.
 - **Walk check** that follows the view: **Check a night walk** (Night safety: lighting, night transport, open places), **Check a cool walk**
-  (Heat: water, shade, cool places, toilets), **Check a flood-safe walk** (distance from rivers, help and exits) or **Check a clean-air walk**
+  (Heat: water, shade, cool places, toilets), **Check a flood-safe path** (distance from rivers, help and exits) or **Check a clean-air path**
   (distance from main roads, trees, indoor places). Type the start and the destination with suggestions, tap the map, or use
-  your area. **Routes follow real streets** (OpenStreetMap foot routing): the fastest route is shown with a **safer / cooler / better** alternative when one scores clearly better (at least 3 points on average, at most 30 % longer). Start (A) and destination (B) are clearly marked, the route is coloured by score along the way, the weakest spot is marked with its address and the nearest help to it.
+  your area. **Safety wins over distance:** when the fastest route is poor (average goodness under 65 or its weakest stretch under 45) the search widens to
+  farther via points and a detour of up to its own length again (at most 3 km more), and the app says why it is longer; when the fastest route is
+  good enough only a nearby improvement is offered. **Routes follow real streets** (OpenStreetMap foot routing): the fastest route is shown with a **safer / cooler / better** alternative when one scores clearly better (at least 3 points on average, at most 30 % longer). Start (A) and destination (B) are clearly marked, the route is coloured by score along the way, the weakest spot is marked with its address and the nearest help to it.
 - **Every score explains itself.** The "?" next to a score, a factor row, the map legend and "Weights and sources" open a panel with what 0 and 100 mean, the colour ranges (for heat 0–25 = low heat … 65–100 = very high), the weight of each factor and *why* it has that weight, the data source, how many such features are mapped in Kraków, and for this place which factors added how many points. The text comes from `GET /api/safety/method`, built from the same code as the scores. The map shows streets and, from zoom 14, the places that feed the scores (water, parks, toilets, refuges, night-open places, defibrillators).
 - **Alerts** from planners for the area the resident has chosen ("my area"), shown for the current view (heat alerts in Heat, night alerts in Night safety, flood alerts in Flood, air alerts in Air,
   general alerts always). Banners while the app is open, optionally device notifications (switch on the menu).
@@ -227,6 +229,7 @@ reports; the alert composer and the map take an address to centre on.
 | Area drawer | Opens from any list or map square: the full factor table, nearest assets, resident reports (with notes: verify or resolve them) and **suggested actions** |
 | Reports | All resident reports with filters; verify, resolve, show on map, alert the area |
 | Alerts | Compose an alert for **everyone currently inside a circle** (templates, translations, severity, duration, live reach estimate, two-step send); manage running alerts |
+| Weights | How much each factor counts in each of the four scores. Type any numbers (each score is scaled to 100), see why every factor has its default weight, save or reset. **Applies to every score, residents included.** |
 | Contacts | Agencies (ZDMK road faults and lighting, the city services portal, Crisis Management Centre, Straż Miejska, ZZM green spaces, ZTP transport), a prefilled **brief** in Polish or English, and a contact log |
 
 From an area drawer a planner can **create an alert** for that area or **contact an agency** with a brief that states the location, scores, weak factors,

@@ -14,6 +14,7 @@ const PAGES = [
   ['map', 'map', 'pl.nav.map'],
   ['reports', 'flag', 'pl.nav.reports'],
   ['alerts', 'bell', 'pl.nav.alerts'],
+  ['weights', 'gear', 'pl.nav.weights'],
   ['contacts', 'phone', 'pl.nav.contacts']
 ];
 
@@ -34,7 +35,10 @@ export function mountPlanner(root, page) {
   const signOut = demoAccess ? null : h('button', { class: 'btn sm quiet', type: 'button', onclick: () => { set({ plannerKey: null }); location.hash = '#/planner'; window.dispatchEvent(new Event('hashchange')); } },
     icon('logout', 'sm'), h('span', { class: 'hide-sm' }, t('pl.signOut')));
   const toResident = h('a', { class: 'btn sm quiet', href: '#/' }, icon('users', 'sm'), h('span', { class: 'hide-sm' }, t('pl.residentView')));
-  const bar = topbar({ subtitle: t('pl.subtitle'), right: [toResident, signOut], pill });
+  // The dashboard is for city staff, not for everyone: the bar is marked so nobody mistakes it for the public app.
+  const staffChip = h('span', { class: 'chip staff', title: t('pl.staffHelp') }, icon('lock', 'sm'), h('span', null, t('pl.staffOnly')));
+  const bar = topbar({ subtitle: t('pl.subtitle'), right: [staffChip, toResident, signOut], pill });
+  bar.classList.add('staff');
 
   // Navigation
   const badges = {};

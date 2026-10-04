@@ -13,6 +13,9 @@ let pending = null;
 
 export const methodNow = () => method;
 
+/** Forget the loaded method so the next explanation shows new weights (after a planner changed them). */
+export function resetMethod() { method = null; pending = null; }
+
 export function loadMethod() {
   if (method) return Promise.resolve(method);
   pending ||= cachedGet('method', getMethod).then((r) => { method = r.data; return method; }).finally(() => { pending = null; });

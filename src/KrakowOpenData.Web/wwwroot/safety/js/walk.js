@@ -239,6 +239,8 @@ export function renderWalkView(ctx, body) {
     const layerKey = mode;
     return h('div', { class: 'stack' },
       r.source === 'street' ? null : h('div', { class: 'banner small' }, icon(ws.offline ? 'offline' : 'info', 'sm'), h('span', null, ws.offline ? t('route.offline') : t('route.straight'))),
+      r.widened ? h('div', { class: `banner small ${r.better ? 'info' : 'warn'}` }, icon('map', 'sm'),
+        h('span', null, r.better ? t('route.widened', { m: r.extraMinutes }) : t('route.widenedNone'))) : null,
       h('div', { class: 'row between wrap' },
         h('b', null, t('route.advice')),
         h('span', { class: 'row small muted' }, t('legend.route'), infoButton(() => openScoreExplainer({ layer: layerKey, meta }), t('explain.how')))),

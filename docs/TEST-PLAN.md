@@ -89,6 +89,8 @@ Stop the API and Web app before running `dotnet test` or rebuilding; running app
 | HOME-08 | M | Sidebar links to the safety app | Click **Heat and night safety** and **Planner dashboard** in the sidebar | Both load the safety app pages directly, never the Blazor "Not found" page | |
 | HOME-09 | M | Browser tab | Look at the tab | Title **Home · Kompas Krakowa**, the shield favicon (no "K" tile) | |
 | HOME-10 | L | Unknown address | Open `/does-not-exist` | A "Not found" message with **Back to the home page** that returns to `/` | |
+| HOME-11 | M | Sidebar "Features" | Look at the sidebar | The group is called **Features**; its two items stand out from ordinary menu items (cyan tint, border, icon); the **Planner dashboard** item is amber with a lock and a **City staff only** badge, clearly different from the resident item | |
+| HOME-12 | M | Planner tile | Look at the three home tiles | The Planner dashboard tile has an amber border and a **City staff only** badge; its text says it is for city staff, not for everyone | |
 
 ## 5. Available Open Data catalog and dataset pages (`CAT`)
 
@@ -194,6 +196,10 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | RES-53 | M | Live river level | While IMGW shows a gauge above warning (or with test data) open **Flood** | The strip shows "Rivers above warning: N"; riverside squares are lower than with calm rivers; the menu suggests the Flood view | |
 | RES-54 | M | Smog | While PM2.5 averages above 45 µg/m³ open **Air** | All squares are lower than on a clean day, the strip shows PM2.5, and the menu suggests the Air view | |
 | RES-55 | M | Walk checks | In **Flood** and **Air** start a walk check between two points | A fastest route and, when clearly better, a **Safest from water** / **Cleanest air** alternative, with average and worst values and advice in the mode's words | |
+| RES-58 | H | Path labels | Open the menu in **Flood** and **Air** | The buttons read **Check a flood-safe path** and **Check a clean-air path**; the place card offers **Flood-safe path here** / **Clean-air path here**; the path view is titled **Flood-safe path check** / **Clean-air path check** | |
+| RES-59 | H | Weak fastest route widens the search | In **Night safety** pick two points about 3 km apart across a poorly lit area | The note says the fastest route is weak and a safer one was searched for farther away; the safer route may be much longer (up to about 2x, at most 3 km more) and scores clearly better; the extra minutes are stated | |
+| RES-60 | H | Good fastest route does not widen | Pick two points on a well-lit, well-served street | No "searched farther" note; at most a nearby alternative with a small detour (max 30 % longer) | |
+| RES-61 | M | Nothing better exists | Pick a pair where every street is poor | The app says no route within reach is clearly better and advises extra care or another way to travel | |
 | RES-56 | M | Rivers not loaded | Start the API with no saved OpenStreetMap places and open **Flood** at once | The river factor reads "unknown (not loaded)" at 50, a note explains it, and the planner overview says datasets are still loading; after loading it shows real distances | |
 | RES-57 | M | Mode memory and fallback | Choose **Air**, reload; then set `localStorage.mode` to `both` and reload | Air is remembered; a stale value falls back to a valid tab without errors | |
 
@@ -306,6 +312,13 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | PLN-60 | M | Agency list | Open **Contacts** | Agencies with description, phone ("verify number" tag), website and **New contact**: ZDMK, city services portal, Crisis Management Centre, Straż Miejska, ZZM, ZTP. A banner says nothing is sent | |
 | PLN-61 | M | Brief and log | Click **New contact**; choose Polish or English; save | A prefilled brief states location, scores, weak factors, open reports and the requested action. A log entry appears with time, agency, subject, reference and a **simulated** delivery tag | |
 | PLN-62 | L | Copy | Click **Copy text** in the brief dialog | The brief is on the clipboard | |
+| PLN-63 | H | Staff-only marking | Open the planner dashboard | The top bar has an amber underline and a **City staff only** chip; the same marking is used in the Blazor sidebar and on the home tile | |
+| PLN-70 | H | Weights page | Planner, **Weights** | Four layers (night safety, heat, flood, air), the one for the current event open; every factor shows its weight, the default, a slider and a number box, and **why it has that weight**, with what it measures, source and limits under "more" | |
+| PLN-71 | H | Change and save weights | Set Heat > Drinking fountains and taps to 75, **Save weights** | The other factors shrink proportionally (each layer shows its scaled shares adding up to 100); a "custom" chip appears; a toast confirms; the resident app and the planner now score with the new weights (the method panel shows 50 vs default 25) | |
+| PLN-72 | M | Reset | **Reset all to defaults** and confirm; or **Use the defaults for this score** then Save | Weights return to the defaults, "custom" disappears, scores return | |
+| PLN-73 | M | Validation | Set every factor of a layer to 0 and save; type a negative number | The save is refused with a clear message; negative numbers are not accepted | |
+| PLN-74 | M | Persistence | Save weights, restart the API | The custom weights are still in use | |
+| PLN-75 | M | Weights page on a phone | Open at 375 px | Sliders and number boxes fit, reasons wrap, no sideways scrolling, six bottom-navigation items fit | |
 
 ---
 
