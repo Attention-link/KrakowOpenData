@@ -1,7 +1,7 @@
 namespace KrakowOpenData.Contracts;
 
 // ── Safety concerns (heat + night safety scores, citizen reports, planner tools) ───────────────
-// Enums are exposed as strings. Scores are 0–100. Heat score: HIGHER = HOTTER (worse). Safety score: HIGHER = SAFER (better).
+// Enums are exposed as strings. Scores are 0–100. Every score points the same way: HIGHER = BETTER (heat relief: more relief; safety: safer; flood: safer; air: cleaner).
 // Every score points the same way: higher = better (for heat, higher = better able to cool down).
 // How every number is computed is documented on KrakowOpenData.Application.Safety.SafetyModel.
 
@@ -252,7 +252,7 @@ public sealed record GeocodeResultDto(
 /// <summary>
 /// One walking route. <see cref="Path"/> follows the streets as [lat, lon] pairs. <see cref="Samples"/> are the scores every ~50 m along it.
 /// <see cref="Average"/> and <see cref="Worst"/> are in the scale of the requested mode: night = safety score (worst = lowest),
-/// heat = heat score (worst = highest), both = overall score (worst = lowest).
+/// every mode uses its own score, and for every score the worst value is the lowest.
 /// </summary>
 public sealed record RouteOptionDto(
     string Kind,

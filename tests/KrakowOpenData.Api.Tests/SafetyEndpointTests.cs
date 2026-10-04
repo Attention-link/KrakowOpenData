@@ -232,7 +232,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var planner = await Send<List<ReportDto>>(Planner(HttpMethod.Get, "/api/safety/reports?q=secret"));
         Assert.Contains(planner!, r => r.Note == "secret flood note");
 
-        foreach (var bad in new[] { "layer=nope", "type=nope", "status=nope" })
+        foreach (var bad in new[] { "layer=nope", "type=nope", "status=nope", "layer=99", "type=99", "status=99" })
             Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync("/api/safety/reports?" + bad)).StatusCode);
     }
     [Fact]

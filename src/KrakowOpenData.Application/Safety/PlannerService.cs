@@ -139,7 +139,7 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         };
         var waterPoints = grid.Model.FeatureCount("water");
         if (waterPoints < 300)
-            notes.Add($"Only {waterPoints} drinking fountains and taps are mapped in OpenStreetMap for a city of about 800,000 people, so many areas score low for water partly because points are missing from the map, not only because water is absent. Adding them in OpenStreetMap, or a list from the water utility or the city, would improve the heat score.");
+            notes.Add($"Only {waterPoints} drinking fountains and taps are mapped in OpenStreetMap for a city of about 800,000 people, so many areas score low for water partly because points are missing from the map, not only because water is absent. Adding them in OpenStreetMap, or a list from the water utility or the city, would improve the heat-relief score.");
         if (evt == PlanningEvent.Flood) notes.Add("Flood scores use distance from mapped rivers and streams, emergency services and exits, plus live IMGW river levels. There is no elevation or official flood-hazard map in this model yet, so low-lying areas away from a river are not flagged.");
         if (evt == PlanningEvent.Air) notes.Add("Air scores use distance from mapped main roads, trees and parks, indoor places, plus live GIOŚ PM2.5 readings. Traffic volume and industrial sources are not known.");
         if (grid.Model.DataGaps.Count > 0) notes.Add("Some datasets are still loading, so scores may be incomplete: " + string.Join(", ", grid.Model.DataGaps) + ".");

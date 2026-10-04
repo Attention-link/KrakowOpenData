@@ -6,7 +6,7 @@ namespace KrakowOpenData.Application.Safety;
 ///
 /// <para><b>What the scores are.</b> Two scores per place, both 0–100, each named for what it measures:</para>
 /// <list type="bullet">
-/// <item><b>Heat (cooling) score</b> (0 = very hot, 100 = cool): how well a place can cool down on a hot day, from the means to do so:
+/// <item><b>Heat-relief score</b> (0 = very hot, 100 = plenty of relief): how well a place can cool down on a hot day, from the means to do so:
 /// shade/green, water, indoor refuge, toilets and a way to reach relief. <b>Higher = hotter / worse.</b> Internally the model first measures the
 /// place's <i>cooling capacity</i> (higher = better) and the heat score is 100 minus that (<see cref="HeatScore"/>).</item>
 /// <item><b>Safety score (night)</b> (0 = unsafe, 100 = safe): how well the place is set up for walking at night: street lighting, night

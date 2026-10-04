@@ -218,7 +218,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             new("devicesActive", "Devices reached", "Phones that asked for alerts in the last 15 minutes. It is how many people an alert could reach right now.", "Count of distinct anonymous device ids seen in the last 15 minutes.", "Alert checks from the resident app"),
             new("priority", "Priority", "How urgently a square needs action. High when the score is poor, many people are affected and conditions are demanding.", SafetyModelFormulas.Priority, "This model (SafetyModel)"),
             new("exposure", "Exposure", "A proxy for how many people a square affects.", SafetyModelFormulas.Exposure, "OpenStreetMap lamps + ZTP Kraków GTFS stops"),
-            new("temperature", "Temperature", "Current air temperature at the Kraków IMGW synoptic station. It is shown beside the heat score; it is not part of the score.", "Latest synoptic observation.", "IMGW-PIB public data (danepubliczne.imgw.pl)"),
+            new("temperature", "Temperature", "Current air temperature at the Kraków IMGW synoptic station. It is shown beside the heat-relief score; it is not part of the score.", "Latest synoptic observation.", "IMGW-PIB public data (danepubliczne.imgw.pl)"),
             new("air", "Air quality", "Worst PM2.5 reading among Kraków GIOŚ stations, banded.", "Highest PM2.5 across stations with a current value.", "GIOŚ national air-quality network"),
             new("daylight", "Daylight", "Sunrise and sunset for Kraków today, computed astronomically.", "Solar position at 50.06° N, 19.94° E.", "Astronomical calculation (no data feed)")
         };
@@ -227,7 +227,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             current.GeneratedAt,
             [safety, heat, flood, air],
             SafetyModelFormulas.Combined,
-            $"Each open citizen report subtracts points from its own layer in its own 250 m square: 5 × type weight × decay × credibility × support, capped at {SafetyModel.MaxReportPenalty:0} points per layer. A single unconfirmed report counts at a quarter; two or more people agreeing, or a planner verifying, counts in full. Reports fade (half-life 1 to 14 days depending on type) unless confirmed again. For heat, reports raise the heat score.",
+            $"Each open citizen report subtracts points from its own layer in its own 250 m square: 5 × type weight × decay × credibility × support, capped at {SafetyModel.MaxReportPenalty:0} points per layer. A single unconfirmed report counts at a quarter; two or more people agreeing, or a planner verifying, counts in full. Reports fade (half-life 1 to 14 days depending on type) unless confirmed again. A report always lowers the score of its own layer (for heat, the heat-relief score).",
             SafetyModelFormulas.Priority,
             SafetyModelFormulas.Exposure,
             current.Heat.TemperatureC,

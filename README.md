@@ -241,7 +241,7 @@ The model lives in one documented file: [`SafetyModel.cs`](src/KrakowOpenData.Ap
 [`ReportRules.cs`](src/KrakowOpenData.Application/Safety/ReportRules.cs) for reports). Summary:
 
 1. The city is cut into 250 m squares ([`GridSpec`](src/KrakowOpenData.Application/Safety/GridSpec.cs)); a square is on the map when it has 3+ mapped street lamps or a stop.
-2. Each **factor** is a straight-line distance to the nearest feature (or a density) turned into 0–100: full score up to a near distance, zero beyond a far one, a straight line between. Every factor adds its weight in proportion to its score, so a park within 100 m earns the full 35 cooling points and none nearby earns 0.
+2. Each **factor** is a straight-line distance to the nearest feature (or a density) turned into 0–100: full score up to a near distance, zero beyond a far one, a straight line between. Every factor adds its weight in proportion to its score, so a park within 100 m earns the full 35 heat-relief points and none nearby earns 0.
 3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the score of their own layer). **All four scores point the same way: higher = better**, with the same four bands and colours (75–100 Good, 55–75 Fair, 35–55 Weak, 0–35 Critical). The heat score used to run the other way (0 = cool); it is now the heat-relief score so a high number, a long bar and a blue colour always mean good.
 
 | Layer | Factor (weight) | Data | Full score → zero |
@@ -288,7 +288,7 @@ address needs a connection, tapping the map does not.
 
 ### Water data
 
-Heat scores depend heavily on drinking-water points, and OpenStreetMap has few: about 100 tagged `amenity=drinking_water` for a city of ~800,000 (plus a few
+Heat-relief scores depend heavily on drinking-water points, and OpenStreetMap has few: about 100 tagged `amenity=drinking_water` for a city of ~800,000 (plus a few
 water points, and taps and fountains that are only tagged drinkable sometimes). The data query now also takes `amenity=water_point`, and taps, fountains and
 springs explicitly tagged `drinking_water=yes`, and drops anything tagged `drinking_water=no`. It still cannot know about fountains nobody has mapped, so the
 app says so: the place card shows how few points are mapped when water is the weak factor, and the planner overview carries a data note. Improving this means adding
@@ -372,7 +372,7 @@ src/KrakowOpenData.Web/wwwroot/safety/   the web app: index.html, sw.js (offline
 - The service worker could not be exercised in the in-app browser used for development (it does not support service workers); the data-level offline behaviour (cache, queue, auto-send) was tested there, the installable shell should be checked in Chrome or Edge.
 - Street routing uses the public OpenStreetMap Germany foot router (`Safety:Routing:BaseUrl`), which is fair-use with no guarantee; self-host OSRM or Valhalla for production. If it is unreachable the API returns only a straight-line check and the app says so. Routes are scored with the same model as the map, so a "safer" route means better lit and better served, not a crime-checked one.
 - **Address search depends on a third-party service** (Photon, free and fair-use). Typed text and coordinates are sent to it by this API, not by the browser; self-host it for production.
-- Water points are sparse in OpenStreetMap (see [Water data](#water-data)); low heat scores partly reflect missing map data.
+- Water points are sparse in OpenStreetMap (see [Water data](#water-data)); low heat-relief scores partly reflect missing map data.
 
 ## Consuming the data
 

@@ -104,6 +104,7 @@ export function mount(host) {
   }
 
   async function load() {
+    filterToken++;   // a debounced filter request still in flight must not overwrite this newer result
     try { res = await fetchFiltered(); } catch (e) { res = { data: [], stale: false }; toast(errorText(e, t), { error: true }); }
     render();
   }
