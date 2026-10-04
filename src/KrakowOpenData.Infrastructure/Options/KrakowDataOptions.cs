@@ -58,7 +58,8 @@ public sealed class KrakowDataOptions
     [
         "https://overpass-api.de/api/interpreter",
         "https://overpass.private.coffee/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+        "https://overpass.openstreetmap.fr/api/interpreter"
     ];
 
     /// <summary>Per-request timeout for Overpass; the citywide street-lamp query is several MB.</summary>
@@ -86,6 +87,12 @@ public sealed class KrakowDataOptions
     public int OsmRefreshMinutes { get; set; } = 1440;
 
     public int OpenDataRefreshMinutes { get; set; } = 360;
+
+    /// <summary>
+    /// Area for the accessibility data (steps, kerbs, lifts, entrances, toilets, benches, path surfaces). The full city with path
+    /// geometry is heavy for Overpass, so it is a box; the default is central Kraków (19.90–19.99 E, 50.035–50.08 N).
+    /// </summary>
+    public GeoBoxOptions AccessArea { get; set; } = new() { MinLatitude = 50.035, MaxLatitude = 50.08, MinLongitude = 19.90, MaxLongitude = 19.99 };
 
     public int StaticRefreshMinutes { get; set; } = 360;
 
