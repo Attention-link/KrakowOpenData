@@ -5,7 +5,7 @@
 //   POST /ai/transcribe  X-Ai-Key: audio (≤ 1 MB / 60 s) → Whisper → text + triage
 // Every answer is a suggestion; the API and the apps work without this Worker. Audio is never stored.
 
-import {
+import { parseType,
   AUDIO_TYPES, BadRequest, EXPLAIN_MAX_TOKENS, MAX_AUDIO_BYTES, MAX_JSON_BYTES, TRIAGE_MAX_TOKENS, TRIAGE_SCHEMA,
   coerceTriage, explainMessages, parseModelJson, routeOf, safeEqual, sha256Hex, toBase64, triageMessages,
   validateExplain, validateTriage, type Triage, type TriageInput
@@ -28,13 +28,15 @@ export interface Env {
   MODEL_EXPLAIN?: string;
   WHISPER_MODEL?: string;
   WHISPER_FALLBACK?: string;
+  /** "1" = ask the triage model for JSON Schema output (only for models that support it; llama-3.1-8b-instruct-fp8 does not). */
+  TRIAGE_JSON_MODE?: string;
   ALLOWED_ORIGIN?: string;
 }
 
-// Triage needs JSON mode (response_format), which only some models support: llama-3.1-8b-instruct does, the -fast variant
-// does not (developers.cloudflare.com/workers-ai/features/json-mode). Explain is plain text, so the cheaper -fast model is fine.
-const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
-const DEFAULT_EXPLAIN_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
+// Models come and go in the catalog (llama-3.1-8b-instruct was deprecated on 2026-05-30, -fast is no longer listed):
+// check `npx wrangler ai models` before changing these. Triage asks for JSON mode and falls back to plain text if refused.
+const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
+const DEFAULT_EXPLAIN_MODEL = '@cf/meta/llama-3.1-8b-instruct-fp8';
 const DEFAULT_WHISPER = '@cf/openai/whisper-large-v3-turbo';
 const DEFAULT_WHISPER_FALLBACK = '@cf/openai/whisper';
 const CACHE_TTL = 24 * 60 * 60;
@@ -112,14 +114,22 @@ async function cached<T>(env: Env, model: string, path: string, body: unknown, r
 async function runTriage(env: Env, input: TriageInput): Promise<Triage> {
   const model = models(env).triage;
   const { value } = await cached(env, model, '/triage', input, async () => {
-    const out = (await env.AI.run(model, {
-      messages: triageMessages(input),
-      response_format: { type: 'json_schema', json_schema: TRIAGE_SCHEMA },
-      max_tokens: TRIAGE_MAX_TOKENS,
-      temperature: 0.1
-    })) as { response?: unknown };
+    const base = { messages: triageMessages(input), max_tokens: TRIAGE_MAX_TOKENS, temperature: 0.1 };
+    let out: { response?: unknown };
+    try {
+      out = (env.TRIAGE_JSON_MODE === '1'
+        ? await env.AI.run(model, { ...base, response_format: { type: 'json_schema', json_schema: TRIAGE_SCHEMA } })
+        : await env.AI.run(model, base)) as { response?: unknown };
+    } catch (e) {
+      if (env.TRIAGE_JSON_MODE !== '1') throw e;
+      // Not every model takes response_format; the prompt already asks for one JSON object and parseModelJson finds it.
+      if (/deprecat/i.test(String((e as Error)?.message ?? e))) throw e;
+      console.error('triage JSON mode refused, retrying as text:', String((e as Error)?.message ?? e).slice(0, 200));
+      out = (await env.AI.run(model, base)) as { response?: unknown };
+    }
     const raw = parseModelJson(out?.response);
     if (!raw) throw new HttpError(502, 'The model did not return JSON');
+    if (!parseType(raw.suggestedType)) console.error('triage: unknown category from model:', String(raw.suggestedType).slice(0, 60));
     return coerceTriage(raw, input.nearby.map((n) => n.id));
   });
   return value;
@@ -188,8 +198,10 @@ async function handle(request: Request, env: Env): Promise<Response> {
     let triage: Triage | null = null;
     try {
       triage = await runTriage(env, { type: 'Unknown', note: text.slice(0, 1000), lang: 'pl', nearby: [] });
-    } catch {
-      triage = null; // the transcript is still useful on its own
+    } catch (e) {
+      // The transcript is still useful on its own. Log only the error, never the resident's words.
+      console.error('triage after transcribe failed:', String((e as Error)?.message ?? e).slice(0, 300));
+      triage = null;
     }
     return json({ text, language, triage });
   }

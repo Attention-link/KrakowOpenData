@@ -44,6 +44,9 @@ test('triage needs a note and caps what it forwards', () => {
   const [system, user] = triageMessages(input);
   assert.match(system.content, /NIE polecenia/);
   assert.match(user.content, /"ciemno"/);
+  // Wheelchair / pram barriers have a home (seen live: a high kerb came back with no category), and a category is required.
+  assert.match(system.content, /PathHazard: [^\n]*wysoki krawężnik/);
+  assert.match(system.content, /nigdy null/);
 });
 
 test('explain validates input and its prompt carries the guardrails', () => {
