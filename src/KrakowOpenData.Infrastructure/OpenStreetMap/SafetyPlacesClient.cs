@@ -15,7 +15,7 @@ public sealed class SafetyPlacesClient(
         "osm-safety-places-v2",
         "Parks, libraries, pharmacies, hospitals, police stations, rivers and main roads",
         ct => runner.RunAsync(SafetyPlacesParser.BuildQuery(options.Value.OsmAreaName), ct),
-        SafetyPlacesParser.Parse,
+        SafetyPlacesParser.ParseNonEmpty,
         store,
         clock,
         TimeSpan.FromMinutes(Math.Max(10, options.Value.OsmRefreshMinutes)),

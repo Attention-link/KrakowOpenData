@@ -212,3 +212,105 @@ public class WideRouteSearchTests
         Assert.Equal(6, RouteService.WideViaPoints(a, b, 2000).Count);
     }
 }
+
+public class RouteThresholdTests
+{
+    private static readonly GeoPoint Far = SafetyWorld.Remote;
+    private static readonly GeoPoint FarEnd = SafetyWorld.Offset(Far, 0, 600);
+    private static RoutePath Unserved() => new([Far, FarEnd], 600);
+
+    private static (RouteThresholdService Svc, SafetyWorld World) Setup()
+    {
+        var world = new SafetyWorld();
+        return (new RouteThresholdService(world.Store), world);
+    }
+
+    [Fact]
+    public async Task Thresholds_start_at_the_defaults_with_a_reason_for_every_layer()
+    {
+        var (svc, _) = Setup();
+        var all = await svc.GetAsync();
+
+        Assert.False(all.Customized);
+        Assert.Equal(4, all.Layers.Count);
+        Assert.All(all.Layers, l =>
+        {
+            Assert.Equal(65, l.Average);
+            Assert.Equal(45, l.Worst);
+            Assert.Equal(l.DefaultAverage, l.Average);
+            Assert.False(string.IsNullOrWhiteSpace(l.Why));
+        });
+        Assert.Equal(20, all.Min);
+        Assert.Equal(95, all.Max);
+    }
+
+    [Fact]
+    public async Task Changed_thresholds_are_saved_per_layer_and_reset_restores_the_defaults()
+    {
+        var (svc, _) = Setup();
+        var set = await svc.SetAsync(new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { ["Safety"] = new(80, 60) }));
+
+        Assert.True(set.Customized);
+        Assert.Equal(80, set.Layers.Single(l => l.Layer == "Safety").Average);
+        Assert.Equal(60, set.Layers.Single(l => l.Layer == "Safety").Worst);
+        Assert.False(set.Layers.Single(l => l.Layer == "Heat").Customized);
+        Assert.Equal(80, (await svc.ForAsync(PlanningEvent.Night)).Average);
+        Assert.Equal(65, (await svc.ForAsync(PlanningEvent.Heat)).Average);
+        Assert.Equal(65, (await svc.ForAsync(PlanningEvent.Both)).Average);
+
+        var reset = await svc.ResetAsync();
+        Assert.False(reset.Customized);
+        Assert.Equal(65, (await svc.ForAsync(PlanningEvent.Night)).Average);
+    }
+
+    [Fact]
+    public async Task Typing_the_defaults_is_not_a_customization()
+    {
+        var (svc, _) = Setup();
+        var set = await svc.SetAsync(new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { ["Flood"] = new(65, 45) }));
+        Assert.False(set.Customized);
+    }
+
+    [Theory]
+    [InlineData("Nope", 70.0, 50.0)]
+    [InlineData("Heat", 19.0, 10.0)]
+    [InlineData("Heat", 96.0, 50.0)]
+    [InlineData("Heat", 70.0, 19.0)]
+    [InlineData("Heat", 50.0, 60.0)]
+    [InlineData("Heat", double.NaN, 40.0)]
+    public async Task Invalid_thresholds_are_rejected_and_nothing_is_saved(string layer, double average, double worst)
+    {
+        var (svc, _) = Setup();
+        await Assert.ThrowsAsync<SafetyValidationException>(() =>
+            svc.SetAsync(new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { [layer] = new(average, worst) })));
+        Assert.False((await svc.GetAsync()).Customized);
+    }
+
+    [Fact]
+    public async Task Routes_use_the_thresholds_of_their_layer_and_report_them()
+    {
+        var (svc, world) = Setup();
+        var service = new RouteService(world.Scores(), new ScriptedRouter(Unserved()), svc);
+
+        // A route with no lamps scores about 0 at night: poor under any threshold. Lowering the limits to the minimum still leaves it poor.
+        var defaults = await service.GetRoutesAsync(Far, FarEnd, PlanningEvent.Night);
+        Assert.Equal(65, defaults.ThresholdAverage);
+        Assert.Equal(45, defaults.ThresholdWorst);
+        Assert.False(defaults.FastestIsAcceptable);
+
+        await svc.SetAsync(new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { ["Safety"] = new(20, 20) }));
+        var changed = await service.GetRoutesAsync(Far, FarEnd, PlanningEvent.Night);
+        Assert.Equal(20, changed.ThresholdAverage);
+        Assert.Equal(20, changed.ThresholdWorst);
+    }
+
+    [Fact]
+    public void A_stricter_threshold_makes_a_decent_fastest_route_unacceptable()
+    {
+        var option = new RouteOptionDto("fastest", 600, 8, [], [], 70, 50, 0, 0);
+        Assert.True(RouteService.IsAcceptable(option, PlanningEvent.Night, new RouteThreshold(65, 45)));
+        Assert.False(RouteService.IsAcceptable(option, PlanningEvent.Night, new RouteThreshold(80, 45)));
+        Assert.False(RouteService.IsAcceptable(option, PlanningEvent.Night, new RouteThreshold(65, 60)));
+        Assert.True(RouteService.IsAcceptable(option, PlanningEvent.Night, new RouteThreshold(40, 30)));
+    }
+}

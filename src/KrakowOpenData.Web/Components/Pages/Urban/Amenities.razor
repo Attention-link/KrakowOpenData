@@ -21,16 +21,16 @@
 
 <LoadState IsLoading="_loading" Error="@_error" IsEmpty="_items.Count == 0" EmptyText="@T["amen.none"]" OnRetry="LoadAsync">
     <table class="table table-striped table-hover align-middle">
-        <thead><tr><th>@T["col.name"]</th><th>@T["col.position"]</th><th>@T["col.distance"]</th><th>@T["amen.details"]</th><th></th></tr></thead>
+        <thead><tr><th>@T["col.name"]</th><th class="text-nowrap">@T["col.position"]</th><th class="text-nowrap">@T["col.distance"]</th><th>@T["amen.details"]</th><th class="text-nowrap">@T["amen.mapLink"]</th></tr></thead>
         <tbody>
             @foreach (var a in _items.Take(500))
             {
                 <tr>
-                    <td><strong>@(a.Name ?? T["kind." + a.Kind])</strong></td>
-                    <td class="small">@a.Latitude.ToString("F5", CultureInfo.InvariantCulture), @a.Longitude.ToString("F5", CultureInfo.InvariantCulture)</td>
-                    <td>@(a.DistanceMeters is null ? "–" : a.DistanceMeters.Value.ToString("0", CultureInfo.InvariantCulture) + " m")</td>
+                    <td class="amen-name"><strong>@(a.Name ?? T["kind." + a.Kind])</strong></td>
+                    <td class="small text-nowrap">@a.Latitude.ToString("F5", CultureInfo.InvariantCulture), @a.Longitude.ToString("F5", CultureInfo.InvariantCulture)</td>
+                    <td class="text-nowrap">@(a.DistanceMeters is null ? "–" : a.DistanceMeters.Value.ToString("0", CultureInfo.InvariantCulture) + " m")</td>
                     <td class="small">@a.Details</td>
-                    <td><a href="@MapUrl(a)" target="_blank" rel="noopener">@T["amen.mapLink"]</a></td>
+                    <td class="text-nowrap"><a href="@MapUrl(a)" target="_blank" rel="noopener">@T["amen.mapLink"]</a></td>
                 </tr>
             }
         </tbody>

@@ -54,7 +54,7 @@ export function mountPlanner(root, page) {
   const paintEvents = () => {
     clear(eventSeg);
     for (const [ev, ic] of EVENTS) {
-      eventSeg.append(h('button', { type: 'button', 'data-mode': ev === 'night' ? 'safety' : ev, 'aria-pressed': String(P.event === ev), onclick: () => changeEvent(ev) }, icon(ic, 'sm'), t(`event.${ev}`)));
+      eventSeg.append(h('button', { type: 'button', 'data-mode': ev === 'night' ? 'safety' : ev, 'aria-pressed': String(P.event === ev), 'aria-label': t(`event.${ev}`), title: t(`event.${ev}`), onclick: () => changeEvent(ev) }, icon(ic, 'sm'), h('span', { class: 'seg-lbl' }, t(`event.${ev}`))));
     }
   };
   const conds = h('div', { class: 'row wrap grow' });

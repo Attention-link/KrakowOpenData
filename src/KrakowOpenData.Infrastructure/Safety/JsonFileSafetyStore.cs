@@ -29,6 +29,7 @@ public sealed class JsonFileSafetyStore : ISafetyStore
     private readonly Dictionary<string, PlannerAlert> _alerts = new(StringComparer.Ordinal);
     private readonly List<AgencyDispatch> _dispatches = [];
     private Dictionary<string, double> _weights = new(StringComparer.Ordinal);
+    private Dictionary<string, double> _routeThresholds = new(StringComparer.Ordinal);
 
     public JsonFileSafetyStore(IOptions<SafetyOptions> options, ILogger<JsonFileSafetyStore> logger)
     {
@@ -115,7 +116,24 @@ public sealed class JsonFileSafetyStore : ISafetyStore
         return Task.CompletedTask;
     }
 
-    private sealed record Snapshot(List<CitizenReport> Reports, List<PlannerAlert> Alerts, List<AgencyDispatch> Dispatches, Dictionary<string, double>? Weights = null);
+    public Task<IReadOnlyDictionary<string, double>> GetRouteThresholdOverridesAsync(CancellationToken ct = default)
+    {
+        lock (_lock) return Task.FromResult<IReadOnlyDictionary<string, double>>(new Dictionary<string, double>(_routeThresholds, StringComparer.Ordinal));
+    }
+
+    public Task SaveRouteThresholdOverridesAsync(IReadOnlyDictionary<string, double> thresholds, CancellationToken ct = default)
+    {
+        lock (_lock)
+        {
+            _routeThresholds = new Dictionary<string, double>(thresholds, StringComparer.Ordinal);
+            Persist();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private sealed record Snapshot(List<CitizenReport> Reports, List<PlannerAlert> Alerts, List<AgencyDispatch> Dispatches, Dictionary<string, double>? Weights = null,
+        Dictionary<string, double>? RouteThresholds = null);
 
     private void Load()
     {
@@ -131,6 +149,7 @@ public sealed class JsonFileSafetyStore : ISafetyStore
             foreach (var a in snapshot.Alerts) _alerts[a.Id] = a;
             _dispatches.AddRange(snapshot.Dispatches);
             if (snapshot.Weights is not null) _weights = new Dictionary<string, double>(snapshot.Weights, StringComparer.Ordinal);
+            if (snapshot.RouteThresholds is not null) _routeThresholds = new Dictionary<string, double>(snapshot.RouteThresholds, StringComparer.Ordinal);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -146,7 +165,7 @@ public sealed class JsonFileSafetyStore : ISafetyStore
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
             var temp = _path + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(new Snapshot(_reports.Values.ToList(), _alerts.Values.ToList(), _dispatches, _weights), Json));
+            File.WriteAllText(temp, JsonSerializer.Serialize(new Snapshot(_reports.Values.ToList(), _alerts.Values.ToList(), _dispatches, _weights, _routeThresholds), Json));
             File.Move(temp, _path, overwrite: true);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
