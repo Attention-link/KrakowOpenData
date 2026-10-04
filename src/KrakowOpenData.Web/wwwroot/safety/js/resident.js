@@ -16,6 +16,8 @@ import { renderWalkView } from './walk.js';
 import { startAlerts } from './alerts.js';
 import { searchBox } from './search.js';
 import { addressLine, coords } from './geo.js';
+import { renderAccessView } from './access.js';
+import { wheelchairBadge } from './wheelchair.js';
 
 /** Which score layers a view shows: exactly one. Night safety, heat, flood and air never mix. */
 export const layersOf = (mode) => [asMode(mode)];
@@ -374,6 +376,7 @@ export function mountResident(root) {
     if (name === 'home') clearSelection();
     if (name !== 'walk') ctx.walkCleanup?.();
     if (name !== 'report') ctx.reportCleanup?.();
+    if (name !== 'access') ctx.accessCleanup?.();
     if (name !== 'place' && name !== 'home') { coverage?.remove(); coverage = null; }
     renderView(true);
   }
@@ -388,6 +391,7 @@ export function mountResident(root) {
     else if (ctx.view === 'place') { panelTitle.textContent = t('place.title'); renderPlace(body); }
     else if (ctx.view === 'report') { panelTitle.textContent = t('report.title'); renderReportView(ctx, body); }
     else if (ctx.view === 'walk') { panelTitle.textContent = t(`walk.title.${mode()}`); renderWalkView(ctx, body); }
+    else if (ctx.view === 'access') { panelTitle.textContent = t('acc.title'); renderAccessView(ctx, body); }
     if (focus) panelTitle.focus({ preventScroll: true });
     else body.scrollTop = scroll;
   }
@@ -423,6 +427,11 @@ export function mountResident(root) {
       h('button', { class: 'btn', type: 'button', onclick: () => showView('walk') }, icon('walk'), t(`home.walk.${mode()}`))),
       h('p', { class: 'small muted' }, t(`home.walkHelp.${mode()}`)),
       h('p', { class: 'small muted' }, t('home.tapHint')));
+
+    // 2b. Accessibility (Kraków bez barier): barriers and amenities for a wheelchair, a pram or limited mobility
+    stack.append(h('div', { class: 'card flat stack tight' },
+      h('button', { class: 'btn', type: 'button', onclick: () => showView('access') }, h('span', { 'aria-hidden': 'true' }, '♿'), t('acc.open')),
+      h('p', { class: 'small muted' }, t('acc.homeHelp'))));
 
     // 3. Alerts
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.alertsTitle')),
@@ -592,7 +601,8 @@ export function mountResident(root) {
       h('div', { class: `ico ${layer}` }, icon(FACTOR_ICON[n.key] || 'pin')),
       h('div', { class: 'grow' },
         h('div', { style: { fontWeight: 600 } }, n.name || t(`kind.${n.kind}`)),
-        h('div', { class: 'small muted' }, `${t(`factor.${n.key}`)} · ${formatDistance(n.distanceMeters)} · ${t('place.walkMin', { n: n.walkingMinutes })}${n.openingHours ? ` · ${n.openingHours}` : ''}`)),
+        h('div', { class: 'small muted' }, `${t(`factor.${n.key}`)} · ${formatDistance(n.distanceMeters)} · ${t('place.walkMin', { n: n.walkingMinutes })}${n.openingHours ? ` · ${n.openingHours}` : ''}`),
+        h('div', { class: 'small' }, wheelchairBadge(n.wheelchair))),
       h('a', { class: 'btn icon quiet', href: directionsLink(n.latitude, n.longitude), target: '_blank', rel: 'noopener', 'aria-label': `${t('place.directions')}: ${n.name || t(`kind.${n.kind}`)}` }, icon('external', 'sm')));
   }
 
