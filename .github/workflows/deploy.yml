@@ -133,12 +133,14 @@ jobs:
               fail(f"Dockhand's deploy failed: {detail or 'no error message'}")
 
           # The API reports when its process started; a start after the webhook call means the new build is live.
-          health_url = os.environ["SITE_URL"].rstrip("/") + "/health"
+          # Cloudflare answers 403 to Python's default "Python-urllib" User-Agent, so send our own.
+          health = urllib.request.Request(os.environ["SITE_URL"].rstrip("/") + "/health",
+                                          headers={"User-Agent": "KrakowOpenData-deploy"})
           deadline = time.monotonic() + 20 * 60
           last = "no answer yet"
           while time.monotonic() < deadline:
               try:
-                  with urllib.request.urlopen(health_url, timeout=15) as response:
+                  with urllib.request.urlopen(health, timeout=15) as response:
                       started = json.loads(response.read()).get("startedAt", "")
                   # .NET writes 7 fractional digits; Python's parser takes at most 6.
                   started_at = datetime.datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", started))

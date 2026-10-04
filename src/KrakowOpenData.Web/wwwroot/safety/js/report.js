@@ -144,8 +144,8 @@ export function renderReportView(ctx, body) {
       h('label', { class: 'field' }, t('report.note'), noteInput, count),
       ...voiceStep2(rs, noteInput, count),
       h('p', { class: 'tiny muted' }, icon('shield', 'sm'), ' ', t('report.privacy')),
-      rs.error ? h('p', { class: 'err', role: 'alert' }, rs.error) : null,
-      isOffline() ? h('div', { class: 'banner small' }, icon('offline', 'sm'), h('span', null, t('report.offlineNote'))) : null,
+      rs.error ? h('p', { class: 'err', role: 'alert' }, rs.error) : '',
+      isOffline() ? h('div', { class: 'banner small' }, icon('offline', 'sm'), h('span', null, t('report.offlineNote'))) : '',
       h('div', { class: 'row' }, h('button', { class: 'btn', type: 'button', 'data-fk': 'rep-back', onclick: () => goStep(1) }, icon('left', 'sm'), t('common.back')), h('div', { class: 'grow' }), sendBtn));
   }
 

@@ -47,7 +47,7 @@ app.Use(async (context, next) =>
     headers.XContentTypeOptions = "nosniff";
     headers.XFrameOptions = "DENY";
     headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=()";
+    headers["Permissions-Policy"] = "geolocation=(self), camera=(), microphone=(self)";   // microphone: "Nagraj głosem" voice notes
     var host = context.Request.Host.Value;   // Blazor's circuit WebSocket goes back to this host
     headers["Content-Security-Policy-Report-Only"] = csp.Replace("{ws}", $"ws://{host} wss://{host}");
     await next();
