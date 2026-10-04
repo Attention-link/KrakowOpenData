@@ -6,14 +6,18 @@ namespace KrakowOpenData.Infrastructure.Ai;
 /// <summary>
 /// Keeps Workers AI inside the free tier and stops one device (or one Telegram chat) from using it all. Voice: at most
 /// <see cref="PerDevicePerHour"/> recordings per device an hour and <see cref="PerDay"/> in total a day. Text triage asked for
-/// by the bot: <see cref="TriagePerDevicePerHour"/> and <see cref="TriagePerDay"/>. In memory only.
+/// by the bot: <see cref="TriagePerDevicePerHour"/> and <see cref="TriagePerDay"/>; triage of app reports counts as one "device",
+/// <see cref="AppTriageKey"/>, against the same daily budget. The daily voice budget is shared by the app and the bot. In memory only.
 /// </summary>
 public sealed class VoiceQuota(IClock clock)
 {
     public const int PerDevicePerHour = 10;
-    public const int PerDay = 300;
+    public const int PerDay = 100;
     public const int TriagePerDevicePerHour = 20;
     public const int TriagePerDay = 500;
+
+    /// <summary>The single quota key for triage of reports filed in the app (bot chats use their own "tg-" device ids).</summary>
+    public const string AppTriageKey = "app";
 
     private readonly Counter _voice = new(PerDevicePerHour, PerDay);
     private readonly Counter _triage = new(TriagePerDevicePerHour, TriagePerDay);

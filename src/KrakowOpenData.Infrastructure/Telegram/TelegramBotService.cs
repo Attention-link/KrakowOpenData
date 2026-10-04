@@ -42,11 +42,19 @@ public sealed class TelegramBotService(
 {
     public const int MaxVoiceSeconds = 60;
     private static readonly TimeSpan Backoff = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MaxConflictBackoff = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan DraftLifetime = TimeSpan.FromMinutes(30);
 
     private sealed record Draft(string? Note, ReportType? Type, ReportTriage? Triage, DateTimeOffset At);
 
     private readonly ConcurrentDictionary<long, Draft> _drafts = new();
+
+    /// <summary>Waits between failed calls. Replaced in tests so the backoff can be checked without waiting.</summary>
+    internal Func<TimeSpan, CancellationToken, Task> Wait { get; set; } = Task.Delay;
+
+    /// <summary>The wait after the <paramref name="conflicts"/>-th http_409 in a row: 5 s, doubling, at most 5 min.</summary>
+    internal static TimeSpan ConflictBackoff(int conflicts) =>
+        TimeSpan.FromSeconds(Math.Min(Backoff.TotalSeconds * Math.Pow(2, Math.Clamp(conflicts - 1, 0, 16)), MaxConflictBackoff.TotalSeconds));
 
     public static string DeviceIdFor(long chatId) =>
         TelegramNotifier.BotDevicePrefix + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(chatId.ToString(CultureInfo.InvariantCulture))))[..16].ToLowerInvariant();
@@ -69,7 +77,7 @@ public sealed class TelegramBotService(
             catch (TelegramException e)
             {
                 logger.LogWarning("deleteWebhook failed: {Error}", e.Message);
-                if (!await Delay(stoppingToken)) return;
+                if (!await Delay(Backoff, stoppingToken)) return;
             }
             catch (OperationCanceledException)
             {
@@ -78,23 +86,40 @@ public sealed class TelegramBotService(
         }
 
         var offset = store.Offset;
+        var conflicts = 0;
         while (!stoppingToken.IsCancellationRequested)
         {
+            PruneDrafts();
             IReadOnlyList<JsonElement> updates;
             try
             {
                 updates = await client.GetUpdatesAsync(offset, stoppingToken);
             }
+            catch (TelegramException e) when (e.Message == "http_409")
+            {
+                // Another process polls the same token (e.g. SafeWalk). Set Telegram__Polling=false on one of them. Logged once on
+                // entering the conflict, then backed off quietly until a poll succeeds.
+                if (conflicts++ == 0)
+                    logger.LogWarning("getUpdates conflict (http_409): another poller uses this bot token; backing off up to {Max} min",
+                        MaxConflictBackoff.TotalMinutes);
+                if (!await Delay(ConflictBackoff(conflicts), stoppingToken)) return;
+                continue;
+            }
             catch (TelegramException e)
             {
-                // http_409: another process polls the same token (e.g. SafeWalk). Set Telegram__Polling=false on one of them.
                 logger.LogWarning("getUpdates failed: {Error}", e.Message);
-                if (!await Delay(stoppingToken)) return;
+                if (!await Delay(Backoff, stoppingToken)) return;
                 continue;
             }
             catch (OperationCanceledException)
             {
                 return;
+            }
+
+            if (conflicts > 0)
+            {
+                logger.LogInformation("getUpdates conflict cleared after {Count} attempt(s)", conflicts);
+                conflicts = 0;
             }
 
             foreach (var update in updates.OrderBy(u => u.TryGetProperty("update_id", out var id) ? id.GetInt64() : 0))
@@ -117,11 +142,11 @@ public sealed class TelegramBotService(
         }
     }
 
-    private static async Task<bool> Delay(CancellationToken ct)
+    private async Task<bool> Delay(TimeSpan delay, CancellationToken ct)
     {
         try
         {
-            await Task.Delay(Backoff, ct);
+            await Wait(delay, ct);
             return true;
         }
         catch (OperationCanceledException)
@@ -129,6 +154,17 @@ public sealed class TelegramBotService(
             return false;
         }
     }
+
+    /// <summary>Forgets drafts older than <see cref="DraftLifetime"/>, so chats that never send a location do not pile up.</summary>
+    internal void PruneDrafts()
+    {
+        var cutoff = clock.UtcNow - DraftLifetime;
+        foreach (var (chatId, draft) in _drafts)
+            if (draft.At < cutoff) _drafts.TryRemove(new KeyValuePair<long, Draft>(chatId, draft)); // not if it was renewed meanwhile
+    }
+
+    /// <summary>Drafts in memory. Internal for tests.</summary>
+    internal int DraftCount => _drafts.Count;
 
     /// <summary>Handles one update. Public for tests.</summary>
     public async Task HandleUpdateAsync(JsonElement update, CancellationToken ct = default)

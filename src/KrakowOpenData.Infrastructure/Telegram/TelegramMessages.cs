@@ -98,7 +98,8 @@ public static class TelegramMessages
     // ── Staff digest ─────────────────────────────────────────────────────────
     /// <summary>
     /// A new report for the staff chat. Never the device id, the report id or the resident's note: only the category, the AI
-    /// suggestion (its summary only when the model flagged neither personal data nor abuse) and the rounded location.
+    /// suggestion (its summary only when the model flagged neither personal data nor abuse, cleaned by <see cref="AiSummarySanitiser"/>)
+    /// and the rounded location.
     /// </summary>
     public static Message StaffDigest(CitizenReport r, string? publicBaseUrl)
     {
@@ -111,7 +112,8 @@ public static class TelegramMessages
         {
             var line = $"AI: ważność {Math.Clamp(ai.Severity, 1, 3)}/3";
             if (ai.SuggestedType is { } s && s != r.Type.ToString()) line += $" · kategoria? {Label(s)}";
-            if (ai.SummaryIsShareable) line += $" · „{ai.SummaryPl!.Trim()}”";
+            // A note can steer the model, so links, handles, e-mails and phone numbers are stripped (Telegram links them even in plain text).
+            if (ai.SummaryIsShareable && AiSummarySanitiser.Clean(ai.SummaryPl) is { } summary) line += $" · „{summary}”";
             lines.Add(line + " (sugestia AI)");
         }
         else if (r.Triage is { IsAbuse: true })
