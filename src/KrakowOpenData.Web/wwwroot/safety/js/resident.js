@@ -16,6 +16,7 @@ import { renderWalkView } from './walk.js';
 import { startAlerts } from './alerts.js';
 import { searchBox } from './search.js';
 import { addressLine, coords } from './geo.js';
+import { telegramCard } from './telegram.js';
 
 /** Which score layers a view shows: exactly one. Night safety, heat, flood and air never mix. */
 export const layersOf = (mode) => [asMode(mode)];
@@ -435,6 +436,8 @@ export function mountResident(root) {
         : h('div', { class: 'stack tight' }, h('p', { class: 'small muted' }, t('home.alertsHelp')),
           h('div', { class: 'row wrap' }, h('button', { class: 'btn sm', type: 'button', onclick: () => locateMe(true) }, icon('bell', 'sm'), t('home.alertsSet')),
             notificationToggle()))));
+
+    stack.append(telegramCard()); // "Powiadomienia w Telegramie" (telegram.js); hidden when the server has no bot
 
     // 4. How to read the colours
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.read')),

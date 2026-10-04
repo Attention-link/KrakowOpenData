@@ -374,6 +374,75 @@ src/KrakowOpenData.Web/wwwroot/safety/   the web app: index.html, sw.js (offline
 - **Address search depends on a third-party service** (Photon, free and fair-use). Typed text and coordinates are sent to it by this API, not by the browser; self-host it for production.
 - Water points are sparse in OpenStreetMap (see [Water data](#water-data)); low heat-relief scores partly reflect missing map data.
 
+### AI (Cloudflare Workers AI) i Telegram
+
+Both are **optional**: with no configuration nothing is sent anywhere and the app works exactly as before (tests run that way).
+
+**What it does**
+
+- **Report triage.** Every new report with a note is sent to the AI Worker (`workers/ai`, Llama 3.1 8B on Workers AI), which
+  suggests a category, a severity 1–3, a short Polish summary without personal data, abuse / personal-data flags and a likely
+  duplicate. Planners see it on the report as **"Sugestia AI · niezweryfikowane"**; it never changes the score, the type or the
+  verification. Residents never see it.
+- **Voice notes (accessibility).** For people who cannot type easily: "🎙 Nagraj głosem" in the report form records up to 60 s
+  (MediaRecorder; hidden when the browser cannot record), the API passes the audio to the Worker (Whisper), and the transcript
+  fills the note (max 200 characters) and preselects the AI-suggested category, which the resident can change.
+- **Telegram bot** (ported from SafeWalk Kraków). "Powiadomienia w Telegramie" on the resident home links the app to the
+  resident's own chat (one-time link, valid 15 min, stored hashed). The bot then sends: planner alerts covering the resident's
+  last known position or "my area", "report received", and "verified" / "resolved" for their reports. `/stop` (or the app)
+  unlinks. Residents can also report directly in the bot by voice or text: the bot transcribes, suggests a category, asks for the
+  location (Telegram's location button) and files an unverified report. Optional staff chat: a digest of every new report.
+- **"Wyjaśnij prostym językiem"** in the score dialog: the Worker turns the numbers on screen into ≤ 4 plain sentences
+  (hidden with `window.KRK_CONFIG.ai === false`; "AI chwilowo niedostępne" on any error, the table stays).
+
+**Guardrails and privacy**
+
+- AI output is validated twice (Worker and API): type by name only, severity 1–3, summary ≤ 120 characters, duplicates only among
+  the reports sent; a missing personal-data flag counts as "yes". The explain prompt uses only the given facts, says "brak danych"
+  for gaps, never calls a place accessible or safe when data is missing, keeps resident reports apart, and cites the source.
+- Telegram messages never contain the device id, report ids or a resident's note. The staff digest shows the category, the AI
+  summary only when the model flagged neither personal data nor abuse, and the location rounded to ~100 m. Plain text only.
+- The bot token and the AI key live only in environment variables; URLs (which contain the token) and exception messages are
+  never logged, only error classes (blocked, chat_not_found, rate_limited, http_5xx, timeout, network).
+- Audio is never stored: it is held in memory for the transcription and dropped; only the transcript is kept, as the note.
+- Bot-filed reports use the device id `tg-` + the first 16 hex characters of sha256(chat id).
+- Links, codes and the outbox are in `telegram-store.json` next to the safety store. The outbox retries after 5, 10, 15 and 30 s,
+  then gives up; a chat that blocked the bot is marked "not receiving".
+
+**Deploy the Worker** (manual, see `workers/ai/README.md` for costs):
+
+```sh
+cd workers/ai && npm install && npm run check && npm test
+npx wrangler login
+npx wrangler kv namespace create CACHE      # optional 24 h cache: put the id in wrangler.toml, uncomment [[kv_namespaces]]
+npx wrangler secret put AI_KEY              # e.g. openssl rand -hex 32
+npx wrangler deploy                         # route opendata.al.mt/ai/* (zone al.mt); "/ai/" never matches "/api/"
+```
+
+**Create the Telegram bot**
+
+1. In Telegram, talk to **@BotFather** → `/newbot` → pick a name and a username ending in `bot`; copy the token.
+2. Optional staff channel or group: create it, add the bot as an **administrator** (permission to post), post one message, then
+   read the chat id (`-100…`) from `https://api.telegram.org/bot<token>/getUpdates` in a private browser tab, or use `@channelname`.
+3. Only one process may poll a token. If SafeWalk's stack polls the same token, set `TELEGRAM_POLLING=false` on one of them
+   (sending still works there), or create a separate bot for Kompas Krakowa.
+
+**Environment (Dockhand stack variables; mapped in `docker-compose.dockhand.yml`)**
+
+| Variable | Config key | Meaning |
+|---|---|---|
+| `TELEGRAM_BOT_TOKEN` (secret) | `Telegram__BotToken` | bot token; empty = Telegram off |
+| `TELEGRAM_BOT_USERNAME` | `Telegram__BotUsername` | bot username without `@`, for the `t.me/<bot>?start=<code>` link; empty = linking off |
+| `TELEGRAM_STAFF_CHAT_ID` | `Telegram__StaffChatId` | optional staff chat for the new-report digest |
+| `TELEGRAM_POLLING` | `Telegram__Polling` | `true` (default) runs the bot's long polling; `false` = send only |
+| — | `Telegram__PublicBaseUrl` | link in messages; set from `PUBLIC_HOST` |
+| `AI_BASE_URL` | `Ai__BaseUrl` | `https://opendata.al.mt/ai` or the workers.dev URL; empty = AI off |
+| `AI_KEY` (secret) | `Ai__Key` | same value as the Worker's `AI_KEY` secret |
+
+**AI use disclosure.** Category, severity and summary suggestions, voice transcripts and plain-language explanations are
+generated by open models (Llama 3.1 8B, Whisper) on Cloudflare Workers AI. They are labelled as AI and unverified, may be wrong,
+and never decide anything: a planner verifies reports, and the scores come only from mapped data and the published method.
+
 ## Consuming the data
 
 The API is the single entry point. Pick whichever fits your app:

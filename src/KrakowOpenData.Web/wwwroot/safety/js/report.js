@@ -11,6 +11,7 @@ import { outboxAdd } from './chrome.js';
 import { searchBox } from './search.js';
 import { addressLine } from './geo.js';
 import { cellOf, cellBounds, LAYERS, layerOfApi } from './model.js';
+import { voiceStep1, voiceStep2 } from './voice.js';
 
 const FALLBACK_TYPES = [
   { type: 'LightOut', layer: 'Safety' }, { type: 'UnsafeAtNight', layer: 'Safety' }, { type: 'PathHazard', layer: 'Safety' },
@@ -92,6 +93,7 @@ export function renderReportView(ctx, body) {
 
     if (rs.step === 1) {
       host.append(h('p', null, t(`report.intro.${ctx.mode()}`)),
+        ...voiceStep1(rs, types, paint), // "Record by voice" (voice.js): fills the note, suggests the type
         h('div', { class: 'type-grid', role: 'group', 'aria-label': t('report.what') },
           types.map((ty) => h('button', { class: 'type-card', type: 'button', 'aria-pressed': String(rs.type === ty.type), onclick: () => { rs.type = ty.type; paint(); } },
             h('span', { class: `ico ${ty.layer.toLowerCase()}` }, icon(TYPE_ICON[ty.type] || 'flag')),
@@ -128,6 +130,7 @@ export function renderReportView(ctx, body) {
           ctx.selected ? h('button', { class: 'btn sm', type: 'button', onclick: () => moveTo([ctx.selected.lat, ctx.selected.lon]) }, t('report.useSelected')) : null,
           state.me ? h('button', { class: 'btn sm', type: 'button', onclick: () => moveTo([state.me.lat, state.me.lon]) }, t('report.useMine')) : null)),
       h('label', { class: 'field' }, t('report.note'), noteInput, count),
+      ...voiceStep2(rs, noteInput, count),
       h('p', { class: 'tiny muted' }, icon('shield', 'sm'), ' ', t('report.privacy')),
       rs.error ? h('p', { class: 'err', role: 'alert' }, rs.error) : null,
       isOffline() ? h('div', { class: 'banner small' }, icon('offline', 'sm'), h('span', null, t('report.offlineNote'))) : null,

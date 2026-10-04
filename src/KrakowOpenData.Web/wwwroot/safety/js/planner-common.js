@@ -9,6 +9,7 @@ import { gauge } from './charts.js';
 import { addressLine } from './geo.js';
 import { bandOf, kindOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, LAYERS, modeOfEvent } from './model.js';
 import { explainable, openFactorExplainer, openKpiExplainer, openScoreExplainer, bandText } from './explain.js';
+import { aiSuggestion } from './planner-ai.js';
 
 // ── Shared planner state and a tiny event bus ────────────────────────────────
 export const P = {
@@ -192,6 +193,7 @@ export function reportItem(r, onChange) {
         h('b', null, t(`rtype.${r.type}`)), ' ', demo ? h('span', { class: 'tag-demo' }, 'DEMO') : null,
         h('div', { class: 'small muted' }, `${t('report.supporters', { n: r.supporters })} · ${timeAgo(r.lastActivityAt, t, getLang())} · ${r.status === 'Resolved' ? t('rep.resolved') : r.verifiedByPlanner ? t('report.verified') : t('rep.unverified')}`),
         r.note && !demo ? h('p', { class: 'small', style: { marginTop: '.25rem' } }, r.note) : null,
+        aiSuggestion(r), // "Sugestia AI · niezweryfikowane" (planner-ai.js)
         r.resolutionNote ? h('p', { class: 'small muted' }, `${t('rep.resolution')}: ${r.resolutionNote}`) : null),
       r.status === 'Open' ? h('div', { class: 'row wrap' },
         r.verifiedByPlanner ? null : h('button', { class: 'btn sm', type: 'button', onclick: async () => { if (!requireOnline()) return; try { await verifyReport(r.id); toast(t('rep.verifiedToast')); dataChanged(); onChange?.(); } catch (e) { toast(errorText(e, t), { error: true }); } } }, icon('check', 'sm'), t('rep.verify')),
