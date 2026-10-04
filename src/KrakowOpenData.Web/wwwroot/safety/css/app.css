@@ -305,7 +305,8 @@ dialog .dlg-foot { display: flex; gap: .5rem; justify-content: flex-end; padding
 
 /* ── Resident layout ───────────────────────────────────────── */
 .res-main { flex: 1 1 auto; min-height: 0; position: relative; display: flex; }
-.res-bar { flex: none; display: flex; align-items: center; gap: .6rem; padding: .45rem .75rem; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 1000; overflow-x: auto; }
+/* Wraps instead of scrolling sideways: between phone and laptop widths the last button ("How scores work") sat half off-screen. */
+.res-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem; padding: .45rem .75rem; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 1000; }
 .res-bar .seg { flex: none; }
 .cond-strip { display: flex; gap: .4rem; overflow-x: auto; padding: .45rem .75rem; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 999; scrollbar-width: none; }
 .cond-strip::-webkit-scrollbar { display: none; }

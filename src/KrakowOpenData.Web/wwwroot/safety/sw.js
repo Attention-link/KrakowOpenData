@@ -1,7 +1,7 @@
 // Service worker: keeps the app itself (and map tiles you have looked at) available offline.
 // API answers are NOT cached here; the app saves them itself in IndexedDB so it controls freshness and shows "saved" labels.
 
-const VERSION = 'v19';
+const VERSION = 'v21';
 const SHELL = `krk-safety-shell-${VERSION}`;
 const TILES = 'krk-safety-tiles';
 const LIB = 'krk-safety-lib';
@@ -74,8 +74,11 @@ async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     // no-cache: always revalidate with the server (a cheap 304 when unchanged), never trust the browser's 4 h copy.
-    // A navigation request cannot be re-created with options, so it is fetched by URL.
-    const fresh = req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : new Request(req, { cache: 'no-cache' });
+    // A navigation request cannot be re-created with options, so it is fetched by URL. It must keep redirect: 'manual':
+    // /safety/ answers 302, and a followed (redirected) response for a navigation is a network error (blank page).
+    const fresh = req.mode === 'navigate'
+      ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin', redirect: 'manual' })
+      : new Request(req, { cache: 'no-cache' });
     const res = await fetch(fresh);
     if (res.ok) cache.put(req, res.clone());
     return res;

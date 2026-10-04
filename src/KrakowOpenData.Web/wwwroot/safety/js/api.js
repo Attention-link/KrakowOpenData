@@ -18,11 +18,17 @@ export class ApiError extends Error {
 
 export class NetworkError extends Error {}
 
-/** Low-level request. Throws NetworkError (no connection / timeout) or ApiError (HTTP error). */
-export async function request(path, { method = 'GET', body, planner = false, timeout = 20000 } = {}) {
+/**
+ * Low-level request. Throws NetworkError (no connection / timeout) or ApiError (HTTP error).
+ * `signal` lets the caller drop a request it no longer needs (e.g. a search the user has typed past); that throws an
+ * AbortError and does not mark the API as down.
+ */
+export async function request(path, { method = 'GET', body, planner = false, timeout = 20000, signal } = {}) {
   const ctrl = new AbortController();
   // When the API already failed, probe quickly instead of making the user wait for a long timeout.
   const timer = setTimeout(() => ctrl.abort(), state.apiOk ? timeout : Math.min(timeout, 3000));
+  const cancel = () => ctrl.abort();
+  if (signal?.aborted) cancel(); else signal?.addEventListener('abort', cancel, { once: true });
   const headers = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (planner && state.plannerKey) headers['X-Planner-Key'] = state.plannerKey;
@@ -32,10 +38,13 @@ export async function request(path, { method = 'GET', body, planner = false, tim
     res = await fetch(API_BASE + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), signal: ctrl.signal });
   } catch (e) {
     clearTimeout(timer);
+    signal?.removeEventListener('abort', cancel);
+    if (signal?.aborted) throw new DOMException('Superseded', 'AbortError');
     markApi(false);
     throw new NetworkError(e?.name === 'AbortError' ? 'timeout' : 'network');
   }
   clearTimeout(timer);
+  signal?.removeEventListener('abort', cancel);
 
   if (res.status >= 500 && res.status !== 503) markApi(false);
   else markApi(true);
@@ -104,7 +113,7 @@ export const getReports = (opts = {}, planner = false) => request(`/api/safety/r
 export const postReport = (body) => request('/api/safety/reports', { method: 'POST', body });
 export const confirmReport = (id) => request(`/api/safety/reports/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: { deviceId: state.deviceId } });
 export const getAlerts = (lat, lon) => request(`/api/safety/alerts?${q({ lat, lon, deviceId: state.deviceId })}`);
-export const searchStops = (query) => request(`/api/mobility/stops?${q({ q: query, pageSize: 6 })}`);
+export const searchStops = (query, signal) => request(`/api/mobility/stops?${q({ q: query, pageSize: 6 })}`, { signal });
 export const ping = () => fetch(`${API_BASE}/health`, { cache: 'no-store' }).then((r) => r.ok);
 
 // ── Planner endpoints (X-Planner-Key) ────────────────────────────────────────
@@ -140,7 +149,7 @@ export function errorText(e, t) {
 }
 
 // ── Address search (OpenStreetMap via Photon, proxied by the API) ─────────────
-export const geoSearch = (text, near) => request(`/api/geo/search?${q({ q: text, lat: near?.[0], lon: near?.[1], limit: 6 })}`, { timeout: 8000 });
+export const geoSearch = (text, near, signal) => request(`/api/geo/search?${q({ q: text, lat: near?.[0], lon: near?.[1], limit: 6 })}`, { timeout: 8000, signal });
 export const geoReverse = (lat, lon) => request(`/api/geo/reverse?${q({ lat: lat.toFixed(5), lon: lon.toFixed(5) })}`, { timeout: 8000 });
 
 // ── Routes and method (documentation of the scores) ──────────────────────────

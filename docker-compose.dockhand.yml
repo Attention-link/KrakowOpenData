@@ -42,6 +42,10 @@ services:
       - KrakowData__CacheDirectory=/data/cache
       # DEMO ONLY shared key (see SafetyOptions.PlannerKey). Must match the web app's Safety__PlannerDemoKey below.
       - Safety__PlannerKey=${PLANNER_KEY:-demo-planner}
+      # Flood guard on writes under /api/safety (reports, confirmations, links, voice), per client IP per minute; 0 = off.
+      # It is per IP and at the venue the jury and hundreds of participants share ONE public (NAT) address, so keep it high:
+      # the per-device limits (5 reports an hour, voice-note quotas) are the real spam guard. Planner calls with the key are not counted.
+      - Safety__WriteRequestsPerMinute=${WRITE_REQUESTS_PER_MINUTE:-120}
       # Telegram notification bot (optional; without a token nothing is sent or polled). Secret: set TELEGRAM_BOT_TOKEN in Dockhand.
       # Only ONE poller per token may run anywhere: if SafeWalk's stack still polls the same token, set TELEGRAM_POLLING=false
       # here (sending still works) or give this stack its own bot. Links, codes and the outbox live on the volume (telegram-store.json).
