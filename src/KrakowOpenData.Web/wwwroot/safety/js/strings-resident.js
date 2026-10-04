@@ -175,7 +175,7 @@ export const residentStrings = {
   'report.saveOffline': ['Save to send later', 'Zapisz do wysłania później', 'Зберегти для надсилання пізніше'],
   'report.offlineNote': ['You are offline. The report is kept on this device and sent automatically when you are back online.', 'Jesteś offline. Zgłoszenie zostanie zapisane na urządzeniu i wysłane automatycznie po powrocie połączenia.', 'Ви офлайн. Звіт збережеться на пристрої та буде надіслано автоматично після підключення.'],
   'report.thanks': ['Thank you!', 'Dziękujemy!', 'Дякуємо!'],
-  'report.merged': ['{n} people have now reported this here, so it counts in full.', 'Już {n} osób zgłosiło to tutaj, więc zgłoszenie liczy się w pełni.', 'Уже {n} людей повідомили про це тут, тож звіт враховується повністю.'],
+  'report.merged': ['{n} people have now reported this here, so it counts in full.', 'Liczba osób, które zgłosiły to tutaj: {n}, więc zgłoszenie liczy się w pełni.', 'Уже {n} людей повідомили про це тут, тож звіт враховується повністю.'],
   'report.single': ['Your report was added. When another person confirms it, it counts in full.', 'Zgłoszenie dodane. Gdy potwierdzi je inna osoba, będzie liczyć się w pełni.', 'Звіт додано. Коли його підтвердить інша людина, він враховуватиметься повністю.'],
   'report.queued': ['Saved on your device', 'Zapisano na urządzeniu', 'Збережено на пристрої'],
   'report.queuedHelp': ['It will be sent as soon as you are online.', 'Zostanie wysłane, gdy tylko będziesz online.', 'Буде надіслано, щойно ви будете онлайн.'],

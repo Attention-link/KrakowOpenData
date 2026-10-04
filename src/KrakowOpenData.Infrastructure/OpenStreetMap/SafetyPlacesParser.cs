@@ -29,6 +29,16 @@ public static class SafetyPlacesParser
         "(way[\"waterway\"~\"^(river|stream|canal)$\"](area.a);" +
         "way[\"highway\"~\"^(motorway|trunk|primary)$\"](area.a););out geom tags;";
 
+    /// <summary>
+    /// <see cref="Parse"/>, but an answer with no places at all is an error: some Overpass mirrors answer 200 with an empty list when they are
+    /// overloaded, and saving that would replace good data (every park, hospital, river and road) with nothing.
+    /// </summary>
+    public static IReadOnlyList<SafetyPlace> ParseNonEmpty(string json)
+    {
+        var places = Parse(json);
+        return places.Count > 0 ? places : throw new InvalidOperationException("Overpass returned no places; keeping the previous data.");
+    }
+
     public static IReadOnlyList<SafetyPlace> Parse(string json)
     {
         using var doc = JsonDocument.Parse(json);

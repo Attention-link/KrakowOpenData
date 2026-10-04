@@ -328,6 +328,10 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | PLN-73 | M | Validation | Set every factor of a layer to 0 and save; type a negative number | The save is refused with a clear message; negative numbers are not accepted | |
 | PLN-74 | M | Persistence | Save weights, restart the API | The custom weights are still in use | |
 | PLN-75 | M | Weights page on a phone | Open at 375 px | Sliders and number boxes fit, reasons wrap, no sideways scrolling, six bottom-navigation items fit | |
+| PLN-76 | H | Route thresholds shown | Planner, **Weights**, scroll to **Fastest-route thresholds** | Four measures (night safety, heat relief, flood, air), the current one open; each has two number boxes (average, weakest stretch), the defaults (65 and 45) and a written reason for the default | |
+| PLN-77 | H | Change and reset thresholds | Set Night safety to 80 and 60, **Save thresholds**; check a night walk as a resident; then **Reset thresholds to defaults** | A "custom" chip appears; the resident route now treats a fastest route scoring under 80 on average as poor (widens the search, response has thresholdAverage 80); after reset it is 65 / 45 again | |
+| PLN-78 | M | Threshold validation | Type 10, 99, or a weakest-stretch value above the average | A clear message under the fields; **Save thresholds** stays disabled; the API answers 400 for the same values; nothing is saved | |
+| PLN-79 | M | Why only the fastest route | As a resident, pick a short walk on a well-served street | The result says the fastest path scores X on average and Y at its weakest stretch, above the city's thresholds for the measure (in English, Polish and Ukrainian) | |
 
 ---
 

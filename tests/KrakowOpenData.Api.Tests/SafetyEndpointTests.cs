@@ -252,6 +252,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     [InlineData("/api/safety/planner/agencies")]
     [InlineData("/api/safety/planner/dispatches")]
     [InlineData("/api/safety/planner/weights")]
+    [InlineData("/api/safety/planner/route-thresholds")]
     public async Task Planner_endpoints_need_the_key(string url)
     {
         Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync(url)).StatusCode);
@@ -283,6 +284,30 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
 
         var reset = await Send<WeightsDto>(Planner(HttpMethod.Delete, "/api/safety/planner/weights"));
+        Assert.False(reset!.Customized);
+    }
+
+    [Fact]
+    public async Task A_planner_can_change_and_reset_route_thresholds()
+    {
+        const string url = "/api/safety/planner/route-thresholds";
+        var unauthorised = await _client.PutAsJsonAsync(url, new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { ["Heat"] = new(70, 50) }));
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorised.StatusCode);
+
+        var initial = await Send<RouteThresholdsDto>(Planner(HttpMethod.Get, url));
+        Assert.False(initial!.Customized);
+        Assert.All(initial.Layers, l => Assert.False(string.IsNullOrWhiteSpace(l.Why)));
+
+        var set = await Send<RouteThresholdsDto>(Planner(HttpMethod.Put, url, new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { ["Heat"] = new(70, 50) })));
+        Assert.True(set!.Customized);
+        Assert.Equal(70, set.Layers.Single(l => l.Layer == "Heat").Average);
+
+        var tooLow = await _client.SendAsync(Planner(HttpMethod.Put, url, new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { ["Heat"] = new(10, 5) })));
+        Assert.Equal(HttpStatusCode.BadRequest, tooLow.StatusCode);
+        var inverted = await _client.SendAsync(Planner(HttpMethod.Put, url, new SetRouteThresholdsRequest(new Dictionary<string, RouteThresholdValue> { ["Heat"] = new(50, 60) })));
+        Assert.Equal(HttpStatusCode.BadRequest, inverted.StatusCode);
+
+        var reset = await Send<RouteThresholdsDto>(Planner(HttpMethod.Delete, url));
         Assert.False(reset!.Customized);
     }
 

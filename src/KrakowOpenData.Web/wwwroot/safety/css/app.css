@@ -31,6 +31,9 @@
   --ok-soft: #e5f4e5;
   --warn-soft: #fdf3dc;
   --warn-ink: #7a4b00;
+  --line-ui: var(--line);   /* borders of form controls and buttons (3:1 in dark) */
+  --track: var(--surface-3);   /* empty part of meters, bars and rings */
+  --on-danger: #ffffff;
 
   /* Score bands: a blue (good) to red (critical) diverging scale; every band also carries a label, never colour alone. */
   --band-good: #2468c8;
@@ -51,42 +54,8 @@
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #131312;
-    --surface: #1c1c1a;
-    --surface-2: #252523;
-    --surface-3: #31312e;
-    --ink: #f4f3ef;
-    --ink-2: #c7c6bd;
-    --ink-3: #a09f96;
-    --line: #3a3a36;
-    --accent: #22d3ee;
-    --accent-ink: #070a0f;
-    --accent-soft: #0f2a33;
-    --focus: #67e8f9;
-    --focus-halo: #131312;
-    --field-line: #77766e;
-    --safety: #a89cf0;
-    --safety-soft: #2a2548;
-    --heat: #f0a06f;
-    --heat-soft: #3a2518;
-    --flood: #8bbcf7;
-    --flood-soft: #12273f;
-    --air: #62d6bf;
-    --air-soft: #0e2e28;
-    --danger: #f2877e;
-    --danger-soft: #3a1f1c;
-    --ok: #7fd37f;
-    --ok-soft: #1c3320;
-    --warn-soft: #3a2f12;
-    --warn-ink: #f2cf84;
-    --shadow-1: 0 1px 2px rgb(0 0 0 / .5);
-    --shadow-2: 0 6px 24px rgb(0 0 0 / .6);
-  }
-}
-
+/* Dark is the default theme: with no saved choice the app is dark whatever the OS says. Light only when data-theme="light". */
+:root:not([data-theme="light"]),
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #131312;
@@ -119,6 +88,9 @@
   --warn-ink: #f2cf84;
   --shadow-1: 0 1px 2px rgb(0 0 0 / .5);
   --shadow-2: 0 6px 24px rgb(0 0 0 / .6);
+  --line-ui: #8a8982;
+  --track: #0c0c0b;
+  --on-danger: #17171a;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -167,7 +139,7 @@ button { font: inherit; color: inherit; }
   min-height: var(--header-h); padding: .35rem max(.75rem, env(safe-area-inset-right)) .35rem max(.75rem, env(safe-area-inset-left));
   background: #070a0f; border-bottom: 2px solid #22d3ee; z-index: 1100;
   /* Brand: the top bar is always ink, with light text, in light and dark mode. */
-  --ink: #e9eef6; --ink-2: #c3cddb; --ink-3: #94a3b8; --surface: #0e1520; --surface-2: #162030; --surface-3: #1d2a3d; --line: #263449; --accent: #22d3ee; --accent-ink: #070a0f; --accent-soft: #0f2a33; --focus: #67e8f9; --focus-halo: #070a0f; color-scheme: dark;
+  --ink: #e9eef6; --ink-2: #c3cddb; --ink-3: #94a3b8; --surface: #0e1520; --surface-2: #162030; --surface-3: #1d2a3d; --line: #263449; --line-ui: #5b6b82; --track: #1d2a3d; --accent: #22d3ee; --accent-ink: #070a0f; --accent-soft: #0f2a33; --focus: #67e8f9; --focus-halo: #070a0f; color-scheme: dark;
 }
 .brand { display: flex; align-items: center; gap: .55rem; text-decoration: none; color: var(--ink); min-width: 0; }
 .brand img { width: 34px; height: 34px; flex: none; }
@@ -180,7 +152,7 @@ button { font: inherit; color: inherit; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: .45rem;
   min-height: var(--tap); padding: .45rem 1rem; border-radius: 999px; cursor: pointer;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap;
+  border: 1px solid var(--line-ui); background: var(--surface); color: var(--ink); font-weight: 600; text-decoration: none; white-space: nowrap;
 }
 .btn:hover { background: var(--surface-2); }
 .btn:active { transform: translateY(1px); }
@@ -218,7 +190,7 @@ button { font: inherit; color: inherit; }
 .field { display: flex; flex-direction: column; gap: .3rem; font-weight: 600; font-size: .9rem; }
 .field .hint { font-weight: 400; color: var(--ink-3); font-size: .8rem; }
 input[type="text"], input[type="password"], input[type="search"], input[type="number"], select, textarea {
-  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--field-line); border-radius: var(--radius-sm);
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-ui); border-radius: var(--radius-sm);
   min-height: var(--tap); padding: .5rem .75rem; width: 100%;
 }
 textarea { min-height: 90px; resize: vertical; }
@@ -243,13 +215,13 @@ input:disabled, select:disabled, textarea:disabled { opacity: .6; }
 
 .ring { --v: 0; --c: var(--band-weak); position: relative; width: 84px; height: 84px; flex: none; display: grid; place-items: center; }
 .ring svg { position: absolute; inset: 0; transform: rotate(-90deg); }
-.ring .track { stroke: var(--surface-3); }
+.ring .track { stroke: var(--track); }
 .ring .val { stroke: var(--c); transition: stroke-dashoffset .5s; }
 .ring b { font-size: 1.5rem; line-height: 1; }
 .ring small { display: block; font-size: .65rem; color: var(--ink-3); font-weight: 600; text-align: center; }
 .ring .center { text-align: center; position: relative; }
 
-.meter { height: 8px; background: var(--surface-3); border-radius: 99px; overflow: hidden; }
+.meter { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; }
 .meter > span { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
 .meter[data-band="Good"] > span { background: var(--band-good); }
 .meter[data-band="Fair"] > span { background: var(--band-fair); }
@@ -273,7 +245,7 @@ input:disabled, select:disabled, textarea:disabled { opacity: .6; }
 /* ── Toasts ────────────────────────────────────────────────── */
 .toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(1rem + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: .5rem; z-index: 4000; width: min(92vw, 420px); pointer-events: none; }
 .toast { pointer-events: auto; display: flex; gap: .6rem; align-items: center; background: var(--ink); color: var(--bg); padding: .7rem .9rem; border-radius: var(--radius-sm); box-shadow: var(--shadow-2); font-size: .92rem; }
-.toast.err { background: var(--danger); color: #fff; }
+.toast.err { background: var(--danger); color: var(--on-danger); }
 .toast .grow { min-width: 0; }
 .toast button { all: unset; cursor: pointer; font-weight: 700; text-decoration: underline; }
 
@@ -308,7 +280,7 @@ dialog .dlg-foot { display: flex; gap: .5rem; justify-content: flex-end; padding
 /* Wraps instead of scrolling sideways: between phone and laptop widths the last button ("How scores work") sat half off-screen. */
 .res-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem; padding: .45rem .75rem; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 1000; }
 .res-bar .seg { flex: none; }
-.cond-strip { display: flex; gap: .4rem; overflow-x: auto; padding: .45rem .75rem; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 999; scrollbar-width: none; }
+.cond-strip { flex: none; gap: .4rem; overflow-x: auto; padding: .45rem .75rem; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 999; scrollbar-width: none; }
 .cond-strip::-webkit-scrollbar { display: none; }
 .alert-stack { position: absolute; left: .6rem; right: .6rem; top: .6rem; z-index: 900; display: flex; flex-direction: column; gap: .4rem; pointer-events: none; }
 .alert-stack > * { pointer-events: auto; box-shadow: var(--shadow-2); }
@@ -363,7 +335,7 @@ dialog .dlg-foot { display: flex; gap: .5rem; justify-content: flex-end; padding
 .tabs-inline button { all: unset; cursor: pointer; padding: .6rem .9rem; font-weight: 600; color: var(--ink-3); border-bottom: 3px solid transparent; white-space: nowrap; }
 .tabs-inline button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
 .type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; }
-.type-card { display: flex; flex-direction: column; gap: .35rem; align-items: flex-start; text-align: left; padding: .8rem; border-radius: var(--radius-sm); border: 2px solid var(--line); background: var(--surface); cursor: pointer; min-height: 92px; }
+.type-card { display: flex; flex-direction: column; gap: .35rem; align-items: flex-start; text-align: left; padding: .8rem; border-radius: var(--radius-sm); border: 2px solid var(--line-ui); background: var(--surface); cursor: pointer; min-height: 92px; }
 .type-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .type-card .ico { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; }
 .type-card .ico.safety { background: var(--safety-soft); color: var(--safety); }
@@ -397,7 +369,7 @@ button.kpi:hover { border-color: var(--accent); }
 .chart-title { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
 .hbar { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 3.2rem; gap: .5rem; align-items: center; padding: .3rem 0; font-size: .88rem; width: 100%; background: none; border: 0; text-align: left; cursor: pointer; border-radius: 6px; }
 .hbar:hover, .hbar[aria-pressed="true"] { background: var(--surface-2); }
-.hbar .track { height: 12px; background: var(--surface-3); border-radius: 0 4px 4px 0; position: relative; }
+.hbar .track { height: 12px; background: var(--track); border-radius: 0 4px 4px 0; position: relative; }
 .hbar .fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 0 4px 4px 0; }
 .hbar.heat .fill { background: var(--heat); }
 .hbar.safety .fill { background: var(--safety); }
@@ -496,7 +468,7 @@ table.t th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em
 .sb-item:hover, .sb-item[aria-selected="true"] { background: var(--accent-soft); }
 .sb-title { font-weight: 600; }
 .sb-filters { gap: .35rem; align-items: center; }
-.chip-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: .2rem .7rem; font-size: .8rem; font-weight: 600; cursor: pointer; min-height: 30px; }
+.chip-btn { border: 1px solid var(--line-ui); background: var(--surface); color: var(--ink-2); border-radius: 999px; padding: .2rem .7rem; font-size: .8rem; font-weight: 600; cursor: pointer; min-height: 30px; }
 .chip-btn.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 .field.filter { min-width: 9rem; }
 .field label { font-weight: 600; }
@@ -519,7 +491,7 @@ dialog { max-width: min(94vw, 640px); }
 .band-list li { align-items: flex-start; }
 .factor-doc { border-top: 1px solid var(--line); padding: .55rem 0; }
 .factor-doc p { margin: .2rem 0; }
-.wbar { display: inline-block; width: 70px; height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; vertical-align: middle; }
+.wbar { display: inline-block; width: 70px; height: 8px; border-radius: 4px; background: var(--track); overflow: hidden; vertical-align: middle; }
 .wbar > span { display: block; height: 100%; background: var(--accent); }
 .linklike { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; text-align: left; }
 .hbar-row { display: flex; align-items: center; gap: .3rem; }
@@ -548,7 +520,7 @@ button.kpi .v { text-decoration: underline dotted var(--ink-3); text-underline-o
 .end-marker .tag { margin-top: 3px; background: #fff; color: #17171a; border-radius: 6px; padding: 1px 6px; font: 700 .7rem/1.3 var(--font); box-shadow: 0 1px 4px rgb(0 0 0 / .35); white-space: nowrap; }
 
 /* ── Route comparison ── */
-.route-card { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius-sm); padding: .6rem .75rem; cursor: pointer; }
+.route-card { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--surface); border: 2px solid var(--line-ui); border-radius: var(--radius-sm); padding: .6rem .75rem; cursor: pointer; }
 .route-card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .route-card .swatch { display: inline-block; width: 26px; height: 6px; border-radius: 3px; vertical-align: middle; margin-right: .4rem; }
 .route-card .swatch.dashed { background: repeating-linear-gradient(90deg, #5b6068 0 6px, transparent 6px 10px); }
@@ -623,6 +595,77 @@ html, body { max-width: 100%; overflow-x: hidden; }
 /* ── City-staff marking: the planner dashboard is not for everyone ── */
 .topbar.staff { border-bottom-color: #f59e0b; background-color: #070a0f; background-image: linear-gradient(90deg, #070a0f 0%, #1c1405 100%); }
 .chip.staff { background: #fbbf24; color: #1f1300; font-weight: 700; }
+
+/* ── Layer tabs identity (night = indigo, heat = orange, flood = blue, air = teal). Colours come from the per-theme tokens
+   --safety/--heat/--flood/--air (+ -soft); all pairs checked: text 4.5:1+, borders/icons 3:1+ in light and dark. ── */
+.seg button[data-mode] { --lc: var(--accent); --lc-soft: var(--accent-soft); position: relative; border: 2px solid transparent; padding: 0 .8rem; }
+.seg button[data-mode="safety"] { --lc: var(--safety); --lc-soft: var(--safety-soft); }
+.seg button[data-mode="heat"] { --lc: var(--heat); --lc-soft: var(--heat-soft); }
+.seg button[data-mode="flood"] { --lc: var(--flood); --lc-soft: var(--flood-soft); }
+.seg button[data-mode="air"] { --lc: var(--air); --lc-soft: var(--air-soft); }
+.seg button[data-mode] svg { color: var(--lc); flex: none; }
+.seg button[data-mode][aria-pressed="true"] { background: var(--lc-soft); color: var(--ink); border-color: var(--lc); box-shadow: none; }
+.seg button[data-mode][aria-pressed="true"]::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 2px; height: 3px; border-radius: 3px; background: var(--lc); }
+.seg button[data-mode]:not([aria-pressed="true"]):hover { background: var(--lc-soft); }
+@media (max-width: 519.98px) {
+  .seg:has(button[data-mode]) { max-width: 100%; }
+  .seg button[data-mode] { padding: 0 .55rem; min-width: 44px; }
+  .seg button[data-mode]:not([aria-pressed="true"]) .seg-lbl { display: none; }
+  .seg button[data-mode][aria-pressed="true"] { padding: 0 .7rem; }
+}
+
+/* ── Path call-to-action + band legend colour-coding (cta) ──
+   Walk/path buttons take the colour of the active layer (night indigo, heat orange, flood blue, air teal) so they read as a path
+   action, distinct from the teal generic primary. Filled: layer colour + white text (light) / dark text (dark), all >= 4.5:1.
+   Soft: outlined, layer-coloured text on the surface (>= 4.5:1). Focus ring is the layer colour (>= 3:1 on the surfaces). */
+.btn.cta, .btn.cta-soft {
+  --cta: var(--safety); --cta-ink: #ffffff; --cta-soft: var(--safety-soft); --cta-hover: color-mix(in srgb, var(--cta) 82%, #000);
+}
+.btn.cta[data-layer="heat"], .btn.cta-soft[data-layer="heat"] { --cta: var(--heat); --cta-soft: var(--heat-soft); }
+.btn.cta[data-layer="flood"], .btn.cta-soft[data-layer="flood"] { --cta: var(--flood); --cta-soft: var(--flood-soft); }
+.btn.cta[data-layer="air"], .btn.cta-soft[data-layer="air"] { --cta: var(--air); --cta-soft: var(--air-soft); }
+:root:not([data-theme="light"]) .btn.cta, :root:not([data-theme="light"]) .btn.cta-soft,
+:root[data-theme="dark"] .btn.cta, :root[data-theme="dark"] .btn.cta-soft { --cta-ink: #070a0f; --cta-hover: color-mix(in srgb, var(--cta) 85%, #fff); }
+.btn.cta { background: var(--cta); color: var(--cta-ink); border-color: transparent; }
+.btn.cta:hover { background: var(--cta-hover); }
+.btn.cta-soft { background: var(--surface); color: var(--cta); border: 2px solid var(--cta); }
+.btn.cta-soft:hover { background: var(--cta-soft); }
+.btn.cta:focus-visible, .btn.cta-soft:focus-visible { outline: 3px solid var(--cta); outline-offset: 3px; }
+.btn.cta[disabled], .btn.cta-soft[disabled] { opacity: .55; }
+.btn.cta { width: 100%; }
+@media (min-width: 576px) { .btn.cta { width: auto; } }
+
+/* Band legend / "how to read the colours": each row has a left bar and a range chip in the band's own colour (chip ink is the AA-safe pair). */
+.legend-rows li[data-band], .band-list li[data-band] { border-left: 4px solid var(--band-c); padding-left: .4rem; }
+.legend-rows li[data-band="Good"], .band-list li[data-band="Good"] { --band-c: var(--band-good); }
+.legend-rows li[data-band="Fair"], .band-list li[data-band="Fair"] { --band-c: var(--band-fair); }
+.legend-rows li[data-band="Weak"], .band-list li[data-band="Weak"] { --band-c: var(--band-weak); }
+.legend-rows li[data-band="Critical"], .band-list li[data-band="Critical"] { --band-c: var(--band-critical); }
+.legend-rows li .band-chip { display: inline-block; text-align: center; padding: .05rem .3rem; border-radius: 999px; font-weight: 700; background: var(--band-c); }
+.legend-rows li[data-band="Good"] .band-chip { color: var(--band-good-ink); }
+.legend-rows li[data-band="Fair"] .band-chip { color: var(--band-fair-ink); }
+.legend-rows li[data-band="Weak"] .band-chip { color: var(--band-weak-ink); }
+.legend-rows li[data-band="Critical"] .band-chip { color: var(--band-critical-ink); }
+.legend-rows li[data-band] { grid-template-columns: 3.2rem minmax(0, 1fr); }
+.legend-rows li[data-band] > i { display: none; }
+.legend.compact .legend-rows li[data-band] { grid-template-columns: 3.2rem minmax(0, 1fr); }
+
+/* Legend rows: the whole row (range, name and description) wears its band colour, so text and colour never disconnect.
+   The ink tokens are the same pairs the .band chips use, so contrast holds in both themes. */
+.legend-rows li[data-band] { padding: .3rem .5rem; border-radius: .4rem; border-left-width: 0; }
+.legend-rows li[data-band] > i { display: none; }
+.legend-rows li[data-band="Good"] { background: var(--band-good); color: var(--band-good-ink); }
+.legend-rows li[data-band="Fair"] { background: var(--band-fair); color: var(--band-fair-ink); }
+.legend-rows li[data-band="Weak"] { background: var(--band-weak); color: var(--band-weak-ink); }
+.legend-rows li[data-band="Critical"] { background: var(--band-critical); color: var(--band-critical-ink); }
+.legend-rows li[data-band] .band-chip { background: transparent; color: inherit; font-weight: 700; }
+.legend-rows li[data-band], .legend.compact .legend-rows li[data-band] { grid-template-columns: 3.4rem minmax(0, 1fr); }
+
+/* === Route thresholds (planner Weights page): two number fields per safety measure === */
+.th-fields { gap: .75rem 1.25rem; align-items: flex-end; }
+.th-field { display: flex; flex-direction: column; gap: .2rem; }
+.th-field input[aria-invalid="true"] { border-color: var(--danger); }
+/* === end route thresholds === */
 
 /* ── Accessibility (WCAG 2.2 AA) ── */
 /* Buttons reset with all: unset lose the global focus ring: give it back. */

@@ -16,7 +16,8 @@ import { addressLine, reverseLabel, coords } from './geo.js';
 import { bandText, infoButton, openScoreExplainer } from './explain.js';
 import { accessRouteBlock } from './access.js';
 
-const SCORE_KEY = { safety: 'safety', heat: 'heat', flood: 'flood', air: 'air', both: 'combined' };
+const PATH_ACCENT = { safety: '#4a3aa7', heat: '#b8480f', flood: '#0b5cad', air: '#0f6b5c' };   // = the walk button colours (night indigo, heat orange, flood blue, air teal)
+const SCORE_KEY ={ safety: 'safety', heat: 'heat', flood: 'flood', air: 'air', both: 'combined' };
 const HELP_KEYS = { safety: ['openPlaces', 'aed'], heat: ['water', 'green', 'refuge', 'toilets'], flood: ['emergency'], air: ['green', 'refuge'], both: ['water', 'green', 'openPlaces'] };
 
 export function renderWalkView(ctx, body) {
@@ -27,6 +28,9 @@ export function renderWalkView(ctx, body) {
   const props = ctx.viewProps || {};
   if (props.to) { ws.to = props.to; ws.toLabel = props.toLabel || null; ctx.viewProps = null; }
   if (!ws.from && state.me) ws.from = [state.me.lat, state.me.lon];
+
+  // The chosen start and end stay when the layer changes; the routes are found again for the new layer.
+  if (ws.routes && ws.routesMode !== mode) ws.routes = null;
 
   const layer = ctx.walkLayer ||= L.layerGroup().addTo(ctx.map);
   ctx.walkCleanup = () => {
@@ -111,6 +115,8 @@ export function renderWalkView(ctx, body) {
         .bindTooltip(`${t(`route.${route.kind}`)} · ${t('route.min', { n: route.walkingMinutes })}`, { sticky: true }).addTo(layer);
     }
     if (sel) {
+      // Thin outer casing in the layer's CTA colour ties the route to the button; the band colours inside are unchanged.
+      L.polyline(sel.path, { color: PATH_ACCENT[mode] || PATH_ACCENT.safety, weight: 15, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(layer);
       L.polyline(sel.path, { color: '#ffffff', weight: 11, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(layer);
       for (const run of bandRuns(sel)) {
         L.polyline(run.pts, { color: BAND_FILL[run.band], weight: 7, opacity: 1, lineCap: 'round', lineJoin: 'round' })
@@ -134,11 +140,12 @@ export function renderWalkView(ctx, body) {
     try {
       if (isOffline()) throw new Error('offline');
       ws.routes = await getRoutes(ws.from, ws.to, eventForMode(mode));
+      ws.routesMode = mode;
       ws.selected = ws.routes.better ? 'better' : 'fastest';
     } catch (e) {
       if (token !== ws.token) return;
       const approx = approximate();
-      if (approx) { ws.routes = approx; ws.offline = true; ws.selected = 'fastest'; }
+      if (approx) { ws.routes = approx; ws.routesMode = mode; ws.offline = true; ws.selected = 'fastest'; }
       else ws.error = e.message === 'offline' ? t('err.offline') : errorText(e, t);
     }
     if (token !== ws.token) return;
@@ -185,9 +192,9 @@ export function renderWalkView(ctx, body) {
       box,
       value ? addressLine(value[0], value[1], { fallback: ws[`${which}Label`] }) : h('p', { class: 'small muted' }, t('walk.notSet')),
       h('div', { class: 'row wrap' },
-        h('button', { class: `btn sm ${picking ? 'primary' : ''}`, type: 'button', 'data-fk': `walk-${which}-pick`, onclick: () => { ws.pick = picking ? null : which; paint(); } }, icon('pin', 'sm'), picking ? t('walk.tapMap') : t('walk.pick')),
-        state.me ? h('button', { class: 'btn sm', type: 'button', 'data-fk': `walk-${which}-mine`, onclick: () => set(which, [state.me.lat, state.me.lon], null) }, t('walk.useMine')) : null,
-        ctx.selected ? h('button', { class: 'btn sm', type: 'button', 'data-fk': `walk-${which}-sel`, onclick: () => set(which, [ctx.selected.lat, ctx.selected.lon], ctx.selected.label || null) }, t('walk.useSelected')) : null));
+        h('button', { class: `btn sm ${picking ? 'cta' : 'cta-soft'}`, 'data-layer': mode, type: 'button', 'data-fk': `walk-${which}-pick`, onclick: () => { ws.pick = picking ? null : which; paint(); } }, icon('pin', 'sm'), picking ? t('walk.tapMap') : t('walk.pick')),
+        state.me ? h('button', { class: 'btn sm cta-soft', 'data-layer': mode, type: 'button', 'data-fk': `walk-${which}-mine`, onclick: () => set(which, [state.me.lat, state.me.lon], null) }, t('walk.useMine')) : null,
+        ctx.selected ? h('button', { class: 'btn sm cta-soft', 'data-layer': mode, type: 'button', 'data-fk': `walk-${which}-sel`, onclick: () => set(which, [ctx.selected.lat, ctx.selected.lon], ctx.selected.label || null) }, t('walk.useSelected')) : null));
   }
 
   function paint() {
@@ -200,7 +207,7 @@ export function renderWalkView(ctx, body) {
     clear(host);
     host.append(h('p', null, t(`walk.intro.${mode}`)), endCard('from'), endCard('to'));
     if (ws.from && ws.to) {
-      host.append(h('button', { class: 'btn sm', type: 'button', 'data-fk': 'walk-swap', onclick: () => {
+      host.append(h('button', { class: 'btn sm cta-soft', 'data-layer': mode, type: 'button', 'data-fk': 'walk-swap', onclick: () => {
         [ws.from, ws.to] = [ws.to, ws.from];
         [ws.fromLabel, ws.toLabel] = [ws.toLabel, ws.fromLabel];
         ws.routes = null; drawMap(false); compute(); paint();
@@ -269,6 +276,10 @@ export function renderWalkView(ctx, body) {
       r.source === 'street'
         ? h('div', { class: `banner small ${r.better ? 'ok' : 'info'}` }, icon(r.better ? 'check' : 'info', 'sm'),
           h('span', null, r.better ? t(`route.better.${mode}`, { g: Math.round(r.scoreGain * 10) / 10 }) : t(`route.none.${mode}`)))
+        : null,
+      // Why only the fastest path is shown: it clears the city's thresholds for this measure (set by the planner).
+      r.source === 'street' && !r.better && r.fastestIsAcceptable && r.thresholdAverage != null && ['safety', 'heat', 'flood', 'air'].includes(mode)
+        ? h('p', { class: 'small muted' }, icon('info', 'sm'), ' ', t(`th.fastest.${mode}`, { avg: Math.round(r.fastest.average), worst: Math.round(r.fastest.worst), tavg: r.thresholdAverage, tworst: r.thresholdWorst }))
         : null,
       readAloudButton(() => routeSpeech(r, sel, worstBand, group), 'route'),
       h('div', { class: 'card' },

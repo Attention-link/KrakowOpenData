@@ -12,3 +12,16 @@ window.krakowLanguage = {
         document.documentElement.lang = code;
     }
 };
+
+// Light/dark theme. The default (dark) is applied before first paint by an inline script in App.razor; this keeps it in sync afterwards.
+window.krakowTheme = {
+    get: function () {
+        return document.documentElement.getAttribute('data-bs-theme') === 'light' ? 'light' : 'dark';
+    },
+    set: function (theme) {
+        theme = theme === 'light' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        try { localStorage.setItem('krakow-theme', theme); } catch (e) { /* ignore */ }
+        return theme;
+    }
+};

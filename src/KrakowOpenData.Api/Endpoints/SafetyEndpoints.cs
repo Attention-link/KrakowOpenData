@@ -208,6 +208,25 @@ public static class SafetyEndpoints
             .Produces<WeightsDto>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
+        p.MapGet("/route-thresholds", async (RouteThresholdService svc, CancellationToken ct) => Results.Ok(await svc.GetAsync(ct)))
+            .WithName("GetRouteThresholds")
+            .WithSummary("Per safety measure: how good the fastest walking route must be (average and weakest stretch) before no safer alternative is searched for, with the default and why.")
+            .Produces<RouteThresholdsDto>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        p.MapPut("/route-thresholds", async (SetRouteThresholdsRequest request, RouteThresholdService svc, CancellationToken ct) => Results.Ok(await svc.SetAsync(request, ct)))
+            .WithName("SetRouteThresholds")
+            .WithSummary("Sets the route thresholds per layer (Safety, Heat, Flood, Air): average and weakest stretch, 20 to 95, weakest not above average. Applies to every route for everyone.")
+            .Produces<RouteThresholdsDto>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        p.MapDelete("/route-thresholds", async (RouteThresholdService svc, CancellationToken ct) => Results.Ok(await svc.ResetAsync(ct)))
+            .WithName("ResetRouteThresholds")
+            .WithSummary("Goes back to the default route thresholds.")
+            .Produces<RouteThresholdsDto>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
         p.MapGet("/summary", async (string? @event, int? top, PlannerService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetSummaryAsync(ScoreService.ParseEvent(@event), top ?? PlannerService.DefaultTop, ct)))
             .WithName("GetPlannerSummary")

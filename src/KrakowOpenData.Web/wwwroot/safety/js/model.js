@@ -37,7 +37,7 @@ export const BANDS = ['Critical', 'Weak', 'Fair', 'Good'];
 
 const DEFAULT_THRESHOLDS = { GoodFrom: 75, FairFrom: 55, WeakFrom: 35 };
 
-/** Which WORDS a layer uses for its bands: 'heat' (Low heat ... Very high heat) or 'good' (Good ... Critical). Every score is higher = better. */
+/** Which WORDS a layer uses for its bands: 'heat' (High heat relief ... Very low heat relief) or 'good' (Good ... Critical). Every score is higher = better. */
 export const kindOf = (layerOrMode) => (layerOrMode === 'heat' || layerOrMode === 'Heat' ? 'heat' : 'good');
 
 /** Every score now points the same way (higher = better, heat included), so this is the score itself. Kept so callers read the same. */
