@@ -56,7 +56,8 @@ public sealed record NearestFeatureDto(
     double Longitude,
     double DistanceMeters,
     int WalkingMinutes,
-    string? OpeningHours);
+    string? OpeningHours,
+    string? Wheelchair = null);
 
 public sealed record SuggestedActionDto(
     string Code,
@@ -243,7 +244,8 @@ public sealed record PlannerSummaryDto(
 
 // ── Offline support and planner reach ────────────────────────────────────────
 /// <summary>A mapped feature that feeds a score factor (water point, park, pharmacy, …), so apps can find "nearest relief" offline.</summary>
-public sealed record FeatureDto(string Key, string Kind, string? Name, double Latitude, double Longitude, double RadiusMeters, string? OpeningHours);
+/// <summary>A mapped feature. <see cref="Wheelchair"/>: yes | limited | no from OSM or the GTFS stop flag; null = no data (never "accessible").</summary>
+public sealed record FeatureDto(string Key, string Kind, string? Name, double Latitude, double Longitude, double RadiusMeters, string? OpeningHours, string? Wheelchair = null);
 
 public sealed record ReachDto(double Latitude, double Longitude, double RadiusMeters, int DevicesInArea, int DevicesActive, int WindowMinutes);
 

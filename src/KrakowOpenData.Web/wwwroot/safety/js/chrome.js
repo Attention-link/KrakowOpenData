@@ -162,7 +162,7 @@ export function openAccessibilityMenu() {
     title: t('display.open'),
     body: h('div', { class: 'stack' },
       h('h3', null, t('display.title')), displayToggles(),
-      h('p', null, h('a', { href: '#/accessibility', onclick: () => close('x') }, icon('a11y', 'sm'), ' ', t('acc.link')))),
+      h('p', null, h('a', { href: '#/accessibility', onclick: () => close('x') }, icon('a11y', 'sm'), ' ', t('stmt.link')))),
     footer: h('button', { class: 'btn primary', type: 'button', onclick: () => close('ok') }, t('common.done'))
   }));
 }

@@ -677,3 +677,72 @@ kbd { font: 600 .8rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace; b
 :root[data-contrast="high"] :is(.route-card, .type-card, .btn.toggle)[aria-pressed="true"] { border-color: var(--accent); outline: 2px solid var(--accent); }
 :root[data-contrast="high"] a, :root[data-contrast="high"] .linklike { text-decoration: underline; text-underline-offset: 3px; }
 :root[data-contrast="high"] .topbar a { text-decoration: none; }
+
+/* ── Accessibility (Kraków bez barier): js/access.js, js/wheelchair.js ──
+   Status is never colour alone: shape (circle / diamond / square / dashed circle), a mark (✓ ! ✕ ?) and a word.
+   Map symbols use fixed colours because map tiles stay light in both themes; all reach 4.5:1 with their white mark. */
+.acc-mk { position: relative; width: 28px; height: 28px; display: grid; place-items: center; color: #fff; }
+.acc-mk-shape { position: absolute; inset: 3px; border: 2px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .45); }
+.acc-mk svg { position: relative; width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.acc-mk.k-tactile svg { stroke-width: 3.4; }
+.acc-mk-mark { position: absolute; right: -4px; top: -5px; min-width: 14px; height: 14px; padding: 0 2px; border-radius: 7px; font: 700 10px/14px var(--font); text-align: center; background: #17171a; color: #fff; }
+.acc-mk.yes .acc-mk-shape { border-radius: 50%; background: #0b6b0b; }
+.acc-mk.limited .acc-mk-shape { inset: 5px; transform: rotate(45deg); background: #8a4f00; }
+.acc-mk.no .acc-mk-shape { border-radius: 2px; background: #b42318; border-width: 3px; }
+.acc-mk.unknown { color: #3f3f3c; }
+.acc-mk.unknown .acc-mk-shape { border-radius: 50%; background: #e7e5e0; border: 2px dashed #5f5e5a; }
+.acc-mk.unknown .acc-mk-mark { background: #5f5e5a; }
+.acc-sym { display: inline-grid; flex: none; vertical-align: middle; }
+.acc-sym .acc-mk { transform: scale(.85); }
+
+.acc-badge, .acc-status { display: inline-flex; align-items: center; gap: .25rem; font-weight: 700; font-size: .85rem; padding: .05rem .45rem; border-radius: 999px; border: 1.5px solid currentColor; }
+.acc-badge.yes, .acc-status.yes { color: var(--ok); }
+.acc-badge.limited, .acc-status.limited { color: var(--warn-ink); }
+.acc-badge.no, .acc-status.no { color: var(--danger); }
+.acc-badge.unknown, .acc-status.unknown { color: var(--ink-3); border-style: dashed; font-weight: 600; }
+.acc-status .tiny { font-weight: 600; }
+
+.acc-rel { display: inline-block; margin-top: .2rem; font-size: .75rem; font-weight: 700; padding: .05rem .45rem; border-radius: 6px; background: var(--surface-3); color: var(--ink-2); }
+.acc-rel.osm_recent { background: var(--ok-soft); color: var(--ok); }
+.acc-rel.osm_old { background: var(--warn-soft); color: var(--warn-ink); }
+.acc-rel.user_unverified { background: var(--warn-soft); color: var(--warn-ink); border: 1.5px dashed currentColor; }
+.acc-rel.confirmed { background: var(--accent-soft); color: var(--accent); }
+.acc-rel.unknown { background: var(--surface-3); color: var(--ink-3); border: 1px dashed var(--ink-3); }
+
+.acc-facts { list-style: none; margin: .25rem 0; padding: 0; font-size: .85rem; }
+.acc-facts li.unknown { color: var(--ink-3); font-style: italic; }
+.acc-fieldset { border: 0; margin: 0; padding: .8rem 1rem; display: grid; gap: .5rem; }
+.acc-fieldset legend { font-weight: 700; padding: 0; margin-bottom: .3rem; }
+.acc-radio { display: flex; gap: .55rem; align-items: flex-start; min-height: var(--tap); cursor: pointer; }
+.acc-radio input { width: 1.2rem; height: 1.2rem; margin-top: .15rem; accent-color: var(--accent); flex: none; }
+.acc-counts, .acc-legend, .acc-cov, .acc-sum { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.acc-counts li, .acc-legend li { display: flex; align-items: center; gap: .45rem; }
+.acc-cov li.thin { color: var(--warn-ink); font-weight: 600; }
+.acc-sum li { padding: .2rem 0; }
+.acc-sev { display: inline-block; min-width: 5.5rem; font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.acc-sev.high { color: var(--danger); }
+.acc-sev.medium { color: var(--warn-ink); }
+.acc-sev.info { color: var(--ink-3); }
+.acc-route-list { margin: .4rem 0 0; padding-left: 1.3rem; display: grid; gap: .35rem; }
+.acc-actions { display: flex; flex-wrap: wrap; gap: .3rem; }
+.acc-detail { display: grid; gap: .3rem; font-size: .88rem; }
+.acc-source { font-size: .85rem; }
+.acc-user-reports { border-style: dashed; }
+/* The list sits in a narrow panel: always stacked cards, one per item (labels from js/main.js). */
+.acc-table, .acc-table tbody, .acc-table tr, .acc-table td, .acc-table th[scope="row"] { display: block; width: 100%; }
+.acc-table caption { display: block; text-align: left; margin-bottom: .4rem; }
+.acc-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+.acc-table tr { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); padding: .35rem .7rem; margin-bottom: .6rem; }
+.acc-table tr.no { border-left: 5px solid var(--danger); }
+.acc-table tr.limited { border-left: 5px double var(--warn-ink); }
+.acc-table tr.unknown { border-left: 5px dashed var(--ink-3); }
+.acc-table th[scope="row"] { font-size: .95rem; text-transform: none; letter-spacing: 0; color: var(--ink); padding: .3rem 0; border-bottom: 1px solid var(--line); }
+.acc-table td { display: flex; justify-content: space-between; gap: .8rem; text-align: right; border-bottom: 0; padding: .35rem 0; overflow-wrap: anywhere; }
+.acc-table td + td { border-top: 1px solid var(--line); }
+.acc-table td[data-label]::before { content: attr(data-label); flex: none; max-width: 40%; text-align: left; font-weight: 600; color: var(--ink-2); }
+.acc-table td .acc-facts, .acc-table td .acc-source { text-align: left; }
+.acc-table td:last-child { display: block; text-align: left; }
+.acc-table td:last-child::before { display: block; margin-bottom: .25rem; }
+.acc-status-wrap { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .3rem; }
+.acc-status { white-space: nowrap; }
+.acc-barrier { font-weight: 700; color: var(--danger); }

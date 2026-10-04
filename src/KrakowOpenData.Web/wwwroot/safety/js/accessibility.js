@@ -8,8 +8,8 @@ import { topbar, statusPill, displayToggles } from './chrome.js';
 
 const PREPARED = '2026-10-04';
 const KEYS = [
-  ['Tab', 'acc.key.skip'], ['Tab / Shift+Tab', 'acc.key.tab'], ['Enter / Space', 'acc.key.enter'],
-  ['← ↑ → ↓', 'acc.key.arrows'], ['+ / −', 'acc.key.zoom'], ['Enter / Space', 'acc.key.pick'], ['↓ ↑', 'acc.key.search'], ['Esc', 'acc.key.esc']
+  ['Tab', 'stmt.key.skip'], ['Tab / Shift+Tab', 'stmt.key.tab'], ['Enter / Space', 'stmt.key.enter'],
+  ['← ↑ → ↓', 'stmt.key.arrows'], ['+ / −', 'stmt.key.zoom'], ['Enter / Space', 'stmt.key.pick'], ['↓ ↑', 'stmt.key.search'], ['Esc', 'stmt.key.esc']
 ];
 
 export function mountStatement(root) {
@@ -21,18 +21,18 @@ export function mountStatement(root) {
   const section = (title, ...body) => h('section', { class: 'card stack tight' }, h('h2', null, title), ...body);
 
   const page = h('div', { class: 'acc-page stack' },
-    h('div', null, h('a', { class: 'btn sm', href: '#/' }, icon('left', 'sm'), t('acc.back'))),
-    h('h1', null, t('acc.title')),
-    h('p', null, t('acc.intro')),
-    section(t('acc.statusTitle'), h('p', null, t('acc.status'))),
-    section(t('acc.doneTitle'), list('acc.done', 8)),
-    section(t('acc.limitsTitle'), list('acc.limits', 6)),
-    section(t('acc.keysTitle'), h('dl', { class: 'kv acc-keys' }, KEYS.flatMap(([k, key]) => [h('dt', null, h('kbd', null, k)), h('dd', null, t(key))]))),
+    h('div', null, h('a', { class: 'btn sm', href: '#/' }, icon('left', 'sm'), t('stmt.back'))),
+    h('h1', null, t('stmt.title')),
+    h('p', null, t('stmt.intro')),
+    section(t('stmt.statusTitle'), h('p', null, t('stmt.status'))),
+    section(t('stmt.doneTitle'), list('stmt.done', 8)),
+    section(t('stmt.limitsTitle'), list('stmt.limits', 6)),
+    section(t('stmt.keysTitle'), h('dl', { class: 'kv acc-keys' }, KEYS.flatMap(([k, key]) => [h('dt', null, h('kbd', null, k)), h('dd', null, t(key))]))),
     section(t('display.title'), displayToggles()),
-    section(t('acc.reportTitle'), h('p', null, t('acc.reportText')),
-      contact ? h('p', null, h('b', null, t('acc.contact')), ': ', h('a', { href }, contact)) : h('p', null, t('acc.contactNone'))),
-    section(t('acc.methodTitle'), h('p', null, t('acc.method'))),
-    h('p', { class: 'small muted' }, t('acc.date', { date })));
+    section(t('stmt.reportTitle'), h('p', null, t('stmt.reportText')),
+      contact ? h('p', null, h('b', null, t('stmt.contact')), ': ', h('a', { href }, contact)) : h('p', null, t('stmt.contactNone'))),
+    section(t('stmt.methodTitle'), h('p', null, t('stmt.method'))),
+    h('p', { class: 'small muted' }, t('stmt.date', { date })));
 
   root.append(topbar({ pill }), h('main', { class: 'acc-main', id: 'main', tabindex: '-1' }, page));
   return () => pill.destroy();

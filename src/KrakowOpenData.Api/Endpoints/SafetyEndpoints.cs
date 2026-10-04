@@ -93,6 +93,9 @@ public static class SafetyEndpoints
             .Produces<MethodDto>()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
+        // ── Public: accessibility (Kraków bez barier) — see AccessEndpoints ──
+        g.MapAccessEndpoints();
+
         // ── Public: citizen reports and alerts ───────────────────────────────
         g.MapGet("/report-types", () => Results.Ok(ReportService.Types))
             .WithName("GetReportTypes")

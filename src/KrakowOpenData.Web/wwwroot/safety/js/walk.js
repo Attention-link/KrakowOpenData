@@ -14,6 +14,7 @@ import { bandOf, kindOf, BAND_FILL, cellOf, COL, nearestFromFeatures, FACTOR_ICO
 import { searchBox } from './search.js';
 import { addressLine, reverseLabel, coords } from './geo.js';
 import { bandText, infoButton, openScoreExplainer } from './explain.js';
+import { accessRouteBlock } from './access.js';
 
 const SCORE_KEY = { safety: 'safety', heat: 'heat', flood: 'flood', air: 'air', both: 'combined' };
 const HELP_KEYS = { safety: ['openPlaces', 'aed'], heat: ['water', 'green', 'refuge', 'toilets'], flood: ['emergency'], air: ['green', 'refuge'], both: ['water', 'green', 'openPlaces'] };
@@ -277,6 +278,8 @@ export function renderWalkView(ctx, body) {
         ? h('div', { class: 'card flat stack tight' }, h('b', null, t(`walk.weakAt.${mode}`)), addressLine(w.latitude, w.longitude),
           help.length ? h('ul', { class: 'list small' }, help.map((n) => h('li', { class: 'row' }, icon(FACTOR_ICON[n.key] || 'pin', 'sm'),
             h('span', null, `${n.name || t(`kind.${n.kind}`)} · ${formatDistance(n.distanceMeters)}`)))) : h('p', { class: 'small muted' }, t('walk.noHelp')))
-        : null);
+        : null,
+      // Accessibility: barrier summary of the shown route for the chosen profile (wheelchair / pram / limited mobility).
+      r.source === 'street' ? accessRouteBlock(sel, { layer: ctx.walkLayer, onChangeProfile: () => ctx.showView('access') }) : null);
   }
 }

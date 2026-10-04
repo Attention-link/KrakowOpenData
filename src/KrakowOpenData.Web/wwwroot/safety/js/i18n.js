@@ -9,10 +9,11 @@ import { plannerStrings } from './strings-planner.js';
 import { plannerStringsV2 } from './strings-planner-v2.js';
 import { layerStrings } from './strings-layers.js';
 import { a11yStrings } from './strings-a11y.js';
+import { accessStrings } from './strings-access.js';
 
 export const LANGS = [['en', 'English'], ['pl', 'Polski'], ['uk', 'Українська']];
 const INDEX = { en: 0, pl: 1, uk: 2 };
-const dict = { ...residentStrings, ...residentStringsV2, ...residentStringsV3, ...plannerStrings, ...plannerStringsV2, ...layerStrings, ...a11yStrings };
+const dict = { ...residentStrings, ...residentStringsV2, ...residentStringsV3, ...plannerStrings, ...plannerStringsV2, ...layerStrings, ...a11yStrings, ...accessStrings };
 const warned = new Set();
 
 export function t(key, params) {

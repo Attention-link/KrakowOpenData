@@ -5,6 +5,7 @@ import { cellBounds, cellOf, bandOf, kindOf, BAND_FILL, priorityColor, scoreOf, 
 import { h, icon, clear, formatDistance, reducedMotion } from './util.js';
 import { addressLine } from './geo.js';
 import { t } from './i18n.js';
+import { wheelchairBadge } from './wheelchair.js';
 
 export const KRAKOW = [50.0617, 19.9373];
 const MAX_BOUNDS = [[49.88, 19.68], [50.2, 20.32]];
@@ -235,6 +236,7 @@ export class PlacesLayer {
       h('div', { class: 'poi-title' }, f.name || t(`kind.${f.kind}`)),
       h('div', { class: 'poi-sub' }, `${t(`kind.${f.kind}`)} · ${t(`factor.${f.key}`)}`),
       f.openingHours ? h('div', { class: 'poi-sub' }, `${t('map.hours')}: ${f.openingHours}`) : null,
+      h('div', { class: 'poi-sub' }, wheelchairBadge(f.wheelchair)),
       this.onWalk ? h('button', { class: 'btn sm', type: 'button', onclick: () => { this.map.closePopup(); this.onWalk(f); } }, icon('walk', 'sm'), t('map.walkHere')) : null);
   }
 
