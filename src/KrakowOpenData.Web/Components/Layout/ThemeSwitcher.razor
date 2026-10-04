@@ -1,0 +1,49 @@
+@inherits LocalizedComponentBase
+@inject IJSRuntime JS
+
+<div class="theme-toggle">
+    @* One button that shows the OTHER theme: in dark mode "Light" (sun), in light mode "Dark" (moon). *@
+    <button type="button" class="btn btn-sm btn-outline-light theme-toggle-btn" aria-label="@(_dark ? T["theme.toLight"] : T["theme.toDark"])" title="@(_dark ? T["theme.toLight"] : T["theme.toDark"])" @onclick="() => SetAsync(!_dark)">
+        @if (_dark)
+        {
+            <svg class="theme-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <span>@T["theme.light"]</span>
+        }
+        else
+        {
+            <svg class="theme-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+            <span>@T["theme.dark"]</span>
+        }
+    </button>
+</div>
+
+@code {
+    private bool _dark = true;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            var current = await JS.InvokeAsync<string>("krakowTheme.get");
+            _dark = current != "light";
+            StateHasChanged();
+        }
+        catch (JSException)
+        {
+            // Script missing: keep the default (dark).
+        }
+    }
+
+    private async Task SetAsync(bool dark)
+    {
+        _dark = dark;
+        try
+        {
+            await JS.InvokeVoidAsync("krakowTheme.set", dark ? "dark" : "light");
+        }
+        catch (JSException)
+        {
+        }
+    }
+}

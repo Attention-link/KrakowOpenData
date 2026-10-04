@@ -148,10 +148,10 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             "How well a place can cool down on a hot day, from the relief around it (shade, water, indoor refuge, toilets, transport). It is built from what is mapped around the place, not from a temperature reading, so it shows where a heatwave hurts most. The live temperature is shown next to it. Like every score here, higher is better.",
             "Heat-relief score = Σ weight × factor score ÷ 100 over the five factors, − open heat reports (up to 30 points), limited to 0–100. A factor scores 100 when its nearest feature is within the 'full' distance and 0 beyond the 'zero' distance, in a straight line in between.",
             [
-                new BandInfoDto("Good", 75, 100, "Low heat stress: shade, water and indoor refuge are close."),
-                new BandInfoDto("Fair", 55, 75, "Moderate heat: most relief is within reach, some is missing."),
-                new BandInfoDto("Weak", 35, 55, "High heat: important relief is missing or far."),
-                new BandInfoDto("Critical", 0, 35, "Very high heat: little or no relief nearby. A hot day here is hard to cope with.")
+                new BandInfoDto("Good", 75, 100, "High heat relief: shade, water and indoor refuge are close."),
+                new BandInfoDto("Fair", 55, 75, "Moderate heat relief: most relief is within reach, some is missing."),
+                new BandInfoDto("Weak", 35, 55, "Low heat relief: important relief is missing or far."),
+                new BandInfoDto("Critical", 0, 35, "Very low heat relief: little or no relief nearby. A hot day here is hard to cope with.")
             ],
             Factors(model.Definitions(Layer.Heat)));
 

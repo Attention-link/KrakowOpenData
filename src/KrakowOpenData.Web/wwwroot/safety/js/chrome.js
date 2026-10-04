@@ -119,6 +119,7 @@ export function topbar({ subtitle, right = [], pill } = {}) {
     h('a', { class: 'btn sm quiet', href: '/', target: '_top', title: t('nav.homeHint') }, icon('home', 'sm'), h('span', { class: 'hide-sm' }, t('nav.home'))),
     pill || '',
     ...right,
+    themeToggle(),
     langSelect());
 }
 
@@ -143,9 +144,26 @@ export function notificationToggle() {
 
 // ── Theme ────────────────────────────────────────────────────────────────────
 export function applyTheme() {
-  const th = state.theme;
-  if (th === 'light' || th === 'dark') document.documentElement.dataset.theme = th;
-  else delete document.documentElement.dataset.theme;
+  const th = state.theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = th;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = '#070a0f';
+}
+
+/** Light / dark switch for the top bar. Dark is the default. */
+export function themeToggle() {
+  const btn = h('button', { class: 'btn sm quiet theme-toggle', type: 'button' });
+  const paint = () => {
+    const dark = state.theme !== 'light';
+    btn.removeAttribute('aria-pressed');
+    btn.setAttribute('aria-label', dark ? t('theme.toLight') : t('theme.toDark'));
+    btn.title = dark ? t('theme.toLight') : t('theme.toDark');
+    btn.replaceChildren(icon(dark ? 'sun' : 'moon', 'sm'), h('span', { class: 'hide-sm' }, dark ? t('theme.light') : t('theme.dark')));
+  };
+  btn.addEventListener('click', () => { set({ theme: state.theme === 'light' ? 'dark' : 'light' }); applyTheme(); paint(); });
+  on('lang', paint);
+  paint();
+  return btn;
 }
 
 // ── Explanation of the scores (resident-facing) ──────────────────────────────

@@ -280,7 +280,9 @@ public sealed record RoutesDto(
     int ExtraMinutes,
     string Note,
     bool Widened = false,
-    bool FastestIsAcceptable = true);
+    bool FastestIsAcceptable = true,
+    double? ThresholdAverage = null,
+    double? ThresholdWorst = null);
 
 // ── How the scores are built (documentation served by the API, used for tooltips, legends and the planner) ──
 public sealed record BandInfoDto(string Band, double From, double To, string Meaning);
@@ -311,6 +313,21 @@ public sealed record WeightsDto(IReadOnlyList<LayerWeightsDto> Layers, bool Cust
 
 /// <summary>Weights by factor key. Any non-negative numbers: each layer is scaled so its weights add up to 100.</summary>
 public sealed record SetWeightsRequest(IReadOnlyDictionary<string, double> Weights);
+
+/// <summary>
+/// When is the fastest walking route "good enough" for one safety measure? Below <see cref="Average"/> on average, or with a stretch below
+/// <see cref="Worst"/>, a safer alternative is searched for (and farther away). <see cref="Why"/> explains the default.
+/// </summary>
+public sealed record LayerRouteThresholdDto(string Layer, string Title, double Average, double Worst, double DefaultAverage, double DefaultWorst, bool Customized, string Why);
+
+/// <param name="Min">Lowest value a planner may set.</param>
+/// <param name="Max">Highest value a planner may set.</param>
+public sealed record RouteThresholdsDto(IReadOnlyList<LayerRouteThresholdDto> Layers, bool Customized, double Min, double Max);
+
+public sealed record RouteThresholdValue(double Average, double Worst);
+
+/// <summary>Layer name (Safety, Heat, Flood, Air) to its two limits. Layers not listed keep what they have.</summary>
+public sealed record SetRouteThresholdsRequest(IReadOnlyDictionary<string, RouteThresholdValue> Thresholds);
 
 public sealed record LayerMethodDto(
     string Layer,

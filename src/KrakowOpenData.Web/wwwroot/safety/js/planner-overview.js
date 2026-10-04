@@ -35,6 +35,7 @@ export function mount(host) {
       return;
     }
     const s = res.data;
+    if (factor && !s.factorGaps.some((g) => g.key === factor)) factor = null;   // a factor of another layer cannot stay selected
     const meta = P.grid?.grid || DEFAULT_META;
     if (res.stale) page.append(staleBanner(res.savedAt));
     page.append(situation(s));
@@ -217,7 +218,7 @@ export function mount(host) {
   }
 
   cleanups.push(pOn('summary', render));
-  cleanups.push(pOn('event', () => { factor = null; render(); }));
+  cleanups.push(pOn('event', () => render()));
   cleanups.push(pOn('summaryError', (e) => { if (!P.summary) { clear(page); page.append(h('div', { class: 'banner danger' }, icon('alert'), h('span', null, t('err.generic')))); } }));
   // The bands in charts follow the thresholds the API reports; fetch the grid once for them.
   loadGridFor().then((r) => { P.grid = r.data; render(); }).catch(() => {});

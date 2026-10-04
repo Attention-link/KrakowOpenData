@@ -31,6 +31,12 @@ public interface ISafetyStore
 
     /// <summary>Replaces the saved factor weights; an empty map goes back to the defaults.</summary>
     Task SaveWeightOverridesAsync(IReadOnlyDictionary<string, double> weights, CancellationToken ct = default);
+
+    /// <summary>The route "good enough" thresholds a planner has set (keys like "night.average", "night.worst"), or an empty map for the defaults.</summary>
+    Task<IReadOnlyDictionary<string, double>> GetRouteThresholdOverridesAsync(CancellationToken ct = default);
+
+    /// <summary>Replaces the saved route thresholds; an empty map goes back to the defaults.</summary>
+    Task SaveRouteThresholdOverridesAsync(IReadOnlyDictionary<string, double> thresholds, CancellationToken ct = default);
 }
 
 /// <summary>

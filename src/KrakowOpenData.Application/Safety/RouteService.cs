@@ -17,7 +17,7 @@ namespace KrakowOpenData.Application.Safety;
 /// <para>Scores come from mapped lighting, night transport, open places, shade, water and citizen reports, not from crime or measured
 /// temperature. If the street router cannot be reached, only a straight-line corridor check is returned.</para>
 /// </summary>
-public sealed class RouteService(ScoreService scores, IWalkingRouter router)
+public sealed class RouteService(ScoreService scores, IWalkingRouter router, RouteThresholdService? thresholds = null)
 {
     public const double MaxStraightMeters = 5000;
     public const double MinGain = 3;
@@ -28,6 +28,7 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
     /// When is the fastest route "not that unsafe"? When, in the mode's goodness (heat is turned around), its average is at least
     /// <see cref="AcceptableAverage"/> AND its weakest stretch is at least <see cref="AcceptableWorst"/> (that is, no stretch is in the Weak
     /// band's lower half or worse). Then a small, nearby improvement is all that is offered.
+    /// These are the DEFAULTS: a city planner can set both numbers per safety measure (see <see cref="RouteThresholdService"/>).
     /// </summary>
     public const double AcceptableAverage = 65;
 
@@ -48,6 +49,9 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
         if (straight > MaxStraightMeters)
             throw new SafetyValidationException("to", $"Routes are limited to {MaxStraightMeters / 1000:0} km between the two points.");
 
+        // Read on every request, so a planner's change applies at once.
+        var limit0 = thresholds is null ? RouteThresholds.Default : await thresholds.ForAsync(mode, ct);
+
         IReadOnlyList<RoutePath> candidates;
         try
         {
@@ -63,7 +67,8 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
             var line = new RoutePath([from, to], straight);
             var only = await DescribeAsync("fastest", line, mode, ct);
             return new RoutesDto(ScoreService.EventName(mode), "straight-line", only, null, "none", 0, 0, 0,
-                "Street routing is unavailable right now, so this is a straight-line check, not a route. Try again shortly.");
+                "Street routing is unavailable right now, so this is a straight-line check, not a route. Try again shortly.",
+                false, true, limit0.Average, limit0.Worst);
         }
 
         var scored = new List<(RoutePath Path, RouteOptionDto Option)>();
@@ -72,7 +77,7 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
         var fastest = scored.MinBy(c => c.Path.DistanceMeters);   // shortest walk = fastest at a constant walking speed
 
         // Is the fastest route good enough? If not, safety matters more than distance: look farther and allow a longer detour.
-        var acceptable = IsAcceptable(fastest.Option, mode);
+        var acceptable = IsAcceptable(fastest.Option, mode, limit0);
         var widened = false;
         if (!acceptable && straight > 150)
         {
@@ -118,12 +123,17 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
                     ? "The fastest route scores poorly and no street route within reach is clearly better. Take extra care or consider another way to travel."
                     : "No street route nearby scores clearly better, so the fastest route is also the best option."),
             widened,
-            acceptable);
+            acceptable,
+            limit0.Average,
+            limit0.Worst);
     }
 
-    /// <summary>True when the route is good enough that only a modest, nearby improvement is worth offering (see <see cref="AcceptableAverage"/>).</summary>
-    public static bool IsAcceptable(RouteOptionDto route, PlanningEvent mode) =>
-        Goodness(route.Average, mode) >= AcceptableAverage && Goodness(route.Worst, mode) >= AcceptableWorst;
+    /// <summary>True when the route is good enough with the default thresholds (see <see cref="AcceptableAverage"/>).</summary>
+    public static bool IsAcceptable(RouteOptionDto route, PlanningEvent mode) => IsAcceptable(route, mode, RouteThresholds.Default);
+
+    /// <summary>True when the route is good enough, under the given thresholds, that only a modest, nearby improvement is worth offering.</summary>
+    public static bool IsAcceptable(RouteOptionDto route, PlanningEvent mode, RouteThreshold threshold) =>
+        Goodness(route.Average, mode) >= threshold.Average && Goodness(route.Worst, mode) >= threshold.Worst;
 
     /// <summary>
     /// Via points for the wide search: left and right of the middle of the straight line at 50 %, 80 % and 120 % of its length

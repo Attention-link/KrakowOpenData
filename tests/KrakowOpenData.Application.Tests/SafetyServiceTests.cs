@@ -28,6 +28,9 @@ public sealed class InMemorySafetyStore : ISafetyStore
     private IReadOnlyDictionary<string, double> _weights = new Dictionary<string, double>();
     public Task<IReadOnlyDictionary<string, double>> GetWeightOverridesAsync(CancellationToken ct = default) => Task.FromResult(_weights);
     public Task SaveWeightOverridesAsync(IReadOnlyDictionary<string, double> weights, CancellationToken ct = default) { _weights = new Dictionary<string, double>(weights); return Task.CompletedTask; }
+    private IReadOnlyDictionary<string, double> _thresholds = new Dictionary<string, double>();
+    public Task<IReadOnlyDictionary<string, double>> GetRouteThresholdOverridesAsync(CancellationToken ct = default) => Task.FromResult(_thresholds);
+    public Task SaveRouteThresholdOverridesAsync(IReadOnlyDictionary<string, double> thresholds, CancellationToken ct = default) { _thresholds = new Dictionary<string, double>(thresholds); return Task.CompletedTask; }
 }
 
 public sealed class ThrowingRepository<T> : IReadRepository<T> where T : class, IEntity

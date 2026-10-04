@@ -31,7 +31,7 @@ export const state = {
   notify: ls.get('notify') === true,
   dismissedAlerts: ls.get('dismissedAlerts') ?? [],
   event: ['heat', 'night', 'flood', 'air'].includes(ls.get('plannerEvent')) ? ls.get('plannerEvent') : 'heat',
-  theme: ls.get('theme') ?? 'auto'
+  theme: ls.get('theme') === 'light' ? 'light' : 'dark'   // dark unless the user chose light
 };
 
 const persisted = {

@@ -11,7 +11,8 @@
             <span>@Language.Current["brand.title"]</span>
         </a>
         <button class="btn btn-link btn-sm order-first ms-2 me-1 text-light" id="sidebarToggle" type="button" aria-label="Menu">&#9776;</button>
-        <div class="ms-auto me-3 me-lg-4">
+        <div class="ms-auto me-3 me-lg-4 d-flex align-items-center gap-2">
+            <ThemeSwitcher />
             <LanguageSwitcher OnSelect="SelectAsync" />
         </div>
     </nav>
@@ -28,7 +29,7 @@
             <main class="container-fluid px-4 py-4">
                 @Body
             </main>
-            <footer class="py-3 bg-light mt-auto">
+            <footer class="py-3 site-footer mt-auto">
                 <div class="container-fluid px-4 small text-muted">@Language.Current["brand.title"]</div>
             </footer>
         </div>

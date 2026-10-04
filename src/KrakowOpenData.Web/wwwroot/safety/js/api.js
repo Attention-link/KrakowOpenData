@@ -124,6 +124,9 @@ export const seedDemo = () => P('/demo-data', { method: 'POST' });
 export const getWeights = () => P('/weights');
 export const setWeights = (weights) => P('/weights', { method: 'PUT', body: { weights } });
 export const resetWeights = () => P('/weights', { method: 'DELETE' });
+export const getRouteThresholds = () => P('/route-thresholds');
+export const setRouteThresholds = (thresholds) => P('/route-thresholds', { method: 'PUT', body: { thresholds } });
+export const resetRouteThresholds = () => P('/route-thresholds', { method: 'DELETE' });
 
 /** A readable message for an error, using the API's validation text when there is one. */
 export function errorText(e, t) {

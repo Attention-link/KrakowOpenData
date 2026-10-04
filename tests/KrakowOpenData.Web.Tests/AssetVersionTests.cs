@@ -49,8 +49,8 @@ public class AssetVersionTests : IDisposable
 
         var tags = System.Text.RegularExpressions.Regex.Matches(app, "<(link rel=\"stylesheet\"|script)[^>]*>").Select(m => m.Value).ToList();
         Assert.NotEmpty(tags);
-        // blazor.web.js comes from the framework, not wwwroot, and changes only with the .NET version.
-        foreach (var tag in tags.Where(t => !t.Contains("_framework/")))
+        // Inline scripts (no src) have nothing to version. blazor.web.js comes from the framework, not wwwroot, and changes only with the .NET version.
+        foreach (var tag in tags.Where(t => !t.Contains("_framework/") && (t.Contains("src=") || t.Contains("href="))))
             Assert.Contains("AssetUrls.Url(", tag);
     }
 }

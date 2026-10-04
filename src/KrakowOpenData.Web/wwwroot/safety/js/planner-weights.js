@@ -4,7 +4,7 @@
 import { h, icon, clear, toast } from './util.js';
 import { t } from './i18n.js';
 import { requireOnline, dataChanged, P } from './planner-common.js';
-import { getWeights, setWeights, resetWeights, errorText } from './api.js';
+import { getWeights, setWeights, resetWeights, getRouteThresholds, setRouteThresholds, resetRouteThresholds, errorText } from './api.js';
 import { resetMethod } from './explain.js';
 import { FACTOR_ICON, LAYERS, layerOfApi, modeOfEvent } from './model.js';
 
@@ -31,7 +31,7 @@ export function mount(host) {
     page.append(h('h1', null, t('wt.title')),
       h('div', { class: 'banner info small' }, icon('info', 'sm'), h('span', null, t('wt.intro'))),
       h('div', { class: 'banner small' }, icon('alert', 'sm'), h('span', null, t('wt.shared'))));
-    if (!data) { page.append(h('div', { class: 'skeleton', style: { height: '260px' } })); return; }
+    if (!data) { page.append(h('div', { class: 'skeleton', style: { height: '260px' } }), thrHost); return; }
 
     if (data.customized) page.append(h('div', { class: 'banner small' }, icon('gear', 'sm'), h('span', null, t('wt.customized'))));
 
@@ -43,7 +43,7 @@ export function mount(host) {
       h('button', { class: 'btn', type: 'button', disabled: !anyDirty() ? true : null, onclick: discard }, t('wt.discard')),
       h('div', { class: 'grow' }),
       h('button', { class: 'btn quiet', type: 'button', disabled: !data.customized || saving ? true : null, onclick: resetAll }, icon('refresh', 'sm'), t('wt.resetAll'))));
-    page.append(h('p', { class: 'tiny muted' }, t('wt.note')));
+    page.append(h('p', { class: 'tiny muted' }, t('wt.note')), thrHost);
   }
 
   function layerCard(layer, open) {
@@ -121,7 +121,98 @@ export function mount(host) {
     render();
   }
 
+  // ── Route thresholds: when is the fastest walking route "good enough"? (separate save/reset from the weights above) ──
+  let thr = null;                // the API's RouteThresholdsDto
+  const tTyped = {};             // layer name -> { average, worst } typed but not saved
+  let thrSaving = false;
+  const thrHost = h('div', { class: 'stack' });
+
+  const thrValue = (l) => tTyped[l.layer] || { average: l.average, worst: l.worst };
+  const thrDirty = (l) => !!tTyped[l.layer] && (tTyped[l.layer].average !== l.average || tTyped[l.layer].worst !== l.worst);
+  function thrError(l) {
+    const v = thrValue(l);
+    const bad = (n) => !Number.isFinite(n) || n < thr.min || n > thr.max;
+    if (bad(v.average) || bad(v.worst)) return t('th.errRange', { min: thr.min, max: thr.max });
+    if (v.worst > v.average) return t('th.errOrder');
+    return null;
+  }
+  const thrAnyDirty = () => !!thr && thr.layers.some(thrDirty);
+  const thrAnyError = () => !!thr && thr.layers.some((l) => thrDirty(l) && thrError(l));
+
+  function renderThresholds() {
+    clear(thrHost);
+    thrHost.append(h('h2', null, t('th.title')), h('div', { class: 'banner info small' }, icon('info', 'sm'), h('span', null, t('th.intro'))));
+    if (!thr) { thrHost.append(h('div', { class: 'skeleton', style: { height: '160px' } })); return; }
+    const current = modeOfEvent(P.event);
+    for (const l of thr.layers) thrHost.append(thrCard(l, layerOfApi(l.layer) === current));
+    thrHost.append(h('div', { class: 'row wrap' },
+      h('button', { class: 'btn primary', type: 'button', disabled: !thrAnyDirty() || thrAnyError() || thrSaving ? true : null, onclick: saveThresholds }, icon('check', 'sm'), thrSaving ? t('wt.saving') : t('th.save')),
+      h('button', { class: 'btn', type: 'button', disabled: !thrAnyDirty() ? true : null, onclick: () => { Object.keys(tTyped).forEach((k) => delete tTyped[k]); renderThresholds(); } }, t('wt.discard')),
+      h('div', { class: 'grow' }),
+      h('button', { class: 'btn quiet', type: 'button', disabled: !thr.customized || thrSaving ? true : null, onclick: resetThresholds }, icon('refresh', 'sm'), t('th.resetAll'))));
+  }
+
+  function thrCard(l, open) {
+    const key = layerOfApi(l.layer) || 'safety';
+    const v = thrValue(l);
+    const err = thrError(l);
+    const field = (which, label) => {
+      const id = `th-${l.layer}-${which}`;
+      const input = h('input', { type: 'number', min: String(thr.min), max: String(thr.max), step: '1', id, class: 'wt-num', value: String(v[which]),
+        'aria-describedby': err ? `${id}-err` : null, 'aria-invalid': err ? 'true' : null });
+      input.addEventListener('change', () => {
+        const next = { ...thrValue(l), [which]: Number(input.value) };
+        if (next.average === l.average && next.worst === l.worst) delete tTyped[l.layer]; else tTyped[l.layer] = next;
+        renderThresholds();
+      });
+      return h('label', { class: 'th-field', for: id }, h('span', { class: 'small' }, label), input);
+    };
+    return h('details', { class: 'card flat wt-layer', open: open ? true : null },
+      h('summary', { style: { cursor: 'pointer', fontWeight: 700 } }, icon(LAYERS[key].icon, 'sm'), ' ', l.title,
+        l.customized ? h('span', { class: 'chip accent', style: { marginLeft: '.5rem' } }, t('wt.custom')) : null,
+        thrDirty(l) ? h('span', { class: 'chip warn', style: { marginLeft: '.5rem' } }, t('wt.unsaved')) : null),
+      h('div', { class: 'stack', style: { marginTop: '.6rem' } },
+        h('div', { class: 'row wrap th-fields' }, field('average', t('th.average')), field('worst', t('th.worst')),
+          h('span', { class: 'tiny muted' }, t('th.defaultIs', { avg: l.defaultAverage, worst: l.defaultWorst }))),
+        err ? h('p', { class: 'err', id: `th-${l.layer}-average-err`, role: 'alert' }, err) : null,
+        h('p', { class: 'small' }, h('b', null, t('th.why')), ' ', t(`th.why.${key}`)),
+        h('div', { class: 'row between wrap small muted' }, h('span', null),
+          h('button', { class: 'btn sm quiet', type: 'button', onclick: () => { tTyped[l.layer] = { average: l.defaultAverage, worst: l.defaultWorst }; if (l.average === l.defaultAverage && l.worst === l.defaultWorst) delete tTyped[l.layer]; renderThresholds(); } }, t('th.layerDefaults')))));
+  }
+
+  async function saveThresholds() {
+    if (!requireOnline() || thrSaving || thrAnyError()) return;
+    const body = {};
+    for (const l of thr.layers) if (thrDirty(l)) body[l.layer] = { average: tTyped[l.layer].average, worst: tTyped[l.layer].worst };
+    thrSaving = true; renderThresholds();
+    try {
+      thr = await setRouteThresholds(body);
+      Object.keys(tTyped).forEach((k) => delete tTyped[k]);
+      toast(t('th.saved'));
+    } catch (e) { toast(errorText(e, t), { error: true }); }
+    thrSaving = false; renderThresholds();
+  }
+
+  async function resetThresholds() {
+    if (!requireOnline() || thrSaving) return;
+    if (!confirm(t('th.resetConfirm'))) return;
+    thrSaving = true; renderThresholds();
+    try {
+      thr = await resetRouteThresholds();
+      Object.keys(tTyped).forEach((k) => delete tTyped[k]);
+      toast(t('th.resetDone'));
+    } catch (e) { toast(errorText(e, t), { error: true }); }
+    thrSaving = false; renderThresholds();
+  }
+
+  async function loadThresholds() {
+    try { thr = await getRouteThresholds(); } catch (e) { thr = null; }
+    renderThresholds();
+  }
+
   render();
   load();
+  renderThresholds();
+  loadThresholds();
   return () => {};
 }

@@ -22,6 +22,7 @@ export function mount(host) {
   let features = [];
   let pickForAlert = false;
   let gridRes = null;
+  let selectedCell = null;   // the square the planner chose, kept when the layer changes
 
   const info = mapInfo();
   const mapEl = h('div', { class: 'map', role: 'application', 'aria-label': t('pm.mapLabel') });
@@ -43,6 +44,7 @@ export function mount(host) {
       if (pickForAlert) { pickForAlert = false; paintCtl(); openAlertDialog({ point: [latlng.lat, latlng.lng] }); return; }
       if (row) {
         grid.select(c.row, c.col);
+        selectedCell = { row: c.row, col: c.col };
         info.show({ lat: latlng.lat, lon: latlng.lng, radiusText: t('cov.square', { r: '250 m' }) });
         openCellDrawer(cellId(c.row, c.col), { meta: gridRes?.data.grid });
       }
@@ -79,6 +81,7 @@ export function mount(host) {
     if (!gridRes) return;
     const mode = modeOfEvent(P.event);
     grid.draw(gridRes.data, { mode, style: metric === 'priority' ? 'priority' : 'score' });
+    if (selectedCell) grid.select(selectedCell.row, selectedCell.col);   // the chosen square stays outlined when the layer changes
     paintLegend();
   }
 
@@ -125,10 +128,11 @@ export function mount(host) {
     P.focus = null;
     map.setView([f.lat, f.lon], 16);
     info.show({ lat: f.lat, lon: f.lon, radiusText: t(f.cellId ? 'cov.square' : 'cov.alertArea', { r: '250 m' }) });
-    if (f.cellId) { const [r, c] = f.cellId.split('-').map(Number); grid.select(r, c); openCellDrawer(f.cellId, { meta: gridRes?.data.grid }); }
+    if (f.cellId) { const [r, c] = f.cellId.split('-').map(Number); grid.select(r, c); selectedCell = { row: r, col: c }; openCellDrawer(f.cellId, { meta: gridRes?.data.grid }); }
   }
 
-  cleanups.push(pOn('event', load), pOn('data', load));
+  // Changing the layer keeps the chosen square: its drawer is opened again for the new layer.
+  cleanups.push(pOn('event', async () => { await load(); if (selectedCell && P.root?.querySelector('.drawer')) openCellDrawer(cellId(selectedCell.row, selectedCell.col), { meta: gridRes?.data.grid }); }), pOn('data', load));
   paintCtl();
   paintLegend();
   load();

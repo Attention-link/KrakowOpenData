@@ -146,9 +146,9 @@ export function mountResident(root) {
     clear(modeSeg);
     for (const m of MODE_KEYS) {
       modeSeg.append(h('button', {
-        type: 'button', 'data-mode': m, 'aria-pressed': String(mode() === m),
+        type: 'button', 'data-mode': m, 'aria-pressed': String(mode() === m), 'aria-label': t(`mode.${m}`), title: t(`mode.${m}`),
         onclick: () => { set({ mode: m }); announce(t(`mode.${m}`)); }
-      }, icon(LAYERS[m].icon, 'sm'), t(`mode.${m}`)));
+      }, icon(LAYERS[m].icon, 'sm'), h('span', { class: 'seg-lbl' }, t(`mode.${m}`))));
     }
   }
   paintModes();
@@ -420,7 +420,7 @@ export function mountResident(root) {
     // 2. Do something
     stack.append(h('div', { class: 'row wrap' },
       h('button', { class: 'btn primary', type: 'button', onclick: () => locateMe() }, icon('locate'), t('home.useLocation')),
-      h('button', { class: 'btn', type: 'button', onclick: () => showView('walk') }, icon('walk'), t(`home.walk.${mode()}`))),
+      h('button', { class: 'btn cta', 'data-layer': mode(), type: 'button', onclick: () => showView('walk') }, icon('walk'), t(`home.walk.${mode()}`))),
       h('p', { class: 'small muted' }, t(`home.walkHelp.${mode()}`)),
       h('p', { class: 'small muted' }, t('home.tapHint')));
 
@@ -618,7 +618,7 @@ export function mountResident(root) {
   function placeActions(sel) {
     return h('div', { class: 'row wrap' },
       h('button', { class: 'btn primary', type: 'button', onclick: () => showView('report') }, icon('flag', 'sm'), t('place.report')),
-      h('button', { class: 'btn', type: 'button', onclick: () => showView('walk', { to: [sel.lat, sel.lon], toLabel: sel.label }) }, icon('walk', 'sm'), t(`place.walkTo.${mode()}`)),
+      h('button', { class: 'btn cta', 'data-layer': mode(), type: 'button', onclick: () => showView('walk', { to: [sel.lat, sel.lon], toLabel: sel.label }) }, icon('walk', 'sm'), t(`place.walkTo.${mode()}`)),
       h('button', { class: 'btn', type: 'button', onclick: () => { set({ me: { lat: sel.lat, lon: sel.lon, source: 'manual' } }); ctx.alerts?.refresh(); toast(t('place.areaSet')); } }, icon('bell', 'sm'), t('place.setArea')),
       h('a', { class: 'btn', href: directionsLink(sel.lat, sel.lon), target: '_blank', rel: 'noopener' }, icon('external', 'sm'), t('place.directions')));
   }

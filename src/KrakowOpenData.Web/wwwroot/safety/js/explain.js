@@ -27,7 +27,7 @@ peek('method').then((s) => { if (s && !method) method = s.data; }).catch(() => {
 const layerOf = (key) => method?.layers.find((l) => l.layer === key) || null;
 const factorInfo = (key) => method?.layers.flatMap((l) => l.factors).find((f) => f.key === key) || null;
 
-/** The text of a band: heat has its own words (Low heat … Very high heat), the other scores Good … Critical. */
+/** The text of a band: heat has its own words (High heat relief … Very low heat relief), the other scores Good … Critical. */
 export const bandText = (band, kind = 'good') => t(kind === 'heat' ? `band.heat.${band}` : `band.${band}`);
 
 /** One-line description of a score for a tooltip (the `title` attribute) and screen readers. */
@@ -64,7 +64,7 @@ function bandTable(layer, meta) {
   const kind = kindOf(layer.layer);
   return h('ul', { class: 'list small band-list' }, layer.bands.map((b) => {
     const [from, to] = bandRange(b.band, meta, kind);
-    return h('li', { class: 'row' },
+    return h('li', { class: 'row', 'data-band': b.band },
       h('span', { class: 'band', 'data-band': b.band, style: { minWidth: '7.5rem', justifyContent: 'center' } }, `${Math.round(from)}–${Math.round(to)}`),
       h('span', null, h('b', null, bandText(b.band, kind)), ' · ', b.meaning));
   }));
@@ -288,7 +288,7 @@ export function legendBody(mode, meta, { onExplain, compact = false } = {}) {
       h('ul', { class: 'legend-rows' }, ['Good', 'Fair', 'Weak', 'Critical'].map((b) => {
         const [from, to] = bandRange(b, meta, kind);
         const meaning = layerMeaning(LAYERS[mode] ? LAYERS[mode].api : null, b) || t(kind === 'heat' ? `band.heat.${b}.desc` : `band.${b}.desc`);
-        return h('li', null, h('i', { style: { background: BAND_FILL[b] } }), h('span', { class: 'num' }, `${Math.round(from)}–${Math.round(to)}`), h('span', null, h('b', null, bandText(b, kind)), compact ? null : ' · ', compact ? null : meaning));
+        return h('li', { 'data-band': b }, h('i', { style: { background: BAND_FILL[b] } }), h('span', { class: 'num band-chip' }, `${Math.round(from)}–${Math.round(to)}`), h('span', null, h('b', null, bandText(b, kind)), compact ? null : ' · ', compact ? null : meaning));
       }))));
   };
   if (mode === 'heat') rows('heat', t('legend.heatTitle'), t('explain.dir.heat'));
