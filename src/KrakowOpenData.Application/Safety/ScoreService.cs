@@ -385,7 +385,8 @@ public static class SafetyMapping
     public static ReportDto ToDto(this CitizenReport r, bool includeNote) =>
         new(r.Id, r.Type.ToString(), ReportRules.For(r.Type).Layer.ToString(), Math.Round(r.Location.Latitude, 6), Math.Round(r.Location.Longitude, 6),
             GridSpec.IdOf(r.Location), r.CreatedAt, r.LastActivityAt, r.Supporters, r.VerifiedByPlanner, r.Status.ToString(),
-            includeNote ? r.Note : null, includeNote ? r.ResolutionNote : null);
+            includeNote ? r.Note : null, includeNote ? r.ResolutionNote : null,
+            includeNote && r.Triage is { } ai ? new ReportTriageDto(ai.SuggestedType, ai.Severity, ai.SummaryPl, ai.IsAbuse, ai.ContainsPersonalData, ai.DuplicateOf, ai.Confidence, ai.TriagedAt) : null);
 
     public static PlannerAlertDto ToDto(this PlannerAlert a, int? devices) =>
         new(a.Id, a.Layer?.ToString(), a.Severity.ToString(), a.Title, a.Message, a.MessageTranslations, a.Center.Latitude, a.Center.Longitude,

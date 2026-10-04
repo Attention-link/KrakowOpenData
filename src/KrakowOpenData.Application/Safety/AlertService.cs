@@ -38,6 +38,10 @@ public sealed class PresenceTracker(IClock clock)
         return _devices.Values.Count(d => d.Seen >= since);
     }
 
+    /// <summary>Where the device last asked for alerts, if that was within the last 15 minutes.</summary>
+    public GeoPoint? LastSeen(string deviceId) =>
+        _devices.TryGetValue(deviceId, out var d) && d.Seen >= clock.UtcNow - Window ? d.Point : null;
+
     private void Prune()
     {
         var since = clock.UtcNow - Window;

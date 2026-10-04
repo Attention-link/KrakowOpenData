@@ -50,7 +50,8 @@ public sealed record CitizenReport(
     bool VerifiedByPlanner,
     ReportStatus Status,
     DateTimeOffset? ResolvedAt,
-    string? ResolutionNote) : IEntity
+    string? ResolutionNote,
+    ReportTriage? Triage = null) : IEntity
 {
     public int Supporters => DeviceIds.Count;
 }

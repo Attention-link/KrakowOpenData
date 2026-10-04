@@ -136,7 +136,19 @@ public sealed record ReportDto(
     bool VerifiedByPlanner,
     string Status,
     string? Note,
-    string? ResolutionNote);
+    string? ResolutionNote,
+    ReportTriageDto? Triage = null);
+
+/// <summary>AI suggestion about a report (planners only). Advice, not a decision: it never changes the score or the report.</summary>
+public sealed record ReportTriageDto(
+    string? SuggestedType,
+    int Severity,
+    string? SummaryPl,
+    bool IsAbuse,
+    bool ContainsPersonalData,
+    string? DuplicateOf,
+    double Confidence,
+    DateTimeOffset TriagedAt);
 
 public sealed record CreateReportRequest(string Type, double Latitude, double Longitude, string? Note, string DeviceId);
 

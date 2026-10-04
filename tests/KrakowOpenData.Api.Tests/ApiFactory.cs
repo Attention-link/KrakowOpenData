@@ -28,6 +28,9 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IWaitingListSource, FakeWaitingListSource>();
             services.AddSingleton<IGeocoder, FakeGeocoder>();
             services.AddSingleton<IWalkingRouter, FakeWalkingRouter>();
+            // Telegram and AI are not configured here (no token, no worker), so nothing leaves the process; events are only recorded.
+            services.AddSingleton<CapturingSafetyEventSink>();
+            services.AddSingleton<KrakowOpenData.Application.Safety.ISafetyEventSink>(sp => sp.GetRequiredService<CapturingSafetyEventSink>());
 
             services.AddSingleton(FakeData.Of(FakeData.Weather));
             services.AddSingleton(FakeData.Of(FakeData.AirQuality));
