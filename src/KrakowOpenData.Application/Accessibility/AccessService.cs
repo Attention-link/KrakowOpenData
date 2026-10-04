@@ -148,9 +148,10 @@ public sealed class AccessService(
             var routes = await router.RouteAsync([from, to], false, ct);
             if (routes.Count > 0) path = routes[0].Points;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        // An HttpClient timeout is a TaskCanceledException too: only the caller's own cancellation may escape (as in RouteService).
+        catch (Exception) when (!ct.IsCancellationRequested)
         {
-            // Street routing unavailable: assess the straight line (the route note says data is incomplete anyway).
+            // Street routing unavailable (down, timed out or paused for fair use): assess the straight line (the route note says data is incomplete anyway).
         }
 
         return await AssessPathAsync(path, profile, ct);

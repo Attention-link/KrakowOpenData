@@ -1,45 +1,33 @@
+@using KrakowOpenData.Web.Navigation
+@* Rendered from SiteMenu: the Kompas Krakowa app shows the same entries behind its "Menu" button, so every page has one menu. *@
 <div class="sb-sidenav-menu">
 <div class="nav">
-    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">@T["nav.home"]</NavLink>
-    <NavLink class="nav-link" href="catalog">@T["nav.catalog"]</NavLink>
-
-    <div class="sb-sidenav-menu-heading feature-heading">@T["nav.safetyGroup"]</div>
-    @* The safety app is a separate page, not a Blazor route: target="_top" makes the browser load it instead of the router answering "Not found". *@
-    <a class="nav-link feature-link" href="/safety/index.html" target="_top">
-        <span class="feature-icon" aria-hidden="true">&#9728;</span>
-        <span>@T["nav.safetyApp"]</span>
-    </a>
-    @* Not for everyone: the dashboard is for city staff, so it is marked differently (amber, with a lock). *@
-    <a class="nav-link feature-link feature-staff" href="/safety/index.html#/planner" target="_top">
-        <span class="feature-icon" aria-hidden="true">&#128274;</span>
-        <span>@T["nav.safetyPlanner"]</span>
-        <span class="staff-badge">@T["nav.staff"]</span>
-    </a>
-
-    <div class="sb-sidenav-menu-heading">@T["cat.Mobility"]</div>
-    <NavLink class="nav-link" href="mobility/stops">@T["nav.stops"]</NavLink>
-    <NavLink class="nav-link" href="mobility/vehicles">@T["nav.vehicles"]</NavLink>
-    <NavLink class="nav-link" href="mobility/alerts">@T["nav.alerts"]</NavLink>
-    <NavLink class="nav-link" href="mobility/park-and-ride">@T["nav.parkAndRide"]</NavLink>
-
-    <div class="sb-sidenav-menu-heading">@T["cat.Environment"]</div>
-    <NavLink class="nav-link" href="environment/weather">@T["nav.weather"]</NavLink>
-    <NavLink class="nav-link" href="environment/air-quality">@T["nav.airQuality"]</NavLink>
-
-    <div class="sb-sidenav-menu-heading">@T["cat.ClimateAndCrisis"]</div>
-    <NavLink class="nav-link" href="crisis/rivers">@T["nav.rivers"]</NavLink>
-    <NavLink class="nav-link" href="crisis/warnings">@T["nav.warnings"]</NavLink>
-
-    <div class="sb-sidenav-menu-heading">@T["cat.UrbanSpace"]</div>
-    <NavLink class="nav-link" href="urban/districts">@T["nav.districts"]</NavLink>
-    <NavLink class="nav-link" href="urban/amenities">@T["nav.amenities"]</NavLink>
-    <NavLink class="nav-link" href="urban/street-lights">@T["nav.streetLights"]</NavLink>
-
-    <div class="sb-sidenav-menu-heading">@T["cat.PublicServices"]</div>
-    <NavLink class="nav-link" href="services/cards">@T["nav.serviceCards"]</NavLink>
-    <NavLink class="nav-link" href="services/waiting-lists">@T["nav.waitingLists"]</NavLink>
-
-    <div class="sb-sidenav-menu-heading">@T["cat.Society"]</div>
-    <NavLink class="nav-link" href="open-data">@T["nav.openData"]</NavLink>
+    @foreach (var group in SiteMenu.Groups)
+    {
+        if (group.HeadingKey is { } heading)
+        {
+            <div class="sb-sidenav-menu-heading @(group.Features ? "feature-heading" : null)">@T[heading]</div>
+        }
+        foreach (var item in group.Items)
+        {
+            if (item.InApp)
+            {
+                @* The app is a separate page, not a Blazor route: target="_top" makes the browser load it instead of the router answering "Not found".
+                   Staff-only entries (the planner dashboard) are marked differently: amber, with a lock. *@
+                <a class="nav-link feature-link @(item.Staff ? "feature-staff" : null)" href="@item.Href" target="_top">
+                    <span class="feature-icon" aria-hidden="true">@item.Icon</span>
+                    <span>@T[item.LabelKey]</span>
+                    @if (item.Staff)
+                    {
+                        <span class="staff-badge">@T["nav.staff"]</span>
+                    }
+                </a>
+            }
+            else
+            {
+                <NavLink class="nav-link" href="@item.Href" Match="@(item.Href == "/" ? NavLinkMatch.All : NavLinkMatch.Prefix)">@T[item.LabelKey]</NavLink>
+            }
+        }
+    }
 </div>
 </div>

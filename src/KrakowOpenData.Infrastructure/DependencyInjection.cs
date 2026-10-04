@@ -38,6 +38,12 @@ namespace KrakowOpenData.Infrastructure;
 /// </summary>
 public static class DependencyInjection
 {
+    /// <summary>
+    /// Sent by every client that calls a public source (GTFS, IMGW, GIOŚ, NFZ, city API, Overpass, Photon, the OSRM router):
+    /// the OSM-based services' usage policies ask callers to identify the app and where to find it.
+    /// </summary>
+    public const string UpstreamUserAgent = "KompasKrakowa/1.0 (+https://opendata.al.mt)";
+
     public static IServiceCollection AddKrakowOpenData(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<KrakowDataOptions>(configuration.GetSection(KrakowDataOptions.SectionName));
@@ -48,7 +54,7 @@ public static class DependencyInjection
         services.AddHttpClient(GtfsDatasetProvider.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(Math.Max(5, options.HttpTimeoutSeconds));
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(UpstreamUserAgent);
         });
 
         // ── Upstream clients (one per public source) ──────────────────────────
@@ -59,7 +65,7 @@ public static class DependencyInjection
         services.AddHttpClient(OverpassQueryRunner.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(Math.Max(30, options.OverpassTimeoutSeconds));
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(UpstreamUserAgent);
         });
         services.AddSingleton<ISnapshotStore, FileSnapshotStore>();
         services.AddSingleton<OverpassQueryRunner>();
@@ -72,7 +78,7 @@ public static class DependencyInjection
         services.AddHttpClient(PhotonGeocoder.HttpClientName, client =>
         {
             client.Timeout = TimeSpan.FromSeconds(10);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(UpstreamUserAgent);
         });
         services.AddSingleton<IGeocoder, PhotonGeocoder>();
         services.Configure<RoutingOptions>(configuration.GetSection(RoutingOptions.SectionName));
@@ -81,7 +87,7 @@ public static class DependencyInjection
             var routing = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<RoutingOptions>>().Value;
             client.BaseAddress = new Uri(routing.BaseUrl.TrimEnd('/') + "/");
             client.Timeout = TimeSpan.FromSeconds(12);
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("KrakowOpenData/0.1 (hackathon prototype)");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(UpstreamUserAgent);
         });
         services.AddSingleton<IWalkingRouter, OsrmWalkingRouter>();
         services.AddSingleton<IOpenDataTableReader, OpenDataPortalClient>();

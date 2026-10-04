@@ -1,4 +1,5 @@
 using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Infrastructure.Common;
 
 namespace KrakowOpenData.Api.Endpoints;
 
@@ -20,6 +21,16 @@ public sealed class UpstreamUnavailableFilter(ILogger<UpstreamUnavailableFilter>
             context.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(ex.RetryAfter.TotalSeconds)).ToString();
             return Results.Problem(
                 title: "Data is still loading",
+                detail: ex.Message,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (UpstreamBusyException ex)
+        {
+            // A fair-use service asked us to back off (or keeps failing): the call was skipped. Not logged per request, the
+            // pause itself is logged once.
+            context.HttpContext.Response.Headers.RetryAfter = ((int)Math.Ceiling(ex.RetryAfter.TotalSeconds)).ToString();
+            return Results.Problem(
+                title: "Upstream data source busy",
                 detail: ex.Message,
                 statusCode: StatusCodes.Status503ServiceUnavailable);
         }

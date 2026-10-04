@@ -108,7 +108,7 @@ a { color: var(--link); }
 
 /* ── Accessibility: text colours with at least 4.5:1 contrast on their backgrounds ── */
 .text-muted, .muted, .lede, .source, .legend, .map-legend, .facts dt { color: var(--text-muted) !important; }
-.btn-outline-secondary { --bs-btn-color: #495057; --bs-btn-border-color: #6c757d; }
+.btn-outline-secondary { --bs-btn-color: #495057; --bs-btn-border-color: #6c757d; --bs-btn-disabled-color: #495057; }  /* disabled (pager on page 1) too */
 code { color: var(--code); }
 .sb-sidenav-dark .sb-sidenav-menu .sb-sidenav-menu-heading { color: #9fb0c6; }
 footer .text-muted { color: var(--text-muted) !important; }

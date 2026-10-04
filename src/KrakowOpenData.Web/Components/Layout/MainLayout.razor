@@ -31,7 +31,14 @@
                 @Body
             </main>
             <footer class="py-3 site-footer mt-auto">
-                <div class="container-fluid px-4 small text-muted">@Language.Current["brand.title"]</div>
+                @* The accessibility statement covers the whole service, so it is linked from every portal page too. *@
+                <div class="container-fluid px-4 small text-muted d-flex flex-wrap gap-3">
+                    <span>@Language.Current["brand.title"]</span>
+                    @foreach (var item in KrakowOpenData.Web.Navigation.SiteMenu.Footer)
+                    {
+                        <a href="@item.Href" target="_top">@Language.Current[item.LabelKey]</a>
+                    }
+                </div>
             </footer>
         </div>
     </div>

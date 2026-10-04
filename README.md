@@ -296,7 +296,8 @@ All thresholds are first estimates, meant to be tuned in `SafetyModel`. Unit tes
 
 Address boxes and the address shown on maps use **OpenStreetMap data through [Photon](https://photon.komoot.io)**, a geocoder that supports search-as-you-type
 (the public Nominatim service does not). The browser never calls Photon: it calls this API (`/api/geo/search`, `/api/geo/reverse`), which sends only the typed
-text or one coordinate, caches answers (searches 1 h, lookups 24 h) and allows two requests at a time, to stay within Photon's fair use. Change the server with
+text or one coordinate, caches answers (searches 1 h, lookups 24 h, bounded in memory), allows four requests at a time and pauses for the
+Retry-After time when Photon answers 429 (the box then says the search failed; try again shortly), to stay within Photon's fair use. Change the server with
 `KrakowData:GeocoderBaseUrl` (for example a self-hosted Photon). Addresses seen once are remembered on the device, so they still show offline; typing a new
 address needs a connection, tapping the map does not.
 
@@ -357,7 +358,8 @@ All under `/api/safety` (see Swagger for schemas). Planner endpoints need the `X
   "PlannerKey": "demo-planner",   // CHANGE THIS. Shared key: demo-grade, not real authentication
   "Persist": true,                // keep reports, alerts and contacts in a JSON file across restarts
   "StorePath": "",                // default: %LOCALAPPDATA%\KrakowOpenData\safety-store.json
-  "WriteRequestsPerMinute": 20    // POST/PUT/DELETE under /api/safety per client IP (CF-Connecting-IP / X-Forwarded-For); 0 = off
+  "WriteRequestsPerMinute": 120   // POST/PUT/DELETE under /api/safety per client IP (CF-Connecting-IP / X-Forwarded-For); 0 = off.
+                                  // High because a venue shares one NAT address; planner calls with the key are not counted
 }
 // KrakowOpenData.Web/appsettings.json
 "Safety": { "PublicApiBaseUrl": "http://localhost:5080/",    // the API address as the browser sees it (docker-compose sets it)
@@ -387,7 +389,7 @@ src/KrakowOpenData.Web/wwwroot/safety/   the web app: index.html, sw.js (offline
 - **Agency contact is simulated**: it records a reference and prefilled text; nothing is sent. The two phone numbers (ZDMK 24 h line, Crisis Management Centre) come from press coverage and are flagged "verify number".
 - The planner key is a shared demo secret; use the city's identity provider before real use. The JSON store suits a demo, not production.
 - The service worker could not be exercised in the in-app browser used for development (it does not support service workers); the data-level offline behaviour (cache, queue, auto-send) was tested there, the installable shell should be checked in Chrome or Edge.
-- Street routing uses the public OpenStreetMap Germany foot router (`Safety:Routing:BaseUrl`), which is fair-use with no guarantee; self-host OSRM or Valhalla for production. If it is unreachable the API returns only a straight-line check and the app says so. Routes are scored with the same model as the map, so a "safer" route means better lit and better served, not a crime-checked one.
+- Street routing uses the public OpenStreetMap Germany foot router (`Safety:Routing:BaseUrl`), which is fair-use with no guarantee; self-host OSRM or Valhalla for production. One route search makes 1 to 11 router calls (direct route, 4 via points, 6 more when the fastest route scores poorly); answers are cached 30 min by coordinates rounded to about 1 m, at most four calls run at once, and a 429 or three failures in a row pause routing (Retry-After, else 30 s / 15 s). If it is unreachable or paused the API returns only a straight-line check and the app says so. Routes are scored with the same model as the map, so a "safer" route means better lit and better served, not a crime-checked one.
 - **Address search depends on a third-party service** (Photon, free and fair-use). Typed text and coordinates are sent to it by this API, not by the browser; self-host it for production.
 - Water points are sparse in OpenStreetMap (see [Water data](#water-data)); low heat-relief scores partly reflect missing map data.
 

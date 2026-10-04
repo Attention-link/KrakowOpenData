@@ -4,8 +4,8 @@ using KrakowOpenData.Application.Abstractions;
 using KrakowOpenData.Application.Safety;
 using KrakowOpenData.Contracts;
 using KrakowOpenData.Domain.Common;
+using KrakowOpenData.Infrastructure.Common;
 using KrakowOpenData.Infrastructure.Options;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -14,62 +14,72 @@ namespace KrakowOpenData.Infrastructure.Geocoding;
 /// <summary>
 /// Address search and reverse lookup through Photon (komoot's OpenStreetMap geocoder, which supports search-as-you-type,
 /// unlike the public Nominatim service). The app calls this API, not Photon, so the browser never talks to a third party.
-/// Results are cached (searches 1 h, reverse lookups 24 h) and at most two requests run at once, to respect Photon's fair use.
-/// Only the typed text and a coordinate leave the system; nothing identifies the user.
+/// Results are cached (searches 1 h, reverse lookups 24 h, each at most <see cref="CacheEntries"/>), at most
+/// <see cref="MaxConcurrent"/> requests run at once, and a 429 or repeated failures pause calls for a while
+/// (<see cref="UpstreamGuard"/>), to respect Photon's fair use. One search box keystroke (after the app's 300 ms debounce)
+/// is at most one call; the same text from anyone in the next hour is none. Only the typed text and a coordinate leave the
+/// system; nothing identifies the user.
 /// </summary>
 public sealed class PhotonGeocoder(
-    IHttpClientFactory http, IMemoryCache cache, IOptions<KrakowDataOptions> options, ILogger<PhotonGeocoder> logger) : IGeocoder
+    IHttpClientFactory http, IClock clock, IOptions<KrakowDataOptions> options, ILogger<PhotonGeocoder> logger) : IGeocoder
 {
     public const string HttpClientName = "geocoder";
-    private static readonly SemaphoreSlim Gate = new(2);
+    public const int MaxConcurrent = 4;
+    public const int CacheEntries = 5000;
+
+    private readonly UpstreamGuard _guard = new("The address search", MaxConcurrent, TimeSpan.FromSeconds(5), clock, logger);
+    private readonly BoundedTtlCache<IReadOnlyList<GeocodeResultDto>> _searches = new(CacheEntries, TimeSpan.FromHours(1), clock);
+    private readonly BoundedTtlCache<GeocodeResultDto?> _reverse = new(CacheEntries, TimeSpan.FromHours(24), clock);
 
     public async Task<IReadOnlyList<GeocodeResultDto>> SearchAsync(string query, GeoPoint? near, int limit, CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 10);
-        var key = $"geo:s:{query.Trim().ToLowerInvariant()}:{near?.Latitude:0.00}:{near?.Longitude:0.00}:{limit}";
-        if (cache.TryGetValue(key, out IReadOnlyList<GeocodeResultDto>? hit) && hit is not null) return hit;
+        var text = Normalise(query);
+        var key = $"{text.ToLowerInvariant()}:{near?.Latitude:0.00}:{near?.Longitude:0.00}:{limit}";
+        if (_searches.TryGet(key, out var hit)) return hit;
 
-        var url = $"api/?q={Uri.EscapeDataString(query.Trim())}&limit={limit * 2}&lang=default&bbox=19.7,49.9,20.3,50.2";
+        var url = $"api/?q={Uri.EscapeDataString(text)}&limit={limit * 2}&lang=default&bbox=19.7,49.9,20.3,50.2";
         if (near is { } p) url += $"&lat={Num(p.Latitude)}&lon={Num(p.Longitude)}";
 
         var results = PhotonParser.Parse(await GetAsync(url, ct))
             .Where(r => GridSpec.IsInArea(new GeoPoint(r.Latitude, r.Longitude)))
             .Take(limit)
             .ToList();
-        cache.Set(key, (IReadOnlyList<GeocodeResultDto>)results, TimeSpan.FromHours(1));
+        _searches.Set(key, results);
         return results;
     }
 
     public async Task<GeocodeResultDto?> ReverseAsync(GeoPoint point, CancellationToken ct = default)
     {
-        var key = $"geo:r:{point.Latitude:0.0000}:{point.Longitude:0.0000}";
-        if (cache.TryGetValue(key, out GeocodeResultDto? hit)) return hit;
+        var key = $"{point.Latitude:0.0000}:{point.Longitude:0.0000}";
+        if (_reverse.TryGet(key, out var hit)) return hit;
 
         var url = $"reverse?lat={Num(point.Latitude)}&lon={Num(point.Longitude)}&radius=0.3&limit=1&lang=default";
         var result = PhotonParser.Parse(await GetAsync(url, ct)).FirstOrDefault();
-        cache.Set(key, result, TimeSpan.FromHours(24));
+        _reverse.Set(key, result);
         return result;
     }
 
+    /// <summary>"  Rynek   Główny " and "Rynek Główny" are the same search (and the same cache entry, whatever the case).</summary>
+    public static string Normalise(string query) =>
+        string.Join(' ', query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
     private async Task<string> GetAsync(string relativeUrl, CancellationToken ct)
     {
-        await Gate.WaitAsync(ct);
+        var client = http.CreateClient(HttpClientName);
+        client.BaseAddress = new Uri(options.Value.GeocoderBaseUrl);
         try
         {
-            var client = http.CreateClient(HttpClientName);
-            client.BaseAddress = new Uri(options.Value.GeocoderBaseUrl);
-            using var response = await client.GetAsync(relativeUrl, ct);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsStringAsync(ct);
+            return await _guard.GetStringAsync(client, relativeUrl, ct);
+        }
+        catch (UpstreamBusyException)
+        {
+            throw;   // already logged once when the pause started; one line per blocked search would flood the log
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Geocoder request failed");
             throw;
-        }
-        finally
-        {
-            Gate.Release();
         }
     }
 

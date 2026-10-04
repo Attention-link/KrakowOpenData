@@ -2,38 +2,38 @@ using System.Globalization;
 using System.Text.Json;
 using KrakowOpenData.Application.Abstractions;
 using KrakowOpenData.Domain.Common;
-using Microsoft.Extensions.Caching.Memory;
+using KrakowOpenData.Infrastructure.Common;
+using Microsoft.Extensions.Logging;
 
 namespace KrakowOpenData.Infrastructure.Geocoding;
 
 /// <summary>
 /// Walking routes from an OSRM-compatible service (OpenStreetMap street data, foot profile). Only coordinates leave the system.
-/// Answers are cached for 30 minutes and at most three requests run at once, to respect the public server's fair use.
+/// One route search in the app makes 1 to 11 calls here (the direct route, 4 via points, and 6 more for the wide search, see
+/// RouteService), so to respect the public server's fair use: coordinates are rounded to 5 decimals (about 1 m) and answers
+/// cached for 30 minutes (at most <see cref="CacheEntries"/>), at most <see cref="MaxConcurrent"/> requests run at once, and a
+/// 429 or repeated failures pause calls for a while (<see cref="UpstreamGuard"/>). While paused, the app gets its
+/// straight-line "try again shortly" answer.
 /// </summary>
-public sealed class OsrmWalkingRouter(IHttpClientFactory http, IMemoryCache cache) : IWalkingRouter
+public sealed class OsrmWalkingRouter(IHttpClientFactory http, IClock clock, ILogger<OsrmWalkingRouter> logger) : IWalkingRouter
 {
     public const string HttpClientName = "routing";
-    private static readonly SemaphoreSlim Gate = new(3);
+    public const int MaxConcurrent = 4;
+    public const int CacheEntries = 500;   // a full 5 km route is tens of kB, so this stays well inside the container's memory
+    public static readonly TimeSpan CacheTime = TimeSpan.FromMinutes(30);
+
+    private readonly UpstreamGuard _guard = new("The street router", MaxConcurrent, TimeSpan.FromSeconds(5), clock, logger);
+    private readonly BoundedTtlCache<IReadOnlyList<RoutePath>> _cache = new(CacheEntries, CacheTime, clock);
 
     public async Task<IReadOnlyList<RoutePath>> RouteAsync(IReadOnlyList<GeoPoint> waypoints, bool alternatives, CancellationToken ct = default)
     {
         var coords = string.Join(';', waypoints.Select(p => $"{Num(p.Longitude)},{Num(p.Latitude)}"));
         var url = $"route/v1/foot/{coords}?overview=full&geometries=geojson&steps=false&alternatives={(alternatives ? "true" : "false")}";
-        if (cache.TryGetValue(url, out IReadOnlyList<RoutePath>? hit) && hit is not null) return hit;
+        if (_cache.TryGet(url, out var hit)) return hit;
 
-        await Gate.WaitAsync(ct);
-        try
-        {
-            using var response = await http.CreateClient(HttpClientName).GetAsync(url, ct);
-            response.EnsureSuccessStatusCode();
-            var routes = Parse(await response.Content.ReadAsStringAsync(ct));
-            cache.Set(url, routes, TimeSpan.FromMinutes(30));
-            return routes;
-        }
-        finally
-        {
-            Gate.Release();
-        }
+        var routes = Parse(await _guard.GetStringAsync(http.CreateClient(HttpClientName), url, ct));
+        _cache.Set(url, routes);
+        return routes;
     }
 
     /// <summary>Reads an OSRM route response (GeoJSON geometries: [lon, lat] pairs).</summary>
@@ -57,5 +57,6 @@ public sealed class OsrmWalkingRouter(IHttpClientFactory http, IMemoryCache cach
         return result;
     }
 
-    private static string Num(double v) => v.ToString("0.000000", CultureInfo.InvariantCulture);
+    /// <summary>5 decimals is about 1 m: plenty for a walking route, and the same trip asked twice hits the cache.</summary>
+    private static string Num(double v) => v.ToString("0.00000", CultureInfo.InvariantCulture);
 }
