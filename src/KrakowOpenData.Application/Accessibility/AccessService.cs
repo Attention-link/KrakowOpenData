@@ -19,7 +19,7 @@ public interface IAccessDataStatus
 /// <list type="bullet">
 /// <item>Every item has its facts, source, last OSM edit and reliability (see <see cref="AccessReliability"/>).</item>
 /// <item>Missing data is "unknown" and is never counted as accessible; coverage says how much is known.</item>
-/// <item>Resident reports (the PathHazard type) are returned separately as <c>user_unverified</c>.</item>
+/// <item>Resident reports (the PathHazard type, which feeds the Access score layer) are returned separately as <c>user_unverified</c>.</item>
 /// <item>A route is matched against items within <see cref="MatchMeters"/> of points sampled every <see cref="StepMeters"/>.</item>
 /// </list>
 /// </summary>

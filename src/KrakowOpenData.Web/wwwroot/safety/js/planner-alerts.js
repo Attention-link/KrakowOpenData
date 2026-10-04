@@ -10,16 +10,18 @@ import { searchBox } from './search.js';
 import { addressLine } from './geo.js';
 
 const SEV = { Info: 'accent', Warning: 'warn', Critical: 'danger' };
-const TEMPLATES = ['heat', 'night', 'flood', 'air', 'custom'];
+const TEMPLATES = ['heat', 'night', 'flood', 'air', 'access', 'custom'];
 /** Template id -> API layer name, severity and icon. */
 const TPL = {
   heat: { layer: 'Heat', severity: 'Warning', icon: 'thermo' },
   night: { layer: 'Safety', severity: 'Info', icon: 'moon' },
   flood: { layer: 'Flood', severity: 'Warning', icon: 'wave' },
-  air: { layer: 'Air', severity: 'Warning', icon: 'wind' }
+  air: { layer: 'Air', severity: 'Warning', icon: 'wind' },
+  access: { layer: 'Access', severity: 'Info', icon: 'a11y' }
 };
-const TPL_OF_LAYER = { Heat: 'heat', Safety: 'night', Flood: 'flood', Air: 'air' };
-const TPL_OF_EVENT = { heat: 'heat', night: 'night', flood: 'flood', air: 'air' };
+// Access (and the profile layers of a suggested action) fills the accessibility template. It is never chosen on its own: weakestTemplate leaves it out.
+const TPL_OF_LAYER = { Heat: 'heat', Safety: 'night', Flood: 'flood', Air: 'air', Access: 'access', AccessPram: 'access', AccessMobility: 'access' };
+const TPL_OF_EVENT = { heat: 'heat', night: 'night', flood: 'flood', air: 'air', access: 'access' };
 
 /** The weakest layer of an area, as a template id (heat is turned around: a hot place scores low). */
 function weakestTemplate(cell) {
@@ -69,7 +71,7 @@ export function alertForm({ cell, action, point, onSent } = {}) {
   const tplSel = h('select', { id: 'al-tpl' }, TEMPLATES.map((id) => h('option', { value: id, selected: f.template === id }, t(`al.tpl.${id}`))));
   tplSel.addEventListener('change', () => applyTemplate(tplSel.value));
   const sevSel = h('select', { id: 'al-sev' }, ['Info', 'Warning', 'Critical'].map((s) => h('option', { value: s, selected: f.severity === s }, t(`sev.${s}`))));
-  const layerSel = h('select', { id: 'al-layer' }, [['', t('al.layerAny')], ['Heat', t('mode.heat')], ['Safety', t('mode.safety')], ['Flood', t('mode.flood')], ['Air', t('mode.air')]].map(([v, l]) => h('option', { value: v, selected: f.layer === v }, l)));
+  const layerSel = h('select', { id: 'al-layer' }, [['', t('al.layerAny')], ['Heat', t('mode.heat')], ['Safety', t('mode.safety')], ['Flood', t('mode.flood')], ['Air', t('mode.air')], ['Access', t('mode.access')]].map(([v, l]) => h('option', { value: v, selected: f.layer === v }, l)));
   const durSel = h('select', { id: 'al-dur' }, [[30, '30 min'], [60, '1 h'], [180, '3 h'], [360, '6 h'], [720, '12 h'], [1440, '24 h']].map(([v, l]) => h('option', { value: v, selected: f.duration === v }, l)));
 
   for (const [ctl, key] of [[sevSel, 'severity'], [layerSel, 'layer'], [durSel, 'duration']]) ctl.addEventListener('change', () => { f[key] = key === 'duration' ? Number(ctl.value) : ctl.value; paintPreview(); });

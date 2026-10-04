@@ -1,4 +1,6 @@
 using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Application.Accessibility;
+using KrakowOpenData.Domain.Accessibility;
 using KrakowOpenData.Domain.Common;
 using KrakowOpenData.Domain.Mobility;
 using KrakowOpenData.Domain.Safety;
@@ -14,6 +16,8 @@ namespace KrakowOpenData.Application.Safety;
 /// <item>green ← parks · refuge ← libraries, pharmacies, hospitals · openPlaces ← police, hospitals, 24/7 pharmacies</item>
 /// <item>transit ← every GTFS stop · nightTransit ← stops with departures between 23:00 and 04:30</item>
 /// <item>lighting ← street lamps (counted per grid cell)</item>
+/// <item>access.* ← the accessibility dataset (OSM steps, kerbs, lifts, entrances, wheelchair tags, toilets, benches, tactile paving, path surface and slope) and the ZTP stops with wheelchair_boarding, per profile (see <see cref="AccessLayerData"/>)</item>
+/// <item>access.* ← the accessibility dataset (OSM steps, kerbs, lifts, entrances, wheelchair tags, toilets, benches, tactile paving, path surface and slope) and the ZTP stops with wheelchair_boarding, per profile (see <see cref="AccessLayerData"/>)</item>
 /// </list>
 /// A dataset that cannot be loaded does not stop the model: its factors then score 0 and the dataset is listed in
 /// <see cref="StaticSafetyModel.DataGaps"/> so the UI can warn that scores are incomplete. A degraded model is
@@ -26,7 +30,8 @@ public sealed class SafetyModelProvider(
     IReadRepository<TransitStop> stops,
     ITransitScheduleRepository schedule,
     IClock clock,
-    ISafetyStore? store = null)
+    ISafetyStore? store = null,
+    IReadRepository<AccessFeature>? accessFeatures = null)
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(30);
     public static readonly TimeSpan DegradedLifetime = TimeSpan.FromMinutes(1);
@@ -81,6 +86,8 @@ public sealed class SafetyModelProvider(
         var amenityList = await Load("amenities", () => amenities.ListAsync(cancellationToken: ct));
         var placeList = await Load("places", () => places.ListAsync(cancellationToken: ct));
         var stopList = await Load("stops", () => stops.ListAsync(cancellationToken: ct));
+        // Accessibility (OpenStreetMap steps, kerbs, lifts, ...). Without it the Access layers have no data at all; they never fall back to "accessible".
+        IReadOnlyList<AccessFeature> accessList = accessFeatures is null ? [] : await Load("access", () => accessFeatures.ListAsync(cancellationToken: ct));
 
         IReadOnlySet<string> nightIds = new HashSet<string>();
         if (!gaps.Contains("stops"))
@@ -124,10 +131,18 @@ public sealed class SafetyModelProvider(
         if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.Waterway)) gaps.Add("rivers");
         if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.MajorRoad)) gaps.Add("mainRoads");
 
+        // Accessibility: one set of distance features per profile; the ZTP wheelchair_boarding flag decides which stops count.
+        var accessData = new AccessLayerData(accessList);
+        if (accessFeatures is not null && accessList.Count == 0 && !gaps.Contains("access")) gaps.Add("access");   // loaded but empty: every square is "no data"
+        var accessibleStops = stopList.Where(s => s.WheelchairAccessible == true).Select(StopFeature).ToList();
+        foreach (var profile in AccessProfile.All)
+            foreach (var (key, list) in accessData.FeatureLists(profile, accessibleStops))
+                features[key] = list;
+
         var overrides = store is null ? new Dictionary<string, double>() : await store.GetWeightOverridesAsync(ct);
         var definitions = Enum.GetValues<Layer>().ToDictionary(l => l, l => FactorWeights.Apply(l, overrides));
 
-        return new StaticSafetyModel(features, CountPerCell(lampList.Select(l => l.Location)), CountPerCell(stopList.Select(s => s.Location)), gaps, clock.UtcNow, definitions);
+        return new StaticSafetyModel(features, CountPerCell(lampList.Select(l => l.Location)), CountPerCell(stopList.Select(s => s.Location)), gaps, clock.UtcNow, definitions, accessData);
     }
 
     private static IReadOnlyList<Feature> AmenityFeatures(IReadOnlyList<Amenity> all, AmenityKind kind) =>

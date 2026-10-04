@@ -2,7 +2,7 @@
 export const residentStrings = {
   'skip': ['Skip to content', 'Przejdź do treści', 'Перейти до вмісту'],
   'app.title': ['Kompas Krakowa', 'Kompas Krakowa', 'Kompas Krakowa'],
-  'app.subtitle': ['Kraków · night safety, heat, flood and air', 'Kraków · bezpieczeństwo nocą, upał, powódź i powietrze', 'Краків · безпека вночі, спека, повінь і повітря'],
+  'app.subtitle': ['Kraków · night safety, heat, flood, air and accessibility', 'Kraków · bezpieczeństwo nocą, upał, powódź, powietrze i dostępność', 'Краків · безпека вночі, спека, повінь, повітря і доступність'],
 
   'common.back': ['Back', 'Wstecz', 'Назад'],
   'common.next': ['Continue', 'Dalej', 'Далі'],

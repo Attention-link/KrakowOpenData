@@ -96,3 +96,32 @@ does not avoid barriers yet: it is a check, not a barrier-free route.
 
 No sample data is used for accessibility: the tests use a hand-written Overpass-shaped fixture (`tests/Fixtures/osm-access-sample.json`).
 If items ever come from a source whose name contains "sample", the API sets `sampleData: true` and the app shows "Dane przykładowe".
+
+## Accessibility as a score layer (fifth layer)
+
+The same data also feeds a 0–100 score per 250 m square (higher = easier, the usual bands Good ≥ 75, Fair ≥ 55, Weak ≥ 35, Critical), **one score per profile**
+(`wheelchair` = layer `Access`, the default; `pram` = `AccessPram`; `mobility` = `AccessMobility`). Code: `Application/Safety/AccessLayer.cs` (factors, weights, counts),
+`AccessMethodText.cs` (the written reasons), `StaticSafetyModel.Measure`, `ScoreService`.
+
+| Factor (`access.{profile}.<factor>`) | Wheelchair | Pram | Mobility | What it measures (profile rules from `AccessRules`) |
+| --- | --- | --- | --- | --- |
+| `steps` | 22 | 15 | 10 | weighted steps within 150 m with no suitable ramp (steps and stepped entrances; limited counts 0.5) |
+| `kerbs` | 20 | 15 | 5 | weighted raised kerbs within 150 m |
+| `surface` | 14 | 20 | 12 | share of mapped footways within 150 m that are smooth, within the slope limit and wide enough |
+| `slope` | 8 | 10 | 18 | footways within 150 m steeper than the profile limit (6 % / 8 % / 8 %) |
+| `stepFree` | 10 | 8 | 8 | distance to the nearest step-free entrance, lift or place with `wheelchair=yes` |
+| `accessStops` | 10 | 12 | 12 | distance to the nearest ZTP stop with `wheelchair_boarding` = accessible (**not available** while no stop is flagged, see below) |
+| `accessToilets` | 10 | 8 | 8 | distance to the nearest accessible toilet (pram: or one with a changing table) |
+| `rest` | 6 | 12 | 22 | distance to the nearest bench (limited mobility: full within 80 m, zero from 300 m) |
+| `tactile` | 0 | 0 | 5 | distance to the nearest crossing with tactile paving |
+
+Weights are planner-editable per profile (`PUT /api/safety/planner/weights`, keys as above). Citizen `PathHazard` reports lower the score of the Access layers (up to 30 points).
+
+**No data is never accessible.** A square has a score only when it lies inside the downloaded area **and** at least one accessibility item is mapped within 250 m. Otherwise
+there is no score: `-1` in the grid columns `access`, `accessPram`, `accessMobility` (`accessData` = 0), `score: null` / `hasData: false` / band `NoData` in the place card with a
+`dataNoteCode` (`outside_area`, `no_data`, `unavailable`), `null` in route samples. Such squares are excluded from planner averages, gaps and rankings and are counted in the
+`cellsNoData` KPI. Inside a scored square a missing tag still never counts as accessible: a footway without surface/slope data is not "smooth", a stop without
+`wheelchair_boarding` and a toilet without a wheelchair tag are not accessible. A score built on fewer than 5 mapped items is flagged `thin_coverage`. If the dataset cannot be loaded
+the model lists `access` in its data gaps.
+
+**Accessible stops: no flagged stop, no punishment.** The ZTP GTFS feeds currently flag no stop as wheelchair-accessible (feeds A and M carry 0 = unknown, feed T has no flag). "No data is never accessible" still holds, but it must not punish every square, so when the data contains zero stops flagged accessible (or the stops dataset is unavailable) the `accessStops` factor is treated as **not available** for scoring: it is left out and the other factors' weights of each profile are rescaled at scoring time to add up to 100 again (the configured and planner weights are not changed). In the place card the factor has `hasData: false` and `dataNote` "no stop in the ZTP open data is flagged wheelchair-accessible" (shown as "no data", not "0 of N points"), the other factors carry the rescaled `weight`, no `REVIEW_ACCESSIBLE_STOPS` action or factor gap is produced from it, the planner KPI `noAccessibleStop400` is omitted and `conditions.dataGaps` contains `access_stops`. As soon as one stop is flagged the factor works as described above.

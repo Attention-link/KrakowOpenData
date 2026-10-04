@@ -19,7 +19,8 @@ public sealed class DemoDataService(ScoreService scores, ISafetyStore store, ICl
         var demo = existing.Where(r => r.Note?.StartsWith(Marker, StringComparison.Ordinal) == true && ReportRules.IsKnown(r.Type)).ToList();
         var hasNightAndHeat = demo.Any(r => ReportRules.For(r.Type).Layer is ScoreLayer.Safety or ScoreLayer.Heat);
         var hasFloodAndAir = demo.Any(r => ReportRules.For(r.Type).Layer is ScoreLayer.Flood or ScoreLayer.Air);
-        if (hasNightAndHeat && hasFloodAndAir) return 0;
+        var hasAccess = demo.Any(r => ReportRules.For(r.Type).Layer == ScoreLayer.Access);
+        if (hasNightAndHeat && hasFloodAndAir && hasAccess) return 0;
 
         var grid = await scores.ScoreGridAsync(PlanningEvent.Both, ct);
         var busy = grid.Cells.Where(c => c.Measure.Exposure >= 0.6).ToList();
@@ -42,7 +43,7 @@ public sealed class DemoDataService(ScoreService scores, ISafetyStore store, ICl
             var darkest = busy.OrderBy(c => c.Measure.SafetyBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(6).ToList();
             var hottest = busy.OrderBy(c => c.Measure.HeatBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(5).ToList();
 
-            var lightTypes = new[] { ReportType.LightOut, ReportType.UnsafeAtNight, ReportType.LightOut, ReportType.PathHazard, ReportType.UnsafeAtNight, ReportType.LightOut };
+            var lightTypes = new[] { ReportType.LightOut, ReportType.UnsafeAtNight, ReportType.LightOut, ReportType.UnsafeAtNight, ReportType.UnsafeAtNight, ReportType.LightOut };
             for (var i = 0; i < darkest.Count; i++)
                 await Add(darkest[i], lightTypes[i], supporters: i % 3 == 0 ? 3 : i % 3 == 1 ? 2 : 1, hoursAgo: 3 + i * 9, "sample report for the demo");
 
@@ -63,6 +64,15 @@ public sealed class DemoDataService(ScoreService scores, ISafetyStore store, ICl
             var airTypes = new[] { ReportType.StrongFumes, ReportType.SmokeOrBurning, ReportType.DustCloud, ReportType.StrongFumes };
             for (var i = 0; i < exposedToTraffic.Count; i++)
                 await Add(exposedToTraffic[i], airTypes[i], supporters: i % 2 == 0 ? 3 : 1, hoursAgo: 1 + i * 4, "sample report for the demo");
+        }
+
+        if (!hasAccess)
+        {
+            // Barrier reports go where the wheelchair score is lowest AMONG squares that have accessibility data (never into "no data" squares).
+            var withData = busy.Where(c => c.HasAccessData).ToList();
+            var hard = withData.OrderBy(c => c.Access ?? 100).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(3).ToList();
+            for (var i = 0; i < hard.Count; i++)
+                await Add(hard[i], ReportType.PathHazard, supporters: i % 2 == 0 ? 2 : 1, hoursAgo: 4 + i * 8, "sample barrier report for the demo");
         }
 
         return created;

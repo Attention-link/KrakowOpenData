@@ -1,3 +1,5 @@
+using KrakowOpenData.Application.Accessibility;
+
 namespace KrakowOpenData.Application.Safety;
 
 /// <summary>
@@ -140,8 +142,20 @@ public static class SafetyModel
         Layer.Heat => HeatFactors,
         Layer.Safety => SafetyFactors,
         Layer.Flood => FloodFactors,
-        _ => AirFactors
+        Layer.Air => AirFactors,
+        _ => AccessFactorSets.For(layer)
     };
+
+    /// <summary>
+    /// ACCESSIBILITY factors: one set per profile (wheelchair = <see cref="Layer.Access"/>, pram = <see cref="Layer.AccessPram"/>, limited mobility =
+    /// <see cref="Layer.AccessMobility"/>), keys <c>access.{profile}.{factor}</c>, weights in <see cref="AccessFactorSets.Weights"/>. See <see cref="AccessKeys"/>.
+    /// Everything is read from the mapped accessibility data (OpenStreetMap steps, kerbs, lifts, entrances, wheelchair tags, toilets, benches,
+    /// tactile paving, path surface, slope and width; ZTP stops with wheelchair_boarding) with the profile's own rules (<c>AccessRules</c>).
+    /// </summary>
+    public static IReadOnlyList<FactorDefinition> AccessFactors(AccessProfile profile) => AccessFactorSets.For(AccessKeys.LayerOf(profile));
+
+    /// <summary>Priority multiplier for the accessibility layers: there is no live pressure, so 1.0.</summary>
+    public const double AccessPressure = 1.0;
 
     // ── Live adjustments (flood and air) ─────────────────────────────────────
 
@@ -224,6 +238,8 @@ public static class SafetyModel
     /// <summary>Scores one factor from the measured <paramref name="value"/> (metres for distance factors, lamps/km² for density).</summary>
     public static double FactorScore(FactorDefinition factor, double? value) =>
         factor.Kind == FactorKind.DistanceAway ? Away(value, factor.FullWithin, factor.ZeroBeyond) :
+        factor.Kind == FactorKind.Count ? Proximity(value ?? 0, factor.FullWithin, factor.ZeroBeyond) :
+        factor.Kind == FactorKind.Share ? (value is null ? 0 : Density(value.Value, factor.FullWithin, factor.ZeroBeyond)) :
         factor.Kind == FactorKind.Density
             ? Density(value ?? 0, factor.FullWithin, factor.ZeroBeyond)
             : Proximity(value, factor.FullWithin, factor.ZeroBeyond);
@@ -289,11 +305,26 @@ public enum Layer
     Heat,
     Safety,
     Flood,
-    Air
+    Air,
+
+    /// <summary>Accessibility for the wheelchair profile (the default).</summary>
+    Access,
+
+    /// <summary>Accessibility for the pram / stroller profile.</summary>
+    AccessPram,
+
+    /// <summary>Accessibility for the limited-mobility profile.</summary>
+    AccessMobility
 }
 
 public enum FactorKind
 {
+    /// <summary>A weighted count of barriers around the place; fewer is better (0 scores 100, <c>ZeroBeyond</c> or more scores 0). No value = none found.</summary>
+    Count,
+
+    /// <summary>A percentage (0–100) of mapped footway stretches that are fine; higher is better. No value (nothing mapped) scores 0: never read as accessible.</summary>
+    Share,
+
     /// <summary>Straight-line metres to the nearest feature; closer is better.</summary>
     Distance,
 
@@ -327,10 +358,12 @@ public enum HeatPressure
 public sealed record FactorDefinition(string Key, Layer Layer, double Weight, FactorKind Kind, double FullWithin, double ZeroBeyond);
 
 /// <summary>One factor measured for one place: the raw value, its 0–100 score and its contribution to the layer score.</summary>
-public sealed record FactorResult(FactorDefinition Definition, double? Value, double Score, string? NearestName)
+/// <param name="HasData">False when the factor is NOT AVAILABLE for scoring (the dataset behind it has nothing usable, e.g. no ZTP stop flagged wheelchair-accessible):
+/// it adds no points, is never weak, and the other factors of its layer carry the rescaled weights instead.</param>
+public sealed record FactorResult(FactorDefinition Definition, double? Value, double Score, string? NearestName, bool HasData = true)
 {
-    /// <summary>Weight × score / 100 (points added to the layer's base score).</summary>
-    public double Points => Definition.Weight * Score / 100;
+    /// <summary>Weight × score / 100 (points added to the layer's base score). 0 for a factor without data.</summary>
+    public double Points => HasData ? Definition.Weight * Score / 100 : 0;
 
-    public bool IsWeak => Score < SafetyModel.WeakFactorBelow;
+    public bool IsWeak => HasData && Score < SafetyModel.WeakFactorBelow;
 }

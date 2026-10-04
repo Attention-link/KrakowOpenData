@@ -1,4 +1,5 @@
 using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Application.Accessibility;
 using KrakowOpenData.Contracts;
 using KrakowOpenData.Domain.Common;
 using KrakowOpenData.Domain.Safety;
@@ -12,7 +13,12 @@ public enum PlanningEvent
     Night,
     Both,
     Flood,
-    Air
+    Air,
+
+    /// <summary>Accessibility for the default profile (wheelchair). The profile of an access event is chosen with the profile parameter.</summary>
+    Access,
+    AccessPram,
+    AccessMobility
 }
 
 /// <summary>One grid cell with live scores (reports and live pressure applied).</summary>
@@ -30,13 +36,23 @@ public sealed record ScoredCell(
     double FloodPenalty = 0,
     double AirPenalty = 0,
     double FloodLive = 0,
-    double AirLive = 0)
+    double AirLive = 0,
+    double? Access = null,
+    double? AccessPram = null,
+    double? AccessMobility = null,
+    double AccessPenalty = 0)
 {
+    /// <summary>The accessibility score of a profile layer, or null when the square has no accessibility data (never a good or critical score).</summary>
+    public double? AccessOf(Layer layer) => layer switch { Layer.Access => Access, Layer.AccessPram => AccessPram, _ => AccessMobility };
+
+    /// <summary>True when the square has accessibility data.</summary>
+    public bool HasAccessData => Measure.AccessCovered;
+
     /// <summary>How well the place can cool down. The heat score is this number; it points the same way as every other score (higher = better).</summary>
     public double Cooling => Heat;
 
     /// <summary>The event's score expressed so that higher = better (heat is turned around), used for bands and ordering.</summary>
-    public double Goodness(PlanningEvent evt) => evt switch { PlanningEvent.Heat => Cooling, PlanningEvent.Night => Safety, PlanningEvent.Flood => Flood, PlanningEvent.Air => Air, _ => Combined };
+    public double Goodness(PlanningEvent evt) => evt switch { PlanningEvent.Heat => Cooling, PlanningEvent.Night => Safety, PlanningEvent.Flood => Flood, PlanningEvent.Air => Air, PlanningEvent.Access => Access ?? 0, PlanningEvent.AccessPram => AccessPram ?? 0, PlanningEvent.AccessMobility => AccessMobility ?? 0, _ => Combined };
 }
 
 /// <summary>Live inputs to the scores: heat pressure (IMGW), river level 0–1 (IMGW gauges) and air pollution 0–1 (GIOŚ PM2.5).</summary>
@@ -58,13 +74,39 @@ public sealed class ScoreService(
     public const double CorridorStepMeters = 50;
     public const double CorridorMaxMeters = 5000;
 
-    public static PlanningEvent ParseEvent(string? value) => value?.Trim().ToLowerInvariant() switch
+    /// <summary>
+    /// Reads an event / mode name. "access" (or "accessibility") plans for accessibility; <paramref name="profile"/> (wheelchair | pram | mobility; empty or
+    /// unknown = wheelchair) picks which profile's score is used. "accessPram" / "accessMobility" are accepted too.
+    /// </summary>
+    public static PlanningEvent ParseEvent(string? value, string? profile = null) => value?.Trim().ToLowerInvariant() switch
     {
         "heat" => PlanningEvent.Heat,
         "night" or "safety" => PlanningEvent.Night,
         "flood" => PlanningEvent.Flood,
         "air" => PlanningEvent.Air,
+        "access" or "accessibility" => AccessEvent(AccessProfile.Parse(profile) ?? AccessProfile.Wheelchair),
+        "accesspram" => PlanningEvent.AccessPram,
+        "accessmobility" => PlanningEvent.AccessMobility,
         _ => PlanningEvent.Both
+    };
+
+    /// <summary>True for the accessibility events (any profile).</summary>
+    public static bool IsAccess(PlanningEvent evt) => evt is PlanningEvent.Access or PlanningEvent.AccessPram or PlanningEvent.AccessMobility;
+
+    public static PlanningEvent AccessEvent(AccessProfile profile) => profile.Key switch
+    {
+        "pram" => PlanningEvent.AccessPram,
+        "mobility" => PlanningEvent.AccessMobility,
+        _ => PlanningEvent.Access
+    };
+
+    /// <summary>The profile of an accessibility event; null for the other events.</summary>
+    public static AccessProfile? AccessProfileOf(PlanningEvent evt) => evt switch
+    {
+        PlanningEvent.Access => AccessProfile.Wheelchair,
+        PlanningEvent.AccessPram => AccessProfile.Pram,
+        PlanningEvent.AccessMobility => AccessProfile.Mobility,
+        _ => null
     };
 
     public static string EventName(PlanningEvent e) => e switch
@@ -73,6 +115,7 @@ public sealed class ScoreService(
         PlanningEvent.Night => "night",
         PlanningEvent.Flood => "flood",
         PlanningEvent.Air => "air",
+        PlanningEvent.Access or PlanningEvent.AccessPram or PlanningEvent.AccessMobility => "access",
         _ => "both"
     };
 
@@ -85,6 +128,9 @@ public sealed class ScoreService(
         var current = await conditions.GetAsync(ct);
         // Datasets still loading are reported next to the live-source gaps, so the UI can warn that scores are incomplete.
         current = current with { DataGaps = [.. current.DataGaps, .. model.DataGaps.Where(g => !current.DataGaps.Contains(g))] };
+        // No stop flagged wheelchair-accessible in the ZTP data: the accessStops factor is left out of the accessibility scores (see StaticSafetyModel.Rescaled).
+        if (!model.AccessStopsAvailable && !current.DataGaps.Contains(StaticSafetyModel.AccessStopsGap))
+            current = current with { DataGaps = [.. current.DataGaps, StaticSafetyModel.AccessStopsGap] };
         var reports = await OpenReportsByCellAsync(ct);
         var pressure = LiveOf(current);
 
@@ -99,17 +145,37 @@ public sealed class ScoreService(
         var rows = scored.Cells
             .Select(c => new[]
             {
-                c.Measure.Row, c.Measure.Col, R(c.Heat), R(c.Safety), R(c.Combined), R(c.Measure.Exposure * 100), c.OpenReports, R(c.Priority), R(c.Flood), R(c.Air)
+                c.Measure.Row, c.Measure.Col, R(c.Heat), R(c.Safety), R(c.Combined), R(c.Measure.Exposure * 100), c.OpenReports, R(c.Priority), R(c.Flood), R(c.Air),
+                c.Access is { } a ? R(a) : -1, c.AccessPram is { } ap ? R(ap) : -1, c.AccessMobility is { } am ? R(am) : -1, c.HasAccessData ? 1 : 0
             })
             .ToList();
 
         return new GridDto(
             new GridMetaDto(GridSpec.OriginLatitude, GridSpec.OriginLongitude, GridSpec.CellLatitudeDegrees, GridSpec.CellLongitudeDegrees, GridSpec.CellSizeMeters, SafetyModel.GoodFrom, SafetyModel.FairFrom, SafetyModel.WeakFrom, SafetyModel.SearchRadiusMeters),
             EventName(evt),
-            ["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority", "flood", "air"],
+            ["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority", "flood", "air", "access", "accessPram", "accessMobility", "accessData"],
             rows,
             scored.GeneratedAt,
-            scored.Conditions);
+            scored.Conditions,
+            AccessInfo(scored, evt));
+    }
+
+    public const string AccessNote = "Accessibility scores come from OpenStreetMap and ZTP data downloaded for a limited area. Outside it, or where nothing is mapped nearby, there is no score (no data), and no data is never counted as accessible.";
+
+    /// <summary>The accessibility layer's profile, coverage and area (see <see cref="AccessLayerInfoDto"/>).</summary>
+    public static AccessLayerInfoDto AccessInfo(ScoredGrid scored, PlanningEvent evt)
+    {
+        var profile = AccessProfileOf(evt) ?? AccessProfile.Wheelchair;
+        var withData = scored.Cells.Count(c => c.HasAccessData);
+        var area = scored.Model.AccessData?.Info().Area;
+        return new AccessLayerInfoDto(
+            profile.Key,
+            AccessProfile.All.Select(p => p.Key).ToList(),
+            scored.Model.AccessData is { IsEmpty: false },
+            withData,
+            scored.Cells.Count - withData,
+            area is { } a ? new AccessAreaDto(a.MinLat, a.MinLon, a.MaxLat, a.MaxLon) : null,
+            AccessNote);
     }
 
     /// <summary>Full detail for the place at <paramref name="point"/>: both layers with factors, what is nearby, reports, actions.</summary>
@@ -192,7 +258,11 @@ public sealed class ScoreService(
             var safety = SafetyModel.LayerScore(m.SafetyBase, ReportRules.CellPenalty(ScoreLayer.Safety, cellReports, now));
             var flood = SafetyModel.LayerScore(m.FloodBase, ReportRules.CellPenalty(ScoreLayer.Flood, cellReports, now) + SafetyModel.FloodLivePenalty(live.FloodLevel, m.Flood.First(x => x.Definition.Key == "river").Score));
             var air = SafetyModel.LayerScore(m.AirBase, ReportRules.CellPenalty(ScoreLayer.Air, cellReports, now) + SafetyModel.AirLivePenalty(live.AirLevel, m.AirBase));
-            samples.Add(new CorridorSampleDto(Math.Round(p.Latitude, 6), Math.Round(p.Longitude, 6), R(SafetyModel.HeatScore(cooling)), R(safety), R(SafetyModel.Combine(cooling, safety)), R(flood), R(air)));
+            // Accessibility: no data (outside the downloaded area, nothing mapped) stays null, never a score.
+            var accessPenalty = ReportRules.CellPenalty(ScoreLayer.Access, cellReports, now);
+            double? Access(Layer layer) => m.AccessCovered ? R(SafetyModel.LayerScore(m.AccessBaseOf(layer), accessPenalty)) : null;
+            samples.Add(new CorridorSampleDto(Math.Round(p.Latitude, 6), Math.Round(p.Longitude, 6), R(SafetyModel.HeatScore(cooling)), R(safety), R(SafetyModel.Combine(cooling, safety)), R(flood), R(air),
+                Access(Layer.Access), Access(Layer.AccessPram), Access(Layer.AccessMobility)));
         }
 
         var points = samples.Select(s => new GeoPoint(s.Latitude, s.Longitude)).ToList();
@@ -208,6 +278,7 @@ public sealed class ScoreService(
     {
         var model = await models.GetAsync(ct);
         return new[] { "water", "toilets", "green", "refuge", "openPlaces", "aed", "emergency" }
+            .Concat(AccessProfile.All.SelectMany(p => new[] { "stepFree", "accessToilets", "rest", "tactile" }.Select(b => AccessKeys.Make(p, b))))
             .SelectMany(key => model.FeaturesOf(key).Select(f => new FeatureDto(
                 key, f.Kind, f.Name, Math.Round(f.Location.Latitude, 6), Math.Round(f.Location.Longitude, 6), f.RadiusMeters, f.OpeningHours, f.Wheelchair)))
             .ToList();
@@ -231,6 +302,12 @@ public sealed class ScoreService(
         var safetyPenalty = ReportRules.CellPenalty(ScoreLayer.Safety, reports, now);
         var floodPenalty = ReportRules.CellPenalty(ScoreLayer.Flood, reports, now);
         var airPenalty = ReportRules.CellPenalty(ScoreLayer.Air, reports, now);
+        var accessPenalty = ReportRules.CellPenalty(ScoreLayer.Access, reports, now);
+        // No accessibility data (outside the downloaded area, or nothing mapped nearby) = no score at all; never good, never critical.
+        double? AccessScoreOf(Layer layer) => m.AccessCovered ? SafetyModel.LayerScore(m.AccessBaseOf(layer), accessPenalty) : null;
+        var access = AccessScoreOf(Layer.Access);
+        var accessPram = AccessScoreOf(Layer.AccessPram);
+        var accessMobility = AccessScoreOf(Layer.AccessMobility);
         var cooling = SafetyModel.LayerScore(m.HeatBase, heatPenalty);
         var safety = SafetyModel.LayerScore(m.SafetyBase, safetyPenalty);
         var combined = SafetyModel.Combine(cooling, safety);
@@ -248,13 +325,16 @@ public sealed class ScoreService(
             PlanningEvent.Night => SafetyModel.Priority(safety, m.Exposure, SafetyModel.NightPressure),
             PlanningEvent.Flood => SafetyModel.Priority(flood, m.Exposure, SafetyModel.FloodPressureFactor(live.FloodLevel)),
             PlanningEvent.Air => SafetyModel.Priority(air, m.Exposure, SafetyModel.AirPressureFactor(live.AirLevel)),
+            PlanningEvent.Access => access is { } a ? SafetyModel.Priority(a, m.Exposure, SafetyModel.AccessPressure) : 0,
+            PlanningEvent.AccessPram => accessPram is { } a ? SafetyModel.Priority(a, m.Exposure, SafetyModel.AccessPressure) : 0,
+            PlanningEvent.AccessMobility => accessMobility is { } a ? SafetyModel.Priority(a, m.Exposure, SafetyModel.AccessPressure) : 0,
             _ => SafetyModel.Priority(combined, m.Exposure, Math.Max(SafetyModel.HeatPressureFactor(live.Heat), SafetyModel.NightPressure))
         };
 
         // Only the reports of the layers being planned for: Heat counts heat reports, Night safety counts night reports, and so on.
         var openReports = reports.Count(r => r.Status == ReportStatus.Open && InEvent(r.Type, evt));
         return new ScoredCell(m, SafetyModel.HeatScore(cooling), safety, combined, heatPenalty, safetyPenalty, priority, openReports,
-            flood, air, floodPenalty, airPenalty, floodLive, airLive);
+            flood, air, floodPenalty, airPenalty, floodLive, airLive, access, accessPram, accessMobility, accessPenalty);
     }
 
     /// <summary>The score layers an event plans for (Both = heat and night safety).</summary>
@@ -264,6 +344,9 @@ public sealed class ScoreService(
         PlanningEvent.Night => [Layer.Safety],
         PlanningEvent.Flood => [Layer.Flood],
         PlanningEvent.Air => [Layer.Air],
+        PlanningEvent.Access => [Layer.Access],
+        PlanningEvent.AccessPram => [Layer.AccessPram],
+        PlanningEvent.AccessMobility => [Layer.AccessMobility],
         _ => [Layer.Heat, Layer.Safety]
     };
 
@@ -274,12 +357,13 @@ public sealed class ScoreService(
         PlanningEvent.Night => ReportRules.For(type).Layer == ScoreLayer.Safety,
         PlanningEvent.Flood => ReportRules.For(type).Layer == ScoreLayer.Flood,
         PlanningEvent.Air => ReportRules.For(type).Layer == ScoreLayer.Air,
+        PlanningEvent.Access or PlanningEvent.AccessPram or PlanningEvent.AccessMobility => ReportRules.For(type).Layer == ScoreLayer.Access,
         _ => true
     };
 
     public static HeatPressure PressureOf(ConditionsDto c) => Enum.TryParse<HeatPressure>(c.Heat.Pressure, out var p) ? p : HeatPressure.None;
 
-    /// <summary>The live inputs of all four layers: heat pressure, river level 0–1 and air pollution 0–1.</summary>
+    /// <summary>The live inputs of the layers that react to live conditions: heat pressure, river level 0–1 and air pollution 0–1.</summary>
     public static LiveConditions LiveOf(ConditionsDto c) =>
         new(PressureOf(c), SafetyModel.FloodLevel(c.Hydro.WorstState), SafetyModel.AirLevel(c.Air.Pm25Average ?? c.Air.Pm25));
 
@@ -296,16 +380,37 @@ public sealed class ScoreService(
         PlaceMeasure measure, ScoredCell scored, PlanningEvent evt, StaticSafetyModel model,
         IReadOnlyList<ReportDto> reports, DateTimeOffset now)
     {
-        LayerScoreDto LayerDto(Layer layer, double score, double penalty)
+        LayerScoreDto LayerDto(Layer layer, double? scoreOrNull, double penalty, double live = 0)
         {
             var factors = measure.Factors(layer).Select(f => f.ToDto()).ToList();
             var basePoints = measure.Factors(layer).Sum(f => f.Points);
+            if (AccessKeys.IsAccessLayer(layer))
+            {
+                var profile = AccessKeys.ProfileOf(layer)!.Key;
+                if (scoreOrNull is not { } accessScore)
+                {
+                    // No data: no score, no band, never "good" and never "critical".
+                    var (code, text) = AccessNoData(measure.AccessNoDataCode);
+                    return new LayerScoreDto(null, "NoData", 0, Math.Round(penalty, 1), factors, false, code, text, profile);
+                }
+
+                var thin = measure.AccessThin;
+                return new LayerScoreDto(R(accessScore), SafetyModel.Band(accessScore).ToString(), R(basePoints), Math.Round(penalty, 1), factors, true,
+                    thin ? "thin_coverage" : null,
+                    thin ? $"Only {measure.AccessItems} mapped accessibility items nearby, so this score is less certain. Missing data is not read as accessible." : null,
+                    profile);
+            }
+
+            var score = scoreOrNull ?? 0;
             // Flood and air: the penalty shown is reports plus the live adjustment (river levels, PM2.5), all taken off the base.
+            // LivePenalty says how much of that is the live adjustment, so a card can mention reports only when a report penalty exists.
             if (layer is Layer.Flood or Layer.Air)
-                return new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
+                return new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors, LivePenalty: Math.Round(live, 1));
             return new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
         }
 
+        var accessProfile = AccessProfileOf(evt) ?? AccessProfile.Wheelchair;
+        var accessLayer = AccessKeys.LayerOf(accessProfile);
         var nearest = NearestFeatures(measure.Point, model);
         var actions = SuggestedActions.For(measure, scored, evt);
 
@@ -325,14 +430,33 @@ public sealed class ScoreService(
             actions,
             now,
             model.LabelFor(measure.Point),
-            LayerDto(Layer.Flood, scored.Flood, scored.FloodPenalty + scored.FloodLive),
-            LayerDto(Layer.Air, scored.Air, scored.AirPenalty + scored.AirLive));
+            LayerDto(Layer.Flood, scored.Flood, scored.FloodPenalty + scored.FloodLive, scored.FloodLive),
+            LayerDto(Layer.Air, scored.Air, scored.AirPenalty + scored.AirLive, scored.AirLive),
+            LayerDto(accessLayer, scored.AccessOf(accessLayer), scored.AccessPenalty),
+            accessProfile.Key,
+            new Dictionary<string, LayerScoreDto>
+            {
+                [AccessProfile.Wheelchair.Key] = LayerDto(Layer.Access, scored.Access, scored.AccessPenalty),
+                [AccessProfile.Pram.Key] = LayerDto(Layer.AccessPram, scored.AccessPram, scored.AccessPenalty),
+                [AccessProfile.Mobility.Key] = LayerDto(Layer.AccessMobility, scored.AccessMobility, scored.AccessPenalty)
+            });
     }
+
+    /// <summary>Why a place has no accessibility score: a code for apps and a sentence.</summary>
+    public static (string? Code, string? Text) AccessNoData(string? code) => code switch
+    {
+        null => (null, null),
+        "outside_area" => (code, "This place is outside the area for which accessibility data was downloaded. There is no accessibility score here: no data is not accessibility."),
+        "no_data" => (code, "Nothing is mapped about accessibility around here. There is no accessibility score: no data does not mean there are no barriers."),
+        _ => (code, "Accessibility data is not loaded (yet). There is no accessibility score.")
+    };
 
     private static List<NearestFeatureDto> NearestFeatures(GeoPoint point, StaticSafetyModel model)
     {
         var list = new List<NearestFeatureDto>();
-        foreach (var key in new[] { "water", "green", "refuge", "toilets", "openPlaces", "nightTransit", "aed", "transit", "river", "traffic", "emergency" })
+        var keys = new[] { "water", "green", "refuge", "toilets", "openPlaces", "nightTransit", "aed", "transit", "river", "traffic", "emergency" }
+            .Concat(AccessProfile.All.SelectMany(p => new[] { "accessStops", "stepFree", "accessToilets", "rest", "tactile" }.Select(b => AccessKeys.Make(p, b))));
+        foreach (var key in keys)
         {
             var (distance, feature) = model.Nearest(key, point);
             if (distance is null || feature is null) continue;
@@ -376,12 +500,35 @@ public static class SafetyMapping
         ["cleanIndoor"] = "Indoor place to wait out bad air"
     };
 
-    public static string LabelOf(string factorKey) => FactorLabels.GetValueOrDefault(factorKey, factorKey);
+    private static readonly Dictionary<string, string> AccessLabels = new()
+    {
+        ["steps"] = "Steps without a suitable ramp",
+        ["kerbs"] = "Raised kerbs",
+        ["surface"] = "Smooth, usable footways",
+        ["slope"] = "Steep slopes",
+        ["stepFree"] = "Step-free entrances, lifts and places",
+        ["accessStops"] = "Accessible public transport stops",
+        ["accessToilets"] = "Accessible toilets",
+        ["rest"] = "Benches and places to rest",
+        ["tactile"] = "Tactile paving"
+    };
+
+    public static string LabelOf(string factorKey) =>
+        AccessKeys.IsAccessKey(factorKey) ? AccessLabels.GetValueOrDefault(AccessKeys.Base(factorKey), factorKey) : FactorLabels.GetValueOrDefault(factorKey, factorKey);
+
+    /// <summary>The unit of a factor value: lamps/km², m, barriers (a weighted count) or % (a share).</summary>
+    public static string UnitOf(FactorKind kind) => kind switch
+    {
+        FactorKind.Density => "lamps/km²",
+        FactorKind.Count => "barriers",
+        FactorKind.Share => "%",
+        _ => "m"
+    };
 
     public static FactorDto ToDto(this FactorResult f) =>
-        new(f.Definition.Key, LabelOf(f.Definition.Key), f.Definition.Layer.ToString(), f.Definition.Weight, f.Value,
-            f.Definition.Kind == FactorKind.Density ? "lamps/km²" : "m", Math.Round(f.Score, 1), Math.Round(f.Points, 1), f.NearestName,
-            Math.Round(f.Points, 1));
+        new(f.Definition.Key, LabelOf(f.Definition.Key), f.Definition.Layer.ToString(), Math.Round(f.Definition.Weight, 1), f.Value,
+            UnitOf(f.Definition.Kind), Math.Round(f.Score, 1), Math.Round(f.Points, 1), f.NearestName,
+            Math.Round(f.Points, 1), f.HasData, f.HasData ? null : StaticSafetyModel.AccessStopsNote);
 
     /// <summary>
     /// <paramref name="includeNote"/> marks the planner view. The public view rounds the position to 4 decimals (about 10 m) so a
@@ -429,17 +576,33 @@ public static class SuggestedActions
         ["cleanIndoor"] = ("OPEN_CLEAN_AIR_SPACE", "Open a public indoor space with filtered air during smog episodes.")
     };
 
+    private static readonly Dictionary<string, (string Code, string Text)> AccessCatalog = new()
+    {
+        ["steps"] = ("ADD_RAMP", "Add a ramp (or a lift) next to steps and at stepped entrances; tag it in OpenStreetMap so it is counted."),
+        ["kerbs"] = ("LOWER_KERBS", "Lower or flush the kerbs at crossings and drop-offs."),
+        ["surface"] = ("REPAIR_FOOTWAY", "Repair or re-pave rough, narrow or unpaved footways; record surface and width in OpenStreetMap."),
+        ["slope"] = ("REVIEW_SLOPES", "Review steep stretches: add a gentler alternative or handrails and rest points."),
+        ["stepFree"] = ("ADD_STEP_FREE_ACCESS", "Make a public entrance step-free (ramp, lift) and map its wheelchair access."),
+        ["accessStops"] = ("REVIEW_ACCESSIBLE_STOPS", "Review stop accessibility with ZTP: raised platforms, ramps, and the wheelchair_boarding flag."),
+        ["accessToilets"] = ("ADD_ACCESSIBLE_TOILET", "Provide an accessible public toilet (with a changing table where possible)."),
+        ["rest"] = ("ADD_BENCHES", "Add benches, ideally with a backrest, along the main walking routes."),
+        ["tactile"] = ("ADD_TACTILE_PAVING", "Add tactile paving at crossings and stops.")
+    };
+
+    private static (string Code, string Text) CatalogFor(string key) =>
+        AccessKeys.IsAccessKey(key) ? AccessCatalog[AccessKeys.Base(key)] : Catalog[key];
+
     public static IReadOnlyList<SuggestedActionDto> For(PlaceMeasure m, ScoredCell scored, PlanningEvent evt)
     {
         var layers = ScoreService.LayersOf(evt);
 
         var actions = layers
             .SelectMany(m.Factors)
-            .Where(f => f.IsWeak)
+            .Where(f => f.IsWeak && f.Definition.Weight > 0)
             .OrderByDescending(f => f.Definition.Weight * (100 - f.Score))
             .Select(f =>
             {
-                var (code, text) = Catalog[f.Definition.Key];
+                var (code, text) = CatalogFor(f.Definition.Key);
                 return new SuggestedActionDto(code, f.Definition.Layer.ToString(), f.Definition.Key, f.Score < 15 ? "high" : "medium", text);
             })
             .ToList();

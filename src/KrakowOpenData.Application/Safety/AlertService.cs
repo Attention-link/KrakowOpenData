@@ -71,7 +71,7 @@ public sealed class AlertService(ISafetyStore store, PresenceTracker presence, I
         if (!string.IsNullOrWhiteSpace(request.Layer))
         {
             if (!SafetyEnum.TryParseName<ScoreLayer>(request.Layer, out var parsed))
-                throw new SafetyValidationException("layer", "Use Heat or Safety, or leave empty.");
+                throw new SafetyValidationException("layer", "Use Safety, Heat, Flood, Air or Access, or leave empty.");
             layer = parsed;
         }
 

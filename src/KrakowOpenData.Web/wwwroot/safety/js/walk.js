@@ -1,5 +1,7 @@
 // Walk check along real streets. Night safety mode = a night walk (lighting, night transport, open places, reports);
-// Heat mode = a cool walk (shade, water, cool places, reports); Flood = a walk away from the water; Air = a walk away from traffic.
+// Heat mode = a cool walk (shade, water, cool places, reports); Flood = a walk away from the water; Air = a walk away from traffic;
+// Accessibility = "Find accessible path": the most accessible way for the chosen profile (wheelchair, pram, limited mobility). Stretches with
+// no accessibility data are drawn grey and dashed and are never counted as accessible.
 // Pick the start (A) and the destination (B) by typing an address or stop, tapping the map, or using your area.
 // The API finds the fastest street route and, when one scores clearly better, a safer / cooler / better one to compare with it.
 // Offline (or when street routing is down) the straight line between the two points is estimated from the saved map.
@@ -10,27 +12,39 @@ import { state, isOffline, eventForMode } from './state.js';
 import { t } from './i18n.js';
 import { getRoutes, errorText } from './api.js';
 import { iconMarker, endMarker } from './map.js';
-import { bandOf, kindOf, BAND_FILL, cellOf, COL, nearestFromFeatures, FACTOR_ICON } from './model.js';
+import { bandOf, kindOf, BAND_FILL, cellOf, COL, nearestFromFeatures, FACTOR_ICON, ACCESS_FIELD, accessReliefKeys, profileNow } from './model.js';
 import { searchBox } from './search.js';
 import { addressLine, reverseLabel, coords } from './geo.js';
 import { bandText, infoButton, openScoreExplainer } from './explain.js';
 import { accessRouteBlock } from './access.js';
 
-const PATH_ACCENT = { safety: '#4a3aa7', heat: '#b8480f', flood: '#0b5cad', air: '#0f6b5c' };   // = the walk button colours (night indigo, heat orange, flood blue, air teal)
-const SCORE_KEY ={ safety: 'safety', heat: 'heat', flood: 'flood', air: 'air', both: 'combined' };
-const HELP_KEYS = { safety: ['openPlaces', 'aed'], heat: ['water', 'green', 'refuge', 'toilets'], flood: ['emergency'], air: ['green', 'refuge'], both: ['water', 'green', 'openPlaces'] };
+const PATH_ACCENT = { safety: '#4a3aa7', heat: '#b8480f', flood: '#0b5cad', air: '#0f6b5c', access: '#86198f' };   // = the walk button colours (night indigo, heat orange, flood blue, air teal, access fuchsia)
+const SCORE_KEY = { safety: 'safety', heat: 'heat', flood: 'flood', air: 'air', both: 'combined' };
+const HELP_KEYS = {
+  safety: ['openPlaces', 'aed'], heat: ['water', 'green', 'refuge', 'toilets'], flood: ['emergency'], air: ['green', 'refuge'], both: ['water', 'green', 'openPlaces'],
+  get access() { return accessReliefKeys(); }
+};
+const NO_DATA_LINE = '#6b6a65';
+/** A corridor sample has no accessibility data when its value for the profile is null (or -1 from the saved grid). */
+const missing = (v) => v === null || v === undefined || v < 0;
 
 export function renderWalkView(ctx, body) {
   const ws = ctx.walkState ||= { from: null, to: null, fromLabel: null, toLabel: null, pick: null, routes: null, selected: 'fastest', loading: false, error: null, offline: false, token: 0 };
   const mode = ctx.mode();
-  const key = SCORE_KEY[mode];
+  const profile = profileNow();
+  const isAccess = mode === 'access';
+  const key = isAccess ? ACCESS_FIELD[profile] : SCORE_KEY[mode];
+  const routesTag = isAccess ? `access:${profile}` : mode;   // the routes belong to a layer, and for accessibility to a profile
   const kind = kindOf(mode);
+  const noShare = (route) => (isAccess ? route.noDataShare || 0 : 0);
+  /** An accessibility route with no data along (nearly) all of it: no scores, only the warning. */
+  const unknownRoute = (route) => isAccess && noShare(route) >= 0.999;
   const props = ctx.viewProps || {};
   if (props.to) { ws.to = props.to; ws.toLabel = props.toLabel || null; ctx.viewProps = null; }
   if (!ws.from && state.me) ws.from = [state.me.lat, state.me.lon];
 
   // The chosen start and end stay when the layer changes; the routes are found again for the new layer.
-  if (ws.routes && ws.routesMode !== mode) ws.routes = null;
+  if (ws.routes && ws.routesMode !== routesTag) ws.routes = null;
 
   const layer = ctx.walkLayer ||= L.layerGroup().addTo(ctx.map);
   ctx.walkCleanup = () => {
@@ -66,7 +80,8 @@ export function renderWalkView(ctx, body) {
     paint();
   }
 
-  const selectedRoute = () => (ws.routes ? (ws.selected === 'better' && ws.routes.better ? ws.routes.better : ws.routes.fastest) : null);
+  // A function declaration (hoisted): drawMap() runs above this line when the view is rebuilt while routes are shown.
+  function selectedRoute() { return ws.routes ? (ws.selected === 'better' && ws.routes.better ? ws.routes.better : ws.routes.fastest) : null; }
 
   // ── Map ────────────────────────────────────────────────────────────────────
   function drawMap(fit) {
@@ -96,7 +111,7 @@ export function renderWalkView(ctx, body) {
     for (let i = 1; i < pts.length; i++) {
       const mid = (cum[i - 1] + cum[i]) / 2 / total;
       const s = route.samples[Math.min(n - 1, Math.round(mid * (n - 1)))];
-      const band = bandOf(s[key], meta, kind);
+      const band = isAccess && missing(s[key]) ? 'NoData' : bandOf(s[key], meta, kind);
       if (cur && cur.band === band) cur.pts.push(pts[i]);
       else { cur = { band, pts: [pts[i - 1], pts[i]] }; runs.push(cur); }
     }
@@ -119,11 +134,17 @@ export function renderWalkView(ctx, body) {
       L.polyline(sel.path, { color: PATH_ACCENT[mode] || PATH_ACCENT.safety, weight: 15, opacity: 0.9, lineCap: 'round', lineJoin: 'round' }).addTo(layer);
       L.polyline(sel.path, { color: '#ffffff', weight: 11, opacity: 0.95, lineCap: 'round', lineJoin: 'round' }).addTo(layer);
       for (const run of bandRuns(sel)) {
+        // No data: a grey dashed line, so it can never be read as a good (or a critical) stretch.
+        if (run.band === 'NoData') {
+          L.polyline(run.pts, { color: NO_DATA_LINE, weight: 7, opacity: 1, dashArray: '2 9', lineCap: 'round', lineJoin: 'round' })
+            .bindTooltip(`${t(`route.${sel.kind}`)} · ${t('accl.noDataTip')}`, { sticky: true }).addTo(layer);
+          continue;
+        }
         L.polyline(run.pts, { color: BAND_FILL[run.band], weight: 7, opacity: 1, lineCap: 'round', lineJoin: 'round' })
           .bindTooltip(`${t(`route.${sel.kind}`)} · ${bandText(run.band, kind)}`, { sticky: true }).addTo(layer);
       }
       const w = sel.samples[sel.weakestSampleIndex];
-      if (w && bandOf(sel.worst, ctx.grid?.grid, kind) !== 'Good') iconMarker([w.latitude, w.longitude], 'alert', mode, { title: t(`walk.weakest.${mode}`), z: 600 }).addTo(layer);
+      if (w && !unknownRoute(sel) && !(isAccess && missing(w[key])) && bandOf(sel.worst, ctx.grid?.grid, kind) !== 'Good') iconMarker([w.latitude, w.longitude], 'alert', mode, { title: t(`walk.weakest.${mode}`), z: 600 }).addTo(layer);
     }
     if (fit) {
       const pts = all.flatMap((route) => route.path);
@@ -139,13 +160,13 @@ export function renderWalkView(ctx, body) {
     paint();
     try {
       if (isOffline()) throw new Error('offline');
-      ws.routes = await getRoutes(ws.from, ws.to, eventForMode(mode));
-      ws.routesMode = mode;
+      ws.routes = await getRoutes(ws.from, ws.to, eventForMode(mode), profile);
+      ws.routesMode = routesTag;
       ws.selected = ws.routes.better ? 'better' : 'fastest';
     } catch (e) {
       if (token !== ws.token) return;
       const approx = approximate();
-      if (approx) { ws.routes = approx; ws.routesMode = mode; ws.offline = true; ws.selected = 'fastest'; }
+      if (approx) { ws.routes = approx; ws.routesMode = routesTag; ws.offline = true; ws.selected = 'fastest'; }
       else ws.error = e.message === 'offline' ? t('err.offline') : errorText(e, t);
     }
     if (token !== ws.token) return;
@@ -153,7 +174,7 @@ export function renderWalkView(ctx, body) {
     drawMap(true);
     paint();
     const sel = selectedRoute();
-    announce(sel ? t('a11y.routeReady', { n: sel.walkingMinutes, m: formatDistance(sel.lengthMeters), band: bandText(bandOf(sel.worst, ctx.grid?.grid, kind), kind) }) : ws.error || '');
+    announce(!sel ? ws.error || '' : unknownRoute(sel) ? t('route.noData.all') : t('a11y.routeReady', { n: sel.walkingMinutes, m: formatDistance(sel.lengthMeters), band: bandText(bandOf(sel.worst, ctx.grid?.grid, kind), kind) }));
   }
 
   /** The same idea from the saved grid: a straight line, 50 m samples, the scores of the cell each sample falls in. */
@@ -168,15 +189,19 @@ export function renderWalkView(ctx, body) {
       const lat = ws.from[0] + (ws.to[0] - ws.from[0]) * f, lon = ws.from[1] + (ws.to[1] - ws.from[1]) * f;
       const c = cellOf(ctx.grid.grid, lat, lon);
       const row = ctx.gridIndex.get(`${c.row}-${c.col}`);
-      samples.push({ latitude: lat, longitude: lon, safety: row ? row[COL.safety] : 0, heat: row ? row[COL.heat] : 0, combined: row ? row[COL.combined] : 0, flood: row ? row[COL.flood] : 0, air: row ? row[COL.air] : 0 });
+      const acc = (v) => (row && typeof v === 'number' && v >= 0 ? v : null);   // -1 or no row: no accessibility data
+      samples.push({ latitude: lat, longitude: lon, safety: row ? row[COL.safety] : 0, heat: row ? row[COL.heat] : 0, combined: row ? row[COL.combined] : 0, flood: row ? row[COL.flood] : 0, air: row ? row[COL.air] : 0,
+        access: acc(row?.[COL.access]), accessPram: acc(row?.[COL.accessPram]), accessMobility: acc(row?.[COL.accessMobility]) });
     }
-    const vals = samples.map((s) => s[key]);
-    const worstIdx = vals.indexOf(Math.min(...vals));
+    // Only samples WITH data are averaged; the rest is counted as no data (never as accessible).
+    const known = samples.map((s, i) => ({ v: s[key], i })).filter((x) => !(isAccess && missing(x.v)));
+    const noDataShare = isAccess ? 1 - known.length / samples.length : 0;
+    const worstPick = known.length ? known.reduce((a, x) => (x.v < a.v ? x : a)) : { v: 0, i: 0 };
     const fastest = {
       kind: 'fastest', lengthMeters: Math.round(length), walkingMinutes: Math.ceil(length / 80), path: [ws.from, ws.to], samples,
-      average: vals.reduce((a, v) => a + v, 0) / vals.length, worst: vals[worstIdx], weakestSampleIndex: worstIdx, openReportsNearby: 0
+      average: known.length ? known.reduce((a, x) => a + x.v, 0) / known.length : 0, worst: worstPick.v, weakestSampleIndex: worstPick.i, openReportsNearby: 0, noDataShare
     };
-    return { mode: eventForMode(mode), source: 'straight-line', fastest, better: null, betterKind: 'none', scoreGain: 0, extraMeters: 0, extraMinutes: 0, note: '' };
+    return { mode: eventForMode(mode), source: 'straight-line', fastest, better: null, betterKind: 'none', scoreGain: 0, extraMeters: 0, extraMinutes: 0, note: '', profile: isAccess ? profile : null };
   }
 
   // ── Panel ──────────────────────────────────────────────────────────────────
@@ -205,7 +230,12 @@ export function renderWalkView(ctx, body) {
 
   function paintNow() {
     clear(host);
-    host.append(h('p', null, t(`walk.intro.${mode}`)), endCard('from'), endCard('to'));
+    host.append(h('p', null, t(`walk.intro.${mode}`)));
+    if (isAccess) {
+      host.append(h('div', { class: 'row wrap acc-for' }, h('span', { class: 'chip access' }, icon('access', 'sm'), t('walk.for.access', { p: t(`accl.p.${profile}`) })),
+        h('button', { class: 'btn sm quiet', type: 'button', 'data-fk': 'walk-profile', onclick: () => ctx.showView('home') }, t('walk.changeProfile'))));
+    }
+    host.append(endCard('from'), endCard('to'));
     if (ws.from && ws.to) {
       host.append(h('button', { class: 'btn sm cta-soft', 'data-layer': mode, type: 'button', 'data-fk': 'walk-swap', onclick: () => {
         [ws.from, ws.to] = [ws.to, ws.from];
@@ -240,14 +270,18 @@ export function renderWalkView(ctx, body) {
         ? h('div', { class: 'small' }, t('route.extra', { m: formatDistance(Math.max(0, route.lengthMeters - fastest.lengthMeters)), n: Math.max(0, route.walkingMinutes - fastest.walkingMinutes) }))
         : null,
       h('div', { class: 'route-stats' },
-        h('span', { class: 'band', 'data-band': avgBand }, t(`route.avg.${mode}`, { n: Math.round(route.average) }), ' · ', bandText(avgBand, kind)),
-        h('span', { class: 'band', 'data-band': worstBand }, t(`route.worst.${mode}`, { n: Math.round(route.worst) })),
+        unknownRoute(route)
+          ? h('span', { class: 'band nodata', 'data-band': 'NoData' }, t('route.noData.stats'))
+          : [h('span', { class: 'band', 'data-band': avgBand }, t(`route.avg.${mode}`, { n: Math.round(route.average) }), ' · ', bandText(avgBand, kind)),
+            h('span', { class: 'band', 'data-band': worstBand }, t(`route.worst.${mode}`, { n: Math.round(route.worst) }))],
+        isAccess && noShare(route) > 0 && !unknownRoute(route) ? h('span', { class: 'band nodata', 'data-band': 'NoData' }, t('route.noData.chip', { p: Math.round(noShare(route) * 100) })) : null,
         route.openReportsNearby ? h('span', { class: 'chip warn' }, icon('flag', 'sm'), route.openReportsNearby) : null),
       h('div', { class: 'tiny muted', style: { marginTop: '.25rem' } }, pressed ? t('route.shown') : t('route.show')));
   }
 
   /** The route result as one text for "Read aloud": the shown route, its scores and the advice. */
   function routeSpeech(r, sel, worstBand, group) {
+    if (unknownRoute(sel)) return `${t(`route.${sel.kind}`)}: ${t('route.min', { n: sel.walkingMinutes })}, ${formatDistance(sel.lengthMeters)}. ${t('route.noData.all')}`;
     const parts = [`${t(`route.${sel.kind}`)}: ${t('route.min', { n: sel.walkingMinutes })}, ${formatDistance(sel.lengthMeters)}`,
       `${t(`route.avg.${mode}`, { n: Math.round(sel.average) })}, ${bandText(bandOf(sel.average, ctx.grid?.grid, kind), kind)}`,
       `${t(`route.worst.${mode}`, { n: Math.round(sel.worst) })}, ${bandText(worstBand, kind)}`,
@@ -264,6 +298,8 @@ export function renderWalkView(ctx, body) {
     const w = sel.samples[sel.weakestSampleIndex];
     const help = ctx.features && w ? nearestFromFeatures(ctx.features, w.latitude, w.longitude, HELP_KEYS[mode], 600) : [];
     const layerKey = mode;
+    const unknown = unknownRoute(sel);
+    const partlyUnknown = isAccess && !unknown && noShare(sel) > 0;
     return h('div', { class: 'stack' },
       r.source === 'street' ? null : h('div', { class: 'banner small' }, icon(ws.offline ? 'offline' : 'info', 'sm'), h('span', null, ws.offline ? t('route.offline') : t('route.straight'))),
       r.widened ? h('div', { class: `banner small ${r.better ? 'info' : 'warn'}` }, icon('map', 'sm'),
@@ -273,24 +309,31 @@ export function renderWalkView(ctx, body) {
         h('span', { class: 'row small muted' }, t('legend.route'), infoButton(() => openScoreExplainer({ layer: layerKey, meta }), t('explain.how')))),
       routeCard(r.fastest, 'fastest'),
       r.better ? routeCard(r.better, 'better') : null,
-      r.source === 'street'
+      // No accessibility data is not accessibility: say so before anything that could sound reassuring.
+      unknown ? h('div', { class: 'banner warn', role: 'note' }, icon('alert', 'sm'), h('span', null, t('route.noData.all'))) : null,
+      partlyUnknown ? h('div', { class: 'banner warn small', role: 'note' }, icon('info', 'sm'), h('span', null, t('route.noData.share', { p: Math.round(noShare(sel) * 100) }))) : null,
+      r.source === 'street' && !unknown
         ? h('div', { class: `banner small ${r.better ? 'ok' : 'info'}` }, icon(r.better ? 'check' : 'info', 'sm'),
           h('span', null, r.better ? t(`route.better.${mode}`, { g: Math.round(r.scoreGain * 10) / 10 }) : t(`route.none.${mode}`)))
         : null,
       // Why only the fastest path is shown: it clears the city's thresholds for this measure (set by the planner).
-      r.source === 'street' && !r.better && r.fastestIsAcceptable && r.thresholdAverage != null && ['safety', 'heat', 'flood', 'air'].includes(mode)
+      r.source === 'street' && !r.better && r.fastestIsAcceptable && r.thresholdAverage != null && !unknown && ['safety', 'heat', 'flood', 'air', 'access'].includes(mode)
         ? h('p', { class: 'small muted' }, icon('info', 'sm'), ' ', t(`th.fastest.${mode}`, { avg: Math.round(r.fastest.average), worst: Math.round(r.fastest.worst), tavg: r.thresholdAverage, tworst: r.thresholdWorst }))
         : null,
+      // The fastest route is not called acceptable when most of it is unmapped.
+      r.source === 'street' && !r.better && isAccess && !r.fastestIsAcceptable && noShare(r.fastest) > 0.5 && !unknown
+        ? h('p', { class: 'small muted' }, icon('info', 'sm'), ' ', t('route.fastestUnknown'))
+        : null,
       readAloudButton(() => routeSpeech(r, sel, worstBand, group), 'route'),
-      h('div', { class: 'card' },
+      unknown ? null : h('div', { class: 'card' },
         h('p', null, t(`walk.advice.${mode}.${group}`)),
         sel.openReportsNearby ? h('p', { class: 'small', style: { marginTop: '.4rem' } }, icon('flag', 'sm'), ' ', t('walk.reports', { n: sel.openReportsNearby })) : null),
-      worstBand !== 'Good' && w
+      worstBand !== 'Good' && w && !unknown && !(isAccess && missing(w[key]))
         ? h('div', { class: 'card flat stack tight' }, h('b', null, t(`walk.weakAt.${mode}`)), addressLine(w.latitude, w.longitude),
           help.length ? h('ul', { class: 'list small' }, help.map((n) => h('li', { class: 'row' }, icon(FACTOR_ICON[n.key] || 'pin', 'sm'),
             h('span', null, `${n.name || t(`kind.${n.kind}`)} · ${formatDistance(n.distanceMeters)}`)))) : h('p', { class: 'small muted' }, t('walk.noHelp')))
         : null,
       // Accessibility: barrier summary of the shown route for the chosen profile (wheelchair / pram / limited mobility).
-      r.source === 'street' ? accessRouteBlock(sel, { layer: ctx.walkLayer, onChangeProfile: () => ctx.showView('access') }) : null);
+      r.source === 'street' ? accessRouteBlock(sel, { layer: ctx.walkLayer, onChangeProfile: () => ctx.showView(isAccess ? 'home' : 'access') }) : null);
   }
 }

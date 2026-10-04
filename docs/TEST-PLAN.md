@@ -140,10 +140,10 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
 | RES-01 | H | First load | Open the app | Top bar with the shield mark and **Kompas Krakowa**, a **Home page** link, an online indicator, a language selector. A map of Kraków with coloured 250 m squares, a mode switch and a menu panel | |
-| RES-02 | H | Mode switch | Click **Night safety**, **Heat relief**, **Flood**, then **Air** | **Exactly these four** options exist, in this order. The map recolours; the score names, legend and available report types follow the mode | |
+| RES-02 | H | Mode switch | Click **Night safety**, **Heat relief**, **Flood**, **Air**, then **Accessibility** | **Exactly these five** options exist, in this order. The map recolours; the score names, legend and available report types follow the mode | |
 | RES-03 | H | Colours and legend | Open the colour key (layers button) in each mode | Four bands: Good (blue), Fair (light blue), Weak (light red), Critical (red), each with its score range and meaning. Heat ranges read 0–25 low heat up to 65–100 very high heat. Grey squares mean no mapped streets. Swatches have an outline and are readable | |
 | RES-04 | H | Heat direction | Tap a hot, shadeless square and a leafy one in **Heat relief** | The card is titled **Heat-relief score** and says **Higher = more heat relief**. The hot square shows a LOW number, a SHORT bar and a RED band; the leafy square a HIGH number, a LONG bar and a BLUE band. The legend lists 75–100 Good (low heat) down to 0–35 Critical (very high heat) | |
-| RES-04a | H | Same direction everywhere | Compare a score card in each of the four tabs | In every tab a high number, a long bar and blue mean good; low, short and red mean bad; the "!" explanation says so | |
+| RES-04a | H | Same direction everywhere | Compare a score card in each of the five tabs | In every tab a high number, a long bar and blue mean good; low, short and red mean bad; the "!" explanation says so | |
 | RES-05 | M | Conditions strip | Look under the mode switch | Live conditions (time of day or sunrise for night, temperature and heat risk, air quality). If the live conditions suggest the other mode, a **Switch to …** suggestion appears and works | |
 | RES-06 | M | Map controls | Zoom with buttons, scroll and pinch; click **Use my location**; click **Places on the map**, zoom to 14 or closer | Zoom works. Location asks for permission and centres the map (a refusal shows a friendly message, not an error page). Place markers (fountains, parks, toilets, refuges, night-open places, defibrillators) appear from zoom 14 and match the mode | |
 | RES-07 | M | Saved mode | Choose **Heat relief**, reload | The app reopens in **Heat relief** | |
@@ -210,6 +210,24 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | RES-56 | M | Rivers not loaded | Start the API with no saved OpenStreetMap places and open **Flood** at once | The river factor reads "unknown (not loaded)" at 50, a note explains it, and the planner overview says datasets are still loading; after loading it shows real distances | |
 | RES-57 | M | Mode memory and fallback | Choose **Air**, reload; then set `localStorage.mode` to `both` and reload | Air is remembered; a stale value falls back to a valid tab without errors | |
 
+### 6.7 Accessibility layer (fifth tab, resident) (`RES`)
+
+Needs the accessibility data to be loaded (central Kraków by default). Squares outside that area, or with nothing mapped nearby, have **no data**: they must never look good or critical.
+
+| Id | Pri | Scenario | Steps | Expected result | Result |
+| --- | --- | --- | --- | --- | --- |
+| RES-62 | H | Fifth tab | Open the resident app; look at the layer tabs | **Night safety, Heat relief, Flood, Air, Accessibility** in this order; the Accessibility tab has its own fuchsia colour and icon (never colour alone: icon and name stay visible on the open tab); at 375 px the tabs fit without sideways scrolling | |
+| RES-63 | H | Profile choice | Open **Accessibility** | A profile choice titled **Whose way is it?** with **Wheelchair**, **Pram**, **Limited mobility**, one line on what each weighs most, and the note that it is only a preference kept on the device | |
+| RES-64 | H | Profile is remembered and changes the score | Tap one square in the data area as **Wheelchair**, then **Pram**, then **Limited mobility**; reload | The score and the factor weights differ between profiles for the same square (steps weigh most for a wheelchair, surface for a pram, places to rest for limited mobility); the chosen profile is still selected after a reload; the same profile is used on the planner Accessibility tab | |
+| RES-65 | H | Map colours and legend | Open the colour key in **Accessibility** | Four bands (75–100 Good … 0–35 Critical) titled **Accessibility score**, **Higher = easier to get around**, and a separate **No data** row (grey, hatched, with the words) that says it is not the same as accessible and is never counted as good or critical | |
+| RES-66 | H | No data is shown as no data | Tap a square far outside central Kraków, and a square in the data area with nothing mapped | The card says **No accessibility data here** with the reason (outside the area, or nothing mapped nearby) and no score, no gauge, no band; the map square is grey; the text never says "accessible" | |
+| RES-67 | H | Place card with data | Tap a square in the centre | Score out of 100 with its band, the nine factors with measured value, weight and points, each opening an explanation, the score of the other two profiles ("no data" in words where there is none), and **Report a barrier**; a thin-coverage square says the score is less certain | |
+| RES-68 | H | Accessible path | In **Accessibility** choose **Find accessible path**; pick two points in the centre | A fastest route and, when clearly better, a **Most accessible** alternative for the chosen profile, with average and worst values; stretches with no data are named (**% no data**) and not counted | |
+| RES-69 | M | Path with no data | Pick two points outside the data area | The result says there is no accessibility data along the path, which is not the same as accessible, and to check the way on site | |
+| RES-70 | M | Barrier report | In **Accessibility** open **Report a barrier** | Only the type **Blocked or hazardous path** is offered; after sending it appears (unverified) on the planner Reports page under Accessibility and, once confirmed by more people, lowers the score of its square | |
+| RES-71 | M | Never suggested | With a river above warning, with high PM2.5, with no condition at all, and while dark | The menu suggests Flood, Air, Night safety or Heat as before and **never** Accessibility; a saved choice of Accessibility is kept on reload | |
+| RES-72 | M | Polish and Ukrainian | Switch the language in the Accessibility tab | All texts (tab, profiles, legend, no data, factors, path) are translated; no key names or English leftovers | |
+
 ## 7. Resident report flow (`REP`)
 
 Report types depend on the mode:
@@ -250,7 +268,7 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | --- | --- | --- | --- | --- | --- |
 | PLN-01 | H | Demo access | Open the planner link from the home tile | The dashboard opens directly; a **Demo access** chip is visible | |
 | PLN-02 | H | Sign-in | Empty `Safety:PlannerDemoKey`, restart, open the planner | A sign-in form. A wrong key shows an error; `demo-planner` signs in; **Sign out** returns to the form | |
-| PLN-03 | H | Event selector | Switch **Heat relief**, **Night safety**, **Flood** and **Air quality** | **Exactly these four** options exist. Ranking, charts, map, report lists and drawers all change to the chosen event; the other event's content is hidden | |
+| PLN-03 | H | Event selector | Switch **Heat relief**, **Night safety**, **Flood**, **Air quality** and **Accessibility** | **Exactly these five** options exist (Accessibility: PLN-80 to PLN-98). Ranking, charts, map, report lists and drawers all change to the chosen event; the other event's content is hidden | |
 | PLN-04 | M | Navigation | Click Overview, Map, Reports, Alerts, Contacts | Each page loads; the active item is marked; every page except Overview has **Back to dashboard** | |
 | PLN-05 | M | Conditions and freshness | Look at the tools bar | Live conditions chip, "Updated … ago" text, and a refresh button that reloads the data | |
 | PLN-06 | M | Switch to resident | Click **Resident view**, then back | Resident app opens; the planner can be reopened from its link | |
@@ -322,16 +340,42 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | PLN-61 | M | Brief and log | Click **New contact**; choose Polish or English; save | A prefilled brief states location, scores, weak factors, open reports and the requested action. A log entry appears with time, agency, subject, reference and a **simulated** delivery tag | |
 | PLN-62 | L | Copy | Click **Copy text** in the brief dialog | The brief is on the clipboard | |
 | PLN-63 | H | Staff-only marking | Open the planner dashboard | The top bar has an amber underline and a **City staff only** chip; the same marking is used in the Blazor sidebar and on the home tile | |
-| PLN-70 | H | Weights page | Planner, **Weights** | Four layers (night safety, heat, flood, air), the one for the current event open; every factor shows its weight, the default, a slider and a number box, and **why it has that weight**, with what it measures, source and limits under "more" | |
+| PLN-70 | H | Weights page | Planner, **Weights** | Seven layers (night safety, heat, flood, air and the three accessibility profiles), the one for the current event (and profile) open; every factor shows its weight, the default, a slider and a number box, and **why it has that weight**, with what it measures, source and limits under "more" | |
 | PLN-71 | H | Change and save weights | Set Heat > Drinking fountains and taps to 75, **Save weights** | The other factors shrink proportionally (each layer shows its scaled shares adding up to 100); a "custom" chip appears; a toast confirms; the resident app and the planner now score with the new weights (the method panel shows 50 vs default 25) | |
 | PLN-72 | M | Reset | **Reset all to defaults** and confirm; or **Use the defaults for this score** then Save | Weights return to the defaults, "custom" disappears, scores return | |
 | PLN-73 | M | Validation | Set every factor of a layer to 0 and save; type a negative number | The save is refused with a clear message; negative numbers are not accepted | |
 | PLN-74 | M | Persistence | Save weights, restart the API | The custom weights are still in use | |
 | PLN-75 | M | Weights page on a phone | Open at 375 px | Sliders and number boxes fit, reasons wrap, no sideways scrolling, six bottom-navigation items fit | |
-| PLN-76 | H | Route thresholds shown | Planner, **Weights**, scroll to **Fastest-route thresholds** | Four measures (night safety, heat relief, flood, air), the current one open; each has two number boxes (average, weakest stretch), the defaults (65 and 45) and a written reason for the default | |
+| PLN-76 | H | Route thresholds shown | Planner, **Weights**, scroll to **Fastest-route thresholds** | Seven measures (night safety, heat relief, flood, air and the three accessibility profiles), the current one open; each has two number boxes (average, weakest stretch), the defaults (65 and 45) and a written reason for the default | |
 | PLN-77 | H | Change and reset thresholds | Set Night safety to 80 and 60, **Save thresholds**; check a night walk as a resident; then **Reset thresholds to defaults** | A "custom" chip appears; the resident route now treats a fastest route scoring under 80 on average as poor (widens the search, response has thresholdAverage 80); after reset it is 65 / 45 again | |
 | PLN-78 | M | Threshold validation | Type 10, 99, or a weakest-stretch value above the average | A clear message under the fields; **Save thresholds** stays disabled; the API answers 400 for the same values; nothing is saved | |
 | PLN-79 | M | Why only the fastest route | As a resident, pick a short walk on a well-served street | The result says the fastest path scores X on average and Y at its weakest stretch, above the city's thresholds for the measure (in English, Polish and Ukrainian) | |
+
+### 8.8 Accessibility layer (fifth tab, planner) (`PLN`)
+
+Needs the planner key and the accessibility data. The overview, map, drawer, reports, alerts and weights pages must all follow the tab and the profile. Squares with no data are counted apart and left out of every figure.
+
+| Id | Pri | Scenario | Steps | Expected result | Result |
+| --- | --- | --- | --- | --- | --- |
+| PLN-80 | H | Fifth event tab | Planner, look at the event selector | **Heat relief, Night safety, Flood, Air quality, Accessibility** in this order; the Accessibility tab has the same look and behaviour as the others with its own fuchsia accent; at 375 px the tabs stay inside the screen (the open one keeps its name, the others are icons with names for screen readers) and nothing scrolls sideways | |
+| PLN-81 | H | Profile switch | Open the **Accessibility** tab; use another event tab | A profile switch (**Wheelchair**, **Pram**, **Limited mobility**) appears only on the Accessibility tab, with one line on what the chosen profile weighs most; the choice is remembered after a reload and matches the resident app's choice | |
+| PLN-82 | H | No data up front | Open **Overview** on Accessibility | A notice and a chip say how many squares have no data (**N squares have no data**, and how many squares are scored) and that they are left out of every average and ranking; clicking it explains the reasons, the downloaded area and what is excluded. If no data is loaded at all, a notice says so and no tile shows a good value | |
+| PLN-83 | H | Access figures | Look at the tiles | In this order: squares with accessibility data (%), squares with no data (count, dashed outline), average score, critical squares, many barriers (%), no accessible stop within 400 m (%), no accessible toilet within 800 m (%), no place to rest within 300 m (%), then reports, alerts, phones. Each tile opens an explanation with the numbers behind it | |
+| PLN-84 | H | Averages leave out no data | Compare **Squares with accessibility data** x the number of built-up squares, the histogram total and the average with the same figures on the API (`planner/summary?event=access`) | The histogram counts only squares with data; `cells` equals the scored squares; the squares with no data appear in no bar, no gap and no ranking | |
+| PLN-85 | H | Gaps and priority | Look at **What is missing most** and **Where to act first**; click a bar, then a row | Nine access factors named in the current language (steps without a ramp, raised kerbs, smooth surface, steep slopes, step-free entrances, accessible stops, accessible toilets, places to rest, tactile paving); a bar filters the list; every bar has a "!" with the factor's weight, reason, source and caveat; a row opens the area drawer | |
+| PLN-86 | H | Profile changes every page | On Overview switch **Wheelchair**, **Pram**, **Limited mobility** | The numbers, gaps and the ranked list change with the profile at once (no old profile's numbers stay after a quick switch); the same happens on Map and in the open drawer | |
+| PLN-87 | H | Map | Open **Map** on Accessibility | Squares are coloured with the score of the chosen profile; squares with no data are neutral grey; a banner states how many are grey; the legend has the four bands and a hatched **No data** row; **Priority** and **Score** both work and keep grey for no data; the places checkbox is not offered | |
+| PLN-88 | H | Selected square survives | Tap a square (drawer opens), then switch the profile, then the event tab and back | The square stays outlined; the drawer reopens for the new profile or layer; nothing jumps to another square | |
+| PLN-89 | H | Drawer with data | Open a square in the data area | The score gauge and band, the other profiles, a factor table with measured values in the right units (barriers, % smooth, metres), weight, score and points (each row opens an explanation), the open barrier reports, suggested actions in words (add a ramp or lift, lower kerbs, repair footways, …), nearest assets, and the buttons to show on the map, alert the area and contact an agency | |
+| PLN-90 | H | Drawer with no data | Open a square outside the data area | **No accessibility data for this square** with the reason; no score, no gauge, no priority and no "no weak factors" claim; the barrier reports of the square (if any) and the buttons remain | |
+| PLN-91 | M | Brief and agency | From an access drawer click **Contact an agency** | The brief names the profile and score ("no data" for a square without one), lists weak access factors and the request; ADD_RAMP, LOWER_KERBS and REPAIR_FOOTWAY go to ZDMK, REVIEW_ACCESSIBLE_STOPS to ZTP, ADD_BENCHES to ZZM | |
+| PLN-92 | H | Reports page | Open **Reports** on Accessibility | Only barrier reports (**Blocked or hazardous path**) are listed, with the line "Showing barrier reports only"; the type filter offers that type only; verify, resolve, show on map and alert still work; `PathHazard` no longer appears under Night safety | |
+| PLN-93 | M | Alerts | Open **Alerts**, choose the template **Accessibility** or the layer **Accessibility** | The template fills a title and message (English, Polish, Ukrainian) and the layer **Accessibility**; the API accepts the alert; the drawer's alert button starts from the Accessibility template while planning for accessibility, but the weakest-layer logic never picks it | |
+| PLN-94 | H | Weights | **Weights** on Accessibility | Three sections (Accessibility score · Wheelchair, Pram, Limited mobility) with nine factors each, weights, defaults, sliders, number boxes and a reason per factor; the section of the chosen profile is open; saving one profile does not change the others; the "custom" chip, **Use the defaults for this score** and **Reset all** work (`PUT {"weights":{"access.pram.rest":60}}`) | |
+| PLN-95 | H | Thresholds | **Weights**, **Fastest-route thresholds** | Seven measures including **Accessibility: wheelchair / pram / limited mobility**, each with the default 65 and 45 and a written reason for that profile; the chosen profile's measure is open; validation and reset as in PLN-77 and PLN-78 | |
+| PLN-96 | M | Never suggested | While a heat warning, a dark evening, a river above warning and high PM2.5 are active | The overview banners offer Heat, Night safety, Flood and Air only; no banner, chip or alert template is chosen for Accessibility automatically | |
+| PLN-97 | M | Light and dark, desktop and phone | Repeat PLN-80, PLN-82, PLN-87 and PLN-89 in the light and the dark theme at 1280 px and at 375 px | Text meets 4.5:1, outlines 3:1; the no-data look (grey, dashed, words) is clear in both themes; nothing is cut off; the keyboard reaches the tabs, profile buttons, tiles, bars and drawer | |
+| PLN-98 | M | Polish and Ukrainian | Switch the language on every Accessibility page | Tab, profile lines, tiles, no-data notice, factors, drawer, legend, actions, alert template and thresholds reason are translated (explanations from the API stay in English) | |
 
 ---
 
@@ -385,8 +429,31 @@ Use Swagger at http://localhost:5080/swagger or any HTTP client.
 | API-12 | M | CORS | Call the API from `http://localhost:5090` and from another origin | Allowed from the configured origin only | |
 | API-13 | M | Method and grid | `GET` the method and the grid | Documents of the factors, weights and sources; the grid lists squares with thresholds | |
 | API-14 | L | Planner demo data | `POST` demo data twice | First creates demo reports, second reports that they already exist | |
+| API-15 | H | Access layer grid | `GET /api/safety/grid?event=access&profile=pram` | Columns end with `access, accessPram, accessMobility, accessData`; `access*` is **-1** and `accessData` 0 for squares with no accessibility data; `access.profile` is `pram`; an unknown profile returns **400** | |
+| API-16 | H | Access layer place | `GET /api/safety/place?lat=50.0617&lon=19.9373&event=access&profile=mobility` | `access` has 9 factors with keys `access.mobility.*`, `accessProfile` = mobility, `accessByProfile` has wheelchair, pram and mobility. A point far outside the data area (50.12, 20.05) has `access.score` **null**, `hasData` false, band `NoData`, `dataNoteCode` `outside_area` | |
+| API-17 | M | Access layer route | `GET /api/safety/route?from=..&to=..&mode=access&profile=pram` | `mode` access, `profile` pram, `betterKind` `mostAccessible` when a better route exists; `noDataShare` says how much of a route has no accessibility data (1 = none: no better route is invented, `fastestIsAcceptable` false) | |
+| API-18 | M | Access layer planner summary | `GET /api/safety/planner/summary?event=access&profile=mobility` with the key | Factor gaps are `AccessMobility`; KPIs include `accessCoverage` and `cellsNoData`; `cells` counts only squares with data; a note says how many squares have no data | |
+| API-19 | M | Access weights per profile | `GET` then `PUT /api/safety/planner/weights` with `{"weights":{"access.pram.rest":60}}` | Layers `Access`, `AccessPram`, `AccessMobility` each list 9 factors adding up to 100 with a reason; only `AccessPram` becomes customised; `DELETE` resets | |
+| API-20 | M | Access thresholds | `GET /api/safety/planner/route-thresholds` | Seven layers including Access, AccessPram, AccessMobility, each with defaults 65 / 45 and a reason | |
+| API-21 | M | Barrier report feeds Access | `POST /api/safety/reports` with type `PathHazard` twice from two devices in one square; read `/api/safety/report-types` | `PathHazard` has layer **Access**; the square's access scores drop, its night-safety score does not | |
 
 ---
+
+### 10.1 Accessibility as a score layer (`ACL`)
+
+Run after API-15 to API-21. The resident and planner screens for this layer are described by the front-end cases of the Dostępność tab; these cases cover the scoring model and its data rules (automated: `AccessLayerTests`, `SafetyEndpointTests`).
+
+| Id | Pri | Area | Steps | Expected | Result |
+| --- | --- | --- | --- | --- | --- |
+| ACL-01 | H | Profiles and weights | Compare the weights of the wheelchair, pram and mobility profiles | Each profile has the same nine factors (steps, kerbs, surface, slope, stepFree, accessStops, accessToilets, rest, tactile) with its own weights adding up to 100: steps weigh most for a wheelchair, surface for a pram, places to rest for limited mobility | |
+| ACL-02 | H | No data is not accessible | Open a place outside central Kraków, and a place inside the data area where nothing is mapped nearby | No score (null / -1), band `NoData`, a note with the reason (`outside_area`, `no_data`, `unavailable`); never a good or a critical score; the square is greyed on the map | |
+| ACL-03 | H | Planner averages | Compare `cells` in the access summary with the number of built-up squares | Squares without data are left out of averages, histogram, gaps and ranking and are counted in `cellsNoData` | |
+| ACL-04 | H | Missing tags | Check a square where only a bench is mapped | Surface factor 0, accessible stop and accessible toilet factors have no value (a stop without `wheelchair_boarding` and a toilet without a wheelchair tag do not count) | |
+| ACL-05 | M | Profile rules | Steps with `ramp:stroller` and a 7 % footway | Pram: steps count 0 and the slope is fine; wheelchair: steps count 0.5 and the 7 % stretch is a steep stretch | |
+| ACL-06 | M | Data gap | Start the API with the accessibility dataset not yet downloaded | `conditions.dataGaps` and the grid notes list `access`; Access scores are all no-data until it loads | |
+| ACL-07 | M | Demo data | Seed demo data | Barrier (`PathHazard`) demo reports are placed only in squares that have accessibility data | |
+| ACL-08 | H | No flagged stops | With the current ZTP feeds (no stop has `wheelchair_boarding`), open a place card in Accessibility mode and the planner access overview | The accessible-stops factor reads "no data" (not "0 of N points"), the other weights are scaled to add up to 100, there is no accessible-stops action or gap, the KPI "no accessible stop within 400 m" is not shown, `conditions.dataGaps` has `access_stops`. Flag one stop in the data: the factor scores again and the KPI returns | |
+| ACL-09 | L | Weight 0 and live air | Open a pram or wheelchair place card (tactile has weight 0) and an Air place card with no reports but polluted air | The Why list does not show weight-0 factors (no "0 of 0 possible points"); the Air card does not say reports lower the score unless a report penalty exists | |
 
 ## 11. Usability, responsiveness, accessibility, languages, offline
 
@@ -505,8 +572,11 @@ Target: WCAG 2.1 AA.
 | **Report creation by a resident** | REP-01 to REP-17 |
 | **Report appears on the planner dashboard** | E2E-01 to E2E-16, PLN-40 to PLN-47 |
 | Planner overview, map, drawer | PLN-10 to PLN-32 |
+| Planner Accessibility tab (profiles, no data, map, drawer, reports, alerts, weights, thresholds) | PLN-80 to PLN-98 |
+| Resident Accessibility tab (profiles, no data, path, report) | RES-62 to RES-72 |
 | Planner contacts | PLN-60 to PLN-62 |
-| API | API-01 to API-14 |
+| API | API-01 to API-21 |
+| Accessibility score layer (three profiles, no-data rules) | ACL-01 to ACL-09, API-15 to API-21 |
 | Responsive, accessible, multilingual, offline | RSP, A11Y, I18N, OFF |
 | Security and performance | SEC, PERF |
 

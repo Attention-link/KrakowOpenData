@@ -25,6 +25,36 @@ public sealed class PlaceMeasure
     public required IReadOnlyList<FactorResult> Flood { get; init; }
     public required IReadOnlyList<FactorResult> Air { get; init; }
 
+    /// <summary>Accessibility factors per profile (wheelchair, pram, limited mobility). Meaningful only when <see cref="AccessCovered"/>.</summary>
+    public IReadOnlyList<FactorResult> Access { get; init; } = [];
+
+    public IReadOnlyList<FactorResult> AccessPram { get; init; } = [];
+
+    public IReadOnlyList<FactorResult> AccessMobility { get; init; } = [];
+
+    /// <summary>Why there is no accessibility score here: outside_area | no_data | unavailable; null when the place has accessibility data.</summary>
+    public string? AccessNoDataCode { get; init; } = "unavailable";
+
+    /// <summary>Mapped accessibility items within <see cref="AccessLayerData.CoverageRadius"/> metres.</summary>
+    public int AccessItems { get; init; }
+
+    public bool AccessCovered => AccessNoDataCode is null;
+
+    /// <summary>True when the data is there but thin (few mapped items), so the score is less certain.</summary>
+    public bool AccessThin => AccessCovered && AccessItems < AccessLayerData.ThinItems;
+
+    public double AccessBase => SafetyModel.BaseScore(Access);
+
+    public double AccessPramBase => SafetyModel.BaseScore(AccessPram);
+
+    public double AccessMobilityBase => SafetyModel.BaseScore(AccessMobility);
+
+    /// <summary>Base score of an accessibility layer (any of the three profiles).</summary>
+    public double AccessBaseOf(Layer layer) => SafetyModel.BaseScore(Factors(layer));
+
+    public FactorResult? Find(string key) =>
+        new[] { Heat, Safety, Flood, Air, Access, AccessPram, AccessMobility }.SelectMany(l => l).FirstOrDefault(f => f.Definition.Key == key);
+
     public string CellId => GridSpec.IdOf(Row, Col);
 
     public double HeatBase => SafetyModel.BaseScore(Heat);
@@ -35,7 +65,16 @@ public sealed class PlaceMeasure
 
     public double AirBase => SafetyModel.BaseScore(Air);
 
-    public IReadOnlyList<FactorResult> Factors(Layer layer) => layer switch { Layer.Heat => Heat, Layer.Safety => Safety, Layer.Flood => Flood, _ => Air };
+    public IReadOnlyList<FactorResult> Factors(Layer layer) => layer switch
+    {
+        Layer.Heat => Heat,
+        Layer.Safety => Safety,
+        Layer.Flood => Flood,
+        Layer.Access => Access,
+        Layer.AccessPram => AccessPram,
+        Layer.AccessMobility => AccessMobility,
+        _ => Air
+    };
 }
 
 /// <summary>
@@ -52,9 +91,10 @@ public sealed class StaticSafetyModel
     private readonly IReadOnlyDictionary<(int Row, int Col), int> _lamps;
     private readonly IReadOnlyDictionary<(int Row, int Col), int> _stops;
     private readonly Dictionary<string, PlaceMeasure> _cellsById;
+    private readonly AccessLayerData? _access;
     private readonly IReadOnlyDictionary<Layer, IReadOnlyList<FactorDefinition>> _definitions;
 
-    private static readonly Layer[] Layers = [Layer.Heat, Layer.Safety, Layer.Flood, Layer.Air];
+    private static readonly Layer[] Layers = Enum.GetValues<Layer>();
 
     /// <summary>The factors of a layer with the weights this model was built with (the defaults, or what a planner set).</summary>
     public IReadOnlyList<FactorDefinition> Definitions(Layer layer) => _definitions[layer];
@@ -65,10 +105,13 @@ public sealed class StaticSafetyModel
         IReadOnlyDictionary<(int Row, int Col), int> stopsPerCell,
         IReadOnlyList<string> dataGaps,
         DateTimeOffset builtAt,
-        IReadOnlyDictionary<Layer, IReadOnlyList<FactorDefinition>>? definitions = null)
+        IReadOnlyDictionary<Layer, IReadOnlyList<FactorDefinition>>? definitions = null,
+        AccessLayerData? access = null)
     {
+        _access = access;
         _definitions = definitions ?? Layers.ToDictionary(l => l, SafetyModel.FactorsOf);
         _features = featuresByFactor;
+        AccessStopsAvailable = featuresByFactor.Any(kv => AccessKeys.IsAccessKey(kv.Key) && AccessKeys.Base(kv.Key) == "accessStops" && kv.Value.Count > 0);
         _lamps = lampsPerCell;
         _stops = stopsPerCell;
         DataGaps = dataGaps;
@@ -91,6 +134,9 @@ public sealed class StaticSafetyModel
 
     public IReadOnlyList<string> DataGaps { get; }
 
+    /// <summary>The accessibility dataset behind the Access layers (null when it could not be loaded).</summary>
+    public AccessLayerData? AccessData => _access;
+
     public DateTimeOffset BuiltAt { get; }
 
     public PlaceMeasure? FindCell(string id) => _cellsById.GetValueOrDefault(id);
@@ -106,6 +152,8 @@ public sealed class StaticSafetyModel
     {
         "lighting" => _lamps.Values.Sum(),
         "transit" => _stops.Values.Sum(),
+        _ when AccessKeys.IsAccessKey(factorKey) && AccessKeys.Base(factorKey) is "steps" or "kerbs" or "surface" or "slope" =>
+            _access?.FeatureCount(AccessKeys.Base(factorKey)) ?? 0,
         _ => _features.TryGetValue(factorKey, out var list) ? list.Count : 0
     };
 
@@ -120,8 +168,26 @@ public sealed class StaticSafetyModel
         var stops = Around(_stops, row, col);
         var lampsPerKm2 = lamps / NeighbourhoodAreaKm2;
 
+        var reading = _access?.Read(point) ?? new AccessReading("unavailable", 0, new Dictionary<string, AccessProfileReading>());
+
         FactorResult Score(FactorDefinition def)
         {
+            // Accessibility counts around the place (steps, kerbs, smooth footways, slopes) come from the accessibility index, per profile.
+            // Nothing mapped is "no value" and never scores as accessible (see AccessLayerData).
+            if (AccessKeys.IsAccessKey(def.Key) && AccessKeys.Base(def.Key) is "steps" or "kerbs" or "surface" or "slope")
+            {
+                var profileKey = def.Key.Split('.')[1];
+                var r = reading.NoDataCode is null && reading.Profiles.TryGetValue(profileKey, out var pr) ? pr : null;
+                double? value = r is null ? null : AccessKeys.Base(def.Key) switch
+                {
+                    "steps" => r.Steps,
+                    "kerbs" => r.Kerbs,
+                    "slope" => r.Steep,
+                    _ => r.SurfaceShare
+                };
+                return new FactorResult(def, value is null ? null : Math.Round(value.Value, 1), r is null ? 0 : SafetyModel.FactorScore(def, value), null);
+            }
+
             if (def.Kind == FactorKind.Density)
                 return new FactorResult(def, Math.Round(lampsPerKm2, 1), SafetyModel.FactorScore(def, lampsPerKm2), null);
 
@@ -144,8 +210,42 @@ public sealed class StaticSafetyModel
             Heat = Definitions(Layer.Heat).Select(Score).ToList(),
             Safety = Definitions(Layer.Safety).Select(Score).ToList(),
             Flood = Definitions(Layer.Flood).Select(Score).ToList(),
-            Air = Definitions(Layer.Air).Select(Score).ToList()
+            Air = Definitions(Layer.Air).Select(Score).ToList(),
+            Access = Rescaled(Definitions(Layer.Access).Select(Score).ToList()),
+            AccessPram = Rescaled(Definitions(Layer.AccessPram).Select(Score).ToList()),
+            AccessMobility = Rescaled(Definitions(Layer.AccessMobility).Select(Score).ToList()),
+            AccessNoDataCode = reading.NoDataCode,
+            AccessItems = reading.ItemsNearby
         };
+    }
+
+    /// <summary>Why the <c>accessStops</c> factor is not available (shown as the factor's data note).</summary>
+    public const string AccessStopsNote = "no stop in the ZTP open data is flagged wheelchair-accessible";
+
+    /// <summary>The data-gap code reported in the conditions while <see cref="AccessStopsAvailable"/> is false.</summary>
+    public const string AccessStopsGap = "access_stops";
+
+    /// <summary>
+    /// True when at least one stop is flagged wheelchair-accessible in the ZTP open data. When none is (the feeds currently flag none, or the stops dataset
+    /// is unavailable) the <c>accessStops</c> factor is NOT AVAILABLE: scoring leaves it out and rescales the other weights of the profile (see <see cref="Rescaled"/>).
+    /// </summary>
+    public bool AccessStopsAvailable { get; }
+
+    /// <summary>
+    /// When accessible stops are unavailable: the stops factor becomes "no data" (no points, never weak) and the other factors' weights are scaled up so they
+    /// add up to what all weights did (100 by default). Done at scoring time only; the configured and planner weights (<see cref="Definitions"/>) are untouched.
+    /// </summary>
+    private IReadOnlyList<FactorResult> Rescaled(List<FactorResult> factors)
+    {
+        if (AccessStopsAvailable) return factors;
+        var stops = factors.FirstOrDefault(f => AccessKeys.Base(f.Definition.Key) == "accessStops");
+        if (stops is null) return factors;
+        var total = factors.Sum(f => f.Definition.Weight);
+        var remaining = total - stops.Definition.Weight;
+        var scale = remaining > 0 ? total / remaining : 1;
+        return factors.Select(f => f == stops
+            ? new FactorResult(f.Definition, null, 0, null, false)
+            : f with { Definition = f.Definition with { Weight = f.Definition.Weight * scale } }).ToList();
     }
 
     /// <summary>

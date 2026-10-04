@@ -1,3 +1,4 @@
+using KrakowOpenData.Application.Accessibility;
 using KrakowOpenData.Contracts;
 
 namespace KrakowOpenData.Application.Safety;
@@ -125,7 +126,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
 
         IReadOnlyList<FactorInfoDto> Factors(IReadOnlyList<FactorDefinition> defs) => defs.Select(def =>
         {
-            var text = Texts[def.Key];
+            var text = TextOf(def.Key);
             return new FactorInfoDto(
                 def.Key,
                 SafetyMapping.LabelOf(def.Key),
@@ -197,8 +198,36 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             ],
             Factors(model.Definitions(Layer.Air)));
 
+        LayerMethodDto AccessLayer(Layer layer, string title, string who, string emphasis)
+        {
+            var profile = AccessKeys.ProfileOf(layer)!;
+            return new LayerMethodDto(
+                layer.ToString(),
+                title,
+                "Higher = easier to get around. 100 is a place with few barriers, smooth footways, step-free access, accessible stops and toilets and somewhere to rest; 0 is a place full of barriers. A place with no accessibility data has no score at all (it is not 0 and not 100).",
+                $"How easy a place is to move around for {who}, from mapped barriers (steps without a ramp, raised kerbs, rough, steep or narrow footways) and amenities (step-free entrances and lifts, accessible public transport stops, accessible toilets, benches, tactile paving), reduced by open citizen reports about barriers. {emphasis} Profiles are preferences about barriers, not a diagnosis. The data is OpenStreetMap and the ZTP stop flags for a limited area (central Kraków by default); outside it, or where nothing is mapped nearby, the score is withheld: no data is never counted as accessible.",
+                $"Accessibility score ({profile.Key}) = Σ weight × factor score ÷ 100 over the nine factors − open barrier reports (up to 30 points), limited to 0–100, only where there is data. Counts (steps, kerbs, slopes) score 100 at 0 and 0 at their limit; the footway factor scores 100 from 70 % smooth footways and 0 below 15 %; distance factors as for the other layers.",
+                [
+                    new BandInfoDto("Good", 75, 100, "Few barriers: smooth, step-free surroundings with accessible stops, toilets and places to rest."),
+                    new BandInfoDto("Fair", 55, 75, "Mostly passable: some barriers or a missing amenity."),
+                    new BandInfoDto("Weak", 35, 55, "Difficult: several barriers, or important amenities are far."),
+                    new BandInfoDto("Critical", 0, 35, "Very difficult: barriers all around, little step-free access nearby.")
+                ],
+                Factors(model.Definitions(layer)));
+        }
+
+        var access = AccessLayer(Layer.Access, "Accessibility score (wheelchair)", "a wheelchair user (the default profile)", "Steps and kerbs weigh most because they stop a wheelchair completely.");
+        var accessPram = AccessLayer(Layer.AccessPram, "Accessibility score (pram)", "someone pushing a pram or stroller", "Surface and kerbs weigh most; a ramp tagged for strollers is good enough.");
+        var accessMobility = AccessLayer(Layer.AccessMobility, "Accessibility score (limited mobility)", "someone who walks with difficulty", "Places to rest and slope weigh most; steps and kerbs are a difficulty, not a barrier.");
+
         var kpis = new List<KpiInfoDto>
         {
+            new("accessCoverage", "Squares with accessibility data", "Share of built-up squares inside the downloaded accessibility area with at least one mapped item nearby. Squares without data have no accessibility score and are left out of the averages.", "Squares with data ÷ all built-up squares × 100.", "OpenStreetMap accessibility tags + exposure proxy"),
+            new("cellsNoData", "Squares with no accessibility data", "Built-up squares outside the downloaded area or with nothing mapped nearby. No data is not accessibility.", "Count of squares without accessibility data.", "OpenStreetMap accessibility tags"),
+            new("stepsBarriers", "Barrier-heavy squares", "Share of squares with data where the steps or kerbs factor of the chosen profile scores below 35.", "Σ exposure of squares with steps or kerbs factor < 35 ÷ Σ exposure of squares with data × 100.", "OpenStreetMap steps and kerbs"),
+            new("noAccessibleStop400", "No accessible stop within 400 m", "Share of squares with data where the nearest stop flagged wheelchair-accessible by ZTP is more than 400 m away, or none is known. Not shown while no stop in the ZTP open data is flagged accessible.", "Σ exposure of squares with accessible-stop distance > 400 m ÷ Σ exposure of squares with data × 100.", "ZTP Kraków GTFS (wheelchair_boarding)"),
+            new("noAccessibleToilet800", "No accessible toilet within 800 m", "Share of squares with data where the nearest toilet mapped as accessible is more than 800 m away, or none is mapped.", "Σ exposure of squares with accessible-toilet distance > 800 m ÷ Σ exposure of squares with data × 100.", "OpenStreetMap toilets"),
+            new("noRest300", "No bench within 300 m", "Share of squares with data where the nearest mapped bench is more than 300 m away.", "Σ exposure of squares with bench distance > 300 m ÷ Σ exposure of squares with data × 100.", "OpenStreetMap benches"),
             new("nearRiver200", "Within 200 m of a river", "Share of built-up area whose nearest mapped river, stream or canal is closer than 200 m.", "Σ exposure of squares with river distance < 200 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap waterways + exposure proxy"),
             new("noEmergency1000", "No hospital or police within 1 km", "Share of built-up area where the nearest hospital or police station is more than 1 km away, or none is mapped within 1.5 km.", "Σ exposure of squares with emergency distance > 1000 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap hospitals and police stations"),
             new("riverLevel", "River situation", "How high Kraków's rivers are right now: 0 % normal, 50 % a gauge above its warning level, 100 % above alarm.", "Worst state across IMGW river gauges in Kraków.", "IMGW-PIB river gauges"),
@@ -225,7 +254,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
 
         return new MethodDto(
             current.GeneratedAt,
-            [safety, heat, flood, air],
+            [safety, heat, flood, air, access, accessPram, accessMobility],
             SafetyModelFormulas.Combined,
             $"Each open citizen report subtracts points from its own layer in its own 250 m square: 5 × type weight × decay × credibility × support, capped at {SafetyModel.MaxReportPenalty:0} points per layer. A single unconfirmed report counts at a quarter; two or more people agreeing, or a planner verifying, counts in full. Reports fade (half-life 1 to 14 days depending on type) unless confirmed again. A report always lowers the score of its own layer (for heat, the heat-relief score).",
             SafetyModelFormulas.Priority,
@@ -237,14 +266,26 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
                 "Scores describe mapped infrastructure and citizen reports. They are not crime statistics and not measured temperatures or light levels.",
                 "Distances are straight-line metres; walking minutes assume 80 m per minute.",
                 "OpenStreetMap may miss lamps, fountains and other features, which lowers scores in those areas.",
+                "Accessibility scores exist only where accessibility data was downloaded (central Kraków by default) and something is mapped nearby. Elsewhere there is no score, and no data is never read as accessible. Each profile (wheelchair, pram, limited mobility) has its own weights.",
+                "Accessible stops: the ZTP open data currently flags no stop as wheelchair-accessible. While that is so, the accessible-stops factor is not available ('no data'): it is left out of the accessibility scores, the other factors' weights are rescaled to add up to 100 (the configured weights are unchanged), no action or gap is derived from it and the 'no accessible stop within 400 m' number is not shown. It counts again as soon as any stop is flagged.",
                 "Thresholds and weights are first estimates for Kraków and should be tuned with local knowledge."
             ]);
     }
 
-    private static string Describe(FactorDefinition def, double value) =>
-        def.Kind == FactorKind.Density
-            ? $"{value:0} lamps per km²"
-            : $"{value:0} m";
+    private static Text TextOf(string key)
+    {
+        if (!AccessKeys.IsAccessKey(key)) return Texts[key];
+        var t = AccessMethodText.Get(key.Split('.')[1], AccessKeys.Base(key));
+        return new Text(t.Measures, t.Why, t.Source, t.Caveat);
+    }
+
+    private static string Describe(FactorDefinition def, double value) => def.Kind switch
+    {
+        FactorKind.Density => $"{value:0} lamps per km²",
+        FactorKind.Count => $"{value:0} weighted barriers within 150 m",
+        FactorKind.Share => $"{value:0} % of mapped footways fine",
+        _ => $"{value:0} m"
+    };
 }
 
 /// <summary>Formulas shown to people, kept next to the code that implements them.</summary>

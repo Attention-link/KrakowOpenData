@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Kompas Krakowa · Kraków Compass</title>
-  <meta name="description" content="Night-safety, heat, flood and air scores for any place in Kraków, citizen reports, and a planner dashboard.">
+  <meta name="description" content="Night-safety, heat, flood, air and accessibility scores for any place in Kraków, citizen reports, and a planner dashboard.">
   <meta name="theme-color" content="#070a0f">
   <script>try{document.documentElement.dataset.theme=localStorage.getItem("theme")==='"light"'||localStorage.getItem("theme")==='light'?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}</script>
   <link rel="manifest" href="manifest.webmanifest">
@@ -13,6 +13,7 @@
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb" crossorigin="anonymous">
   <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/planner-access.css">
   <script src="config.js"></script>
   <script src="js/display-boot.js"></script>
 </head>
@@ -68,6 +69,17 @@
     <symbol id="i-filter" viewBox="0 0 24 24"><path d="M22 3H2l8 9.5V19l4 2v-8.5L22 3z"/></symbol>
     <symbol id="i-a11y" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="7" r="1.3"/><path d="M7 9.5l5 1 5-1M12 10.5v3.5M12 14l-2.5 4.5M12 14l2.5 4.5"/></symbol>
     <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></symbol>
+    <!-- Accessibility layer: wheelchair user, stairs, kerb, footway, slope, lift, bench, tactile paving -->
+    <symbol id="i-access" viewBox="0 0 24 24"><path d="M12 4.5h.01M11 7.5v5.5h5l2 5M11 10.5h4M8.5 11.5a5 5 0 1 0 7.2 6.2"/></symbol>
+    <symbol id="i-pram" viewBox="0 0 24 24"><path d="M3 4h3l2.5 10h8.5a4 4 0 0 0 4-4V8H7.2"/><circle cx="9" cy="19" r="1.7"/><circle cx="17" cy="19" r="1.7"/></symbol>
+    <symbol id="i-cane" viewBox="0 0 24 24"><path d="M12 21V8a4 4 0 0 1 8 0"/></symbol>
+    <symbol id="i-stairs" viewBox="0 0 24 24"><path d="M4 20h4v-4h4v-4h4V8h4"/></symbol>
+    <symbol id="i-curb" viewBox="0 0 24 24"><path d="M3 18h18M3 14h7v-4h11"/></symbol>
+    <symbol id="i-path" viewBox="0 0 24 24"><path d="M4 19c3-6 5-7 8-7s5-1 8-7"/></symbol>
+    <symbol id="i-slope" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></symbol>
+    <symbol id="i-lift" viewBox="0 0 24 24"><path d="M6 3h12v18H6zM9.5 9.5L12 7l2.5 2.5M9.5 14.5L12 17l2.5-2.5"/></symbol>
+    <symbol id="i-bench" viewBox="0 0 24 24"><path d="M4 10h16M4 14h16M6 14v5M18 14v5M6 10V6"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24"><path d="M7 7h.01M12 7h.01M17 7h.01M7 12h.01M12 12h.01M17 12h.01M7 17h.01M12 17h.01M17 17h.01"/></symbol>
     <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12c2-3 4-3 6 0s4 3 6 0 4-3 6 0M2 18c2-3 4-3 6 0s4 3 6 0 4-3 6 0M2 6c2-3 4-3 6 0s4 3 6 0 4-3 6 0"/></symbol>
   </svg>
 

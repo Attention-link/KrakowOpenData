@@ -1,4 +1,4 @@
-// Resident view: a full-screen map coloured by the chosen view (night safety, heat or both), a place card with the
+// Resident view: a full-screen map coloured by the chosen view (night safety, heat, flood, air or accessibility), a place card with the
 // reasons behind the score, and tools to report a concern and check a walk. Each view shows only its own data:
 // Night safety = night-safety score, factors, help and reports; Heat = heat score, factors, help and reports.
 // Phones get a bottom sheet; wide screens get a side panel. Works offline from saved data.
@@ -8,7 +8,7 @@ import { state, set, on, eventForMode, isOffline } from './state.js';
 import { t, getLang } from './i18n.js';
 import { cachedGet, peek, getConditions, getGrid, getPlace, getFeatures, getReportTypes, confirmReport, errorText, ApiError, DOCS_URL } from './api.js';
 import { createMap, GridLayer, PlacesLayer, iconMarker, pinMarker, watchResize, mapInfo, coverageCircle, KRAKOW, keyboardPick } from './map.js';
-import { bandOf, kindOf, BAND_FILL, scoreOf, indexGrid, cellOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, nearestFromFeatures, COL, LAYERS, MODE_KEYS, asMode } from './model.js';
+import { bandOf, kindOf, BAND_FILL, scoreOf, noDataRow, indexGrid, cellOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, nearestFromFeatures, COL, LAYERS, MODE_KEYS, asMode, ACCESS_PROFILES, profileNow } from './model.js';
 import { bandText, infoButton, legendBody, loadMethod, openFactorExplainer, openMethod, openScoreExplainer, scoreSummary } from './explain.js';
 import { topbar, statusPill, openHowItWorks, flushOutbox, notificationToggle, displayToggles, readAloudButton, stopReading } from './chrome.js';
 import { renderReportView } from './report.js';
@@ -20,7 +20,7 @@ import { telegramCard } from './telegram.js';
 import { renderAccessView } from './access.js';
 import { wheelchairBadge } from './wheelchair.js';
 
-/** Which score layers a view shows: exactly one. Night safety, heat, flood and air never mix. */
+/** Which score layers a view shows: exactly one. Night safety, heat, flood, air and accessibility never mix. */
 export const layersOf = (mode) => [asMode(mode)];
 
 export function mountResident(root) {
@@ -84,9 +84,10 @@ export function mountResident(root) {
     onHover: (latlng, row, tip) => {
       if (!row || matchMedia('(pointer: coarse)').matches) { tip.remove(); return; }
       const m = mode();
+      if (noDataRow(row, m)) { tip.setLatLng(latlng).setContent(t('accl.noDataHere')).addTo(map); return; }   // never a score, never a band
       const score = scoreOf(row, m);
       const band = bandOf(score, ctx.grid?.grid, kindOf(m));
-      tip.setLatLng(latlng).setContent(`${t(`mode.${m}.score`)}: ${score} · ${bandText(band, kindOf(m))} (${t(`explain.dir.${m}`)})`).addTo(map);
+      tip.setLatLng(latlng).setContent(`${t(`mode.${m}.score`)}${m === 'access' ? ` (${t(`accl.p.${profileNow()}`)})` : ''}: ${score} · ${bandText(band, kindOf(m))} (${t(`explain.dir.${m}`)})`).addTo(map);
     }
   });
   // Places that feed the scores (water, parks, toilets, refuges, night-open places, defibrillators), shown from zoom 14.
@@ -175,11 +176,54 @@ export function mountResident(root) {
     else renderView();
   }));
 
+  // The accessibility profile (wheelchair | pram | mobility) changes the score, so everything that shows it is read again. Saved copies are keyed by
+  // profile, so a switch never shows the other profile's numbers. The barrier browser (view 'access') loads itself.
+  cleanups.push(on('accessProfile', () => {
+    if (mode() !== 'access') return;
+    redrawGrid();
+    ctx.places?.draw();
+    paintLegend();
+    paintConditions();
+    if (ctx.view === 'access') return;
+    if (ctx.selected && ctx.view === 'place') selectPoint(ctx.selected.lat, ctx.selected.lon, { keepView: true, label: ctx.selected.label });
+    else renderView();
+  }));
+
+  // ── Accessibility data coverage (from grid.access; the squares without data are drawn grey) ──
+  /** {hasData, withData, without, pct, area} of the loaded grid, or null when there is no grid yet. */
+  function accessCoverage() {
+    const a = ctx.grid?.access;
+    if (!a) return ctx.grid ? { hasData: false, withData: 0, without: 0, pct: 0, area: null } : null;
+    const withData = a.cellsWithData || 0, without = a.cellsWithoutData || 0;
+    const total = withData + without;
+    return { hasData: !!a.hasData && withData > 0, withData, without, total, pct: total ? Math.round((withData / total) * 100) : 0, area: a.dataArea || null };
+  }
+
+  /** One honest sentence about where accessibility data exists. */
+  function coverageSentence(cov) {
+    if (!cov) return t('accl.areaNote');
+    if (!cov.hasData) return t('accl.notLoaded');
+    return `${t('accl.areaNote')} ${t('accl.coverage', { n: cov.withData, total: cov.total, p: cov.pct })}`;
+  }
+
+  /** A dashed outline of the area that has accessibility data (only in the accessibility tab). */
+  function drawDataArea() {
+    ctx.areaLayer?.remove();
+    ctx.areaLayer = null;
+    const cov = mode() === 'access' ? accessCoverage() : null;
+    const a = cov?.area;
+    if (!cov?.hasData || !a || !(a.maxLatitude > a.minLatitude)) return;
+    ctx.areaLayer = L.rectangle([[a.minLatitude, a.minLongitude], [a.maxLatitude, a.maxLongitude]],
+      { color: '#86198f', weight: 2, opacity: 0.85, dashArray: '10 6', fill: false, interactive: false }).bindTooltip(t('accl.areaOutline'), { sticky: true }).addTo(map);
+  }
+  cleanups.push(() => ctx.areaLayer?.remove());
+
   // ── Legend ─────────────────────────────────────────────────────────────────
   function paintLegend() {
     clear(legend);
     legend.append(
       ...legendBody(mode(), ctx.grid?.grid, { compact: true, onExplain: (layer) => openScoreExplainer({ layer, meta: ctx.grid?.grid }) }),
+      mode() === 'access' ? h('div', { class: 'tiny acc-cov-note', style: { marginTop: '.3rem' } }, icon('info', 'sm'), h('span', null, coverageSentence(accessCoverage()))) : null,
       h('div', { class: 'tiny muted', style: { marginTop: '.3rem' } }, t('legend.note')),
       h('button', { class: 'btn sm quiet', type: 'button', style: { marginTop: '.3rem' }, onclick: () => openMethod(ctx.grid?.grid) }, icon('list', 'sm'), t('explain.fullMethod')));
   }
@@ -189,8 +233,9 @@ export function mountResident(root) {
   // ── Data loading ───────────────────────────────────────────────────────────
   function redrawGrid() {
     if (!ctx.grid) return;
-    ctx.gridLayer.draw(ctx.grid, { mode: mode() });
+    ctx.gridLayer.draw(ctx.grid, { mode: mode(), profile: profileNow() });
     ctx.gridIndex = indexGrid(ctx.grid);
+    drawDataArea();
     if (ctx.selected?.row !== undefined) ctx.gridLayer.select(ctx.selected.row, ctx.selected.col);
   }
 
@@ -205,7 +250,11 @@ export function mountResident(root) {
     ctx.gridSavedAt = savedAt;
     ctx.gridStale = stale;
     redrawGrid();
+    paintLegend();
+    paintConditions();
+    if (ctx.view === 'home') softRender();
     if (stale) showMapNote([icon('offline', 'sm'), h('span', null, t('map.savedData', { when: timeAgo(savedAt, t, getLang()) }))], 'warn');
+    else if (mode() === 'access' && accessCoverage() && !accessCoverage().hasData) showMapNote([icon('info', 'sm'), h('span', null, t('accl.notLoaded'))]);
     else showMapNote(null);
     pill.setSaved(stale ? savedAt : null);
     if (ctx.selected && ctx.view === 'place') softRender();
@@ -253,26 +302,27 @@ export function mountResident(root) {
   function paintConditions() {
     clear(condStrip);
     const c = ctx.conditions;
-    if (!c) { condStrip.hidden = true; return; }
+    // Accessibility has no live conditions: its chips (profile, data coverage) need only the grid.
+    if (!c && !(mode() === 'access' && ctx.grid)) { condStrip.hidden = true; return; }
     condStrip.hidden = false;
     const m = mode();
     const chips = [];
-    if (m === 'heat') {
+    if (m === 'heat' && c) {
       const hot = c.heat.level >= 1;
       chips.push(chip(hot ? 'warn' : 'heat', 'thermo', [c.heat.temperatureC !== null ? `${Math.round(c.heat.temperatureC)}°C` : '–', ' · ', t(`heat.${c.heat.pressure}`)]));
       const warnings = (c.warnings || []).filter((w) => w.level > 0);
       if (warnings.length) chips.push(chip('warn', 'alert', t('cond.warnings', { n: warnings.length })));
     }
-    if (m === 'safety') {
+    if (m === 'safety' && c) {
       chips.push(chip(c.isDark ? 'safety' : '', c.isDark ? 'moon' : 'sun',
         c.isDark ? t('cond.dark', { time: c.sunriseLocal || '' }) : t('cond.light', { time: c.sunsetLocal || '' })));
     }
-    if (m === 'flood') {
+    if (m === 'flood' && c) {
       chips.push(c.hydro.elevatedGauges > 0
         ? chip('danger', 'wave', t('cond.rivers', { n: c.hydro.elevatedGauges }))
         : chip('ok', 'wave', t('cond.riversOk')));
     }
-    if (m === 'air') {
+    if (m === 'air' && c) {
       if (c.air.band && c.air.band !== 'Unknown') {
         chips.push(chip(c.air.band === 'Poor' || c.air.band === 'VeryPoor' ? 'danger' : c.air.band === 'Good' ? 'ok' : '', 'wind', t('cond.air', { band: t(`air.${c.air.band}`) })));
       } else {
@@ -280,7 +330,12 @@ export function mountResident(root) {
       }
       if (c.air.pm25 !== null && c.air.pm25 !== undefined) chips.push(chip('', 'info', `PM2.5 ${Math.round(c.air.pm25)} µg/m³`));
     }
-    if (ctx.conditionsStale) chips.push(chip('warn', 'offline', t('cond.saved')));
+    if (m === 'access') {
+      chips.push(chip('access', 'access', t(`accl.p.${profileNow()}`)));
+      const cov = accessCoverage();
+      chips.push(cov && cov.hasData ? chip('', 'map', t('accl.chip.data', { p: cov.pct })) : chip('warn', 'info', t('accl.chip.none')));
+    }
+    if (c && ctx.conditionsStale) chips.push(chip('warn', 'offline', t('cond.saved')));
     condStrip.append(...chips);
   }
 
@@ -291,8 +346,9 @@ export function mountResident(root) {
 
   function openConditions() {
     const c = ctx.conditions;
-    if (!c) return;
     const m = mode();
+    if (m === 'access') { openAccessInfo(); return; }
+    if (!c) return;
     const rows = [];
     if (m === 'heat') {
       rows.push(h('dt', null, t('cond.heat')), h('dd', null, `${t(`heat.${c.heat.pressure}`)}${c.heat.temperatureC !== null ? ` (${c.heat.temperatureC.toFixed(1)} °C)` : ''}`));
@@ -312,6 +368,20 @@ export function mountResident(root) {
             h('ul', { class: 'list' }, warnings.map((w) => h('li', null, h('b', null, `${w.eventName} · ${t('cond.level', { n: w.level })}`), h('p', { class: 'small muted' }, (w.content || '').slice(0, 220))))))
           : (m === 'heat' ? h('p', { class: 'small muted' }, t('cond.noWarnings')) : null),
         h('p', { class: 'tiny muted' }, t('cond.source'))),
+      footer: h('button', { class: 'btn primary', type: 'button', onclick: () => close('ok') }, t('common.done'))
+    }));
+  }
+
+  /** The accessibility chips open this: the profile, where data exists and what "no data" means. */
+  function openAccessInfo() {
+    const cov = accessCoverage();
+    openDialog((close) => ({
+      title: t('accl.condTitle'),
+      body: h('div', { class: 'stack' },
+        h('dl', { class: 'kv' }, h('dt', null, t('accl.condProfile')), h('dd', null, `${t(`accl.p.${profileNow()}`)} · ${t(`accl.emph.${profileNow()}`)}`),
+          h('dt', null, t('accl.condCoverage')), h('dd', null, coverageSentence(cov))),
+        ctx.grid?.access?.note ? h('p', { class: 'tiny muted' }, ctx.grid.access.note) : null,
+        h('p', { class: 'small' }, t('legend.noData.desc'))),
       footer: h('button', { class: 'btn primary', type: 'button', onclick: () => close('ok') }, t('common.done'))
     }));
   }
@@ -353,9 +423,10 @@ export function mountResident(root) {
     renderView();
 
     const event = eventForMode(mode());
-    const key = `place:${c ? `${c.row}-${c.col}` : `${lat.toFixed(3)},${lon.toFixed(3)}`}:${event}`;
+    const profile = event === 'access' ? profileNow() : undefined;   // accessibility is scored per profile: saved copies too
+    const key = `place:${c ? `${c.row}-${c.col}` : `${lat.toFixed(3)},${lon.toFixed(3)}`}:${event}${profile ? `:${profile}` : ''}`;
     try {
-      const { data, stale, savedAt } = await cachedGet(key, () => getPlace(lat, lon, event));
+      const { data, stale, savedAt } = await cachedGet(key, () => getPlace(lat, lon, event, profile));
       if (token !== selToken) return;
       Object.assign(ctx.selected, { place: data, stale, savedAt, loading: false });
     } catch (e) {
@@ -364,7 +435,8 @@ export function mountResident(root) {
     }
     renderView();
     const m = asMode(mode()), layer = ctx.selected.place?.[m];
-    if (layer && ctx.view === 'place') announce(t('a11y.placeScore', { label: t(`mode.${m}.score`), n: Math.round(layer.score), band: bandText(layer.band, kindOf(m)), dir: t(`explain.dir.${m}`) }));
+    if (layer && layer.hasData === false && ctx.view === 'place') announce(t('accl.speakNoData', { label: t(`mode.${m}.score`) }));
+    else if (layer && ctx.view === 'place') announce(t('a11y.placeScore', { label: t(`mode.${m}.score`), n: Math.round(layer.score), band: bandText(layer.band, kindOf(m)), dir: t(`explain.dir.${m}`) }));
   }
   ctx.selectPoint = selectPoint;
 
@@ -437,6 +509,9 @@ export function mountResident(root) {
     box.querySelector('input').addEventListener('focus', () => { if (panel.dataset.state === 'peek') setSheet('half'); });
     stack.append(box);
 
+    // 1b. Accessibility: whose way is it? (the profile decides the score, the colours and the path)
+    if (mode() === 'access') stack.append(accessProfileCard());
+
     // 2. Do something
     stack.append(h('div', { class: 'row wrap' },
       h('button', { class: 'btn primary', type: 'button', 'data-fk': 'home-locate', onclick: () => locateMe() }, icon('locate'), t('home.useLocation')),
@@ -444,10 +519,12 @@ export function mountResident(root) {
       h('p', { class: 'small muted' }, t(`home.walkHelp.${mode()}`)),
       h('p', { class: 'small muted' }, t('home.tapHint')));
 
-    // 2b. Accessibility (Kraków bez barier): barriers and amenities for a wheelchair, a pram or limited mobility
-    stack.append(h('div', { class: 'card flat stack tight' },
-      h('button', { class: 'btn', type: 'button', onclick: () => showView('access') }, h('span', { 'aria-hidden': 'true' }, '♿'), t('acc.open')),
-      h('p', { class: 'small muted' }, t('acc.homeHelp'))));
+    // 2b. Accessibility: the list of concrete barriers and amenities around a place (the former separate view), with filters and corrections
+    if (mode() === 'access') {
+      stack.append(h('div', { class: 'card flat stack tight' },
+        h('button', { class: 'btn', type: 'button', 'data-fk': 'home-browse-access', onclick: () => showView('access') }, icon('list', 'sm'), t('accl.browse')),
+        h('p', { class: 'small muted' }, t('accl.browseHelp'))));
+    }
 
     // 3. Alerts
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.alertsTitle')),
@@ -466,6 +543,7 @@ export function mountResident(root) {
     // 4. How to read the colours
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.read')),
       ...legendBody(mode(), ctx.grid?.grid, { onExplain: (layer) => openScoreExplainer({ layer, meta: ctx.grid?.grid }) }),
+      mode() === 'access' ? h('p', { class: 'small acc-cov-note', style: { marginTop: '.4rem' } }, icon('info', 'sm'), h('span', null, coverageSentence(accessCoverage()))) : null,
       h('button', { class: 'btn sm quiet', type: 'button', 'data-fk': 'home-method', style: { marginTop: '.4rem' }, onclick: () => openMethod(ctx.grid?.grid) }, icon('list', 'sm'), t('explain.fullMethod'))));
 
     // 5. Display: high contrast and larger text
@@ -478,6 +556,29 @@ export function mountResident(root) {
       h('a', { class: 'btn sm quiet', href: DOCS_URL, target: '_blank', rel: 'noopener' }, icon('external', 'sm'), t('about.api'))),
       h('p', { class: 'tiny muted' }, t('how.notCrime')));
     body.append(stack);
+  }
+
+  /** "Whose way is it?": the three accessibility profiles as one control, with a line on what the chosen one weighs most. */
+  function accessProfileCard() {
+    const cur = profileNow();
+    const ICON = { wheelchair: 'access', pram: 'pram', mobility: 'cane' };
+    const seg = h('div', { class: 'seg', role: 'group', 'aria-label': t('accl.profile.label'), 'aria-describedby': 'acc-emph' },
+      ACCESS_PROFILES.map((p) => h('button', {
+        type: 'button', 'data-fk': `accp-${p}`, 'aria-pressed': String(p === cur), title: t(`accl.emph.${p}`),
+        onclick: () => { if (p !== cur) { set({ accessProfile: p }); announce(`${t(`accl.p.${p}`)}. ${t(`accl.emph.${p}`)}`); } }
+      }, icon(ICON[p], 'sm'), h('span', null, t(`accl.p.${p}`)))));
+    return h('div', { class: 'card flat acc-profile' },
+      h('h3', null, t('accl.profile.title')), seg,
+      h('p', { class: 'emph', id: 'acc-emph' }, t(`accl.emph.${cur}`)),
+      h('p', { class: 'tiny muted' }, icon('lock', 'sm'), ' ', t('accl.privacy')));
+  }
+
+  /** Why a place has no accessibility score, in the reader's language (code from the API; its English sentence only as a last resort). */
+  function noDataText(layer) {
+    const code = layer?.dataNoteCode;
+    const key = code ? `accl.noData.${code}` : null;
+    const s = key ? t(key) : null;
+    return s && s !== key ? s : (layer?.dataNote || t('accl.noData.generic'));
   }
 
   // Place card -----------------------------------------------------------------
@@ -503,8 +604,15 @@ export function mountResident(root) {
       return;
     }
 
-    const layerData = (k) => place ? place[k] : gridRow ? { score: gridRow[COL[k]], band: bandOf(gridRow[COL[k]], ctx.grid?.grid, kindOf(k)), factors: null, reportPenalty: 0, baseScore: gridRow[COL[k]] } : null;
+    // A square with no accessibility data (-1 in the grid) is "no data": no score, no band.
+    const gridLayerData = (k) => {
+      const s = scoreOf(gridRow, k);
+      return noDataRow(gridRow, k) ? { score: null, band: 'NoData', hasData: false, factors: null, reportPenalty: 0, baseScore: 0, dataNoteCode: ctx.grid?.access?.hasData ? 'no_data' : 'unavailable' }
+        : { score: s, band: bandOf(s, ctx.grid?.grid, kindOf(k)), factors: null, reportPenalty: 0, baseScore: s };
+    };
+    const layerData = (k) => place ? place[k] : gridRow ? gridLayerData(k) : null;
     const data = Object.fromEntries(layers.map((k) => [k, layerData(k)]));
+    const noData = m === 'access' && data[m] && data[m].hasData === false;
 
     if (layers.some((k) => !data[k])) {
       // No score for this spot: offline and not in the saved map, or outside the mapped area.
@@ -528,20 +636,25 @@ export function mountResident(root) {
 
     if (approx) stack.append(h('div', { class: 'banner info small' }, icon('offline', 'sm'), h('span', null, t('place.approx'))));
     if (sel.loading) stack.append(h('div', { class: 'skeleton', style: { height: '120px' } }));
-    if (place && layers.some((k) => place[k].reportPenalty > 0)) stack.append(h('div', { class: 'banner small' }, icon('flag', 'sm'), h('span', null, t('place.reportsAffect'))));
+    // No accessibility data: say why, in words. Never a number, never "accessible".
+    if (noData) stack.append(h('div', { class: 'banner warn', role: 'note' }, icon('info'), h('span', null, noDataText(data[m]))));
+    else if (m === 'access' && data[m]?.dataNoteCode === 'thin_coverage') stack.append(h('div', { class: 'banner small', role: 'note' }, icon('info', 'sm'), h('span', null, noDataText(data[m]))));
+    if (place && !noData && layers.some((k) => (place[k].reportPenalty - (place[k].livePenalty || 0)) > 0.05)) stack.append(h('div', { class: 'banner small' }, icon('flag', 'sm'), h('span', null, t('place.reportsAffect'))));
 
     stack.append(placeActions(sel));
+    if (m === 'access' && place) stack.append(otherProfiles(place));
     stack.append(nearbyBlock(sel, place));
     if (m === 'heat') stack.append(waterNote(place));
     if (m === 'flood' || m === 'air') stack.append(dataGapNote(place, m));
+    if (m === 'access' && !noData) stack.append(h('div', { class: 'banner small' }, icon('info', 'sm'), h('span', null, t('place.accessNote'))));
 
     // Why this score: only the factors of the chosen view
-    if (place) {
+    if (place && !noData) {
       stack.append(h('details', { class: 'card flat', open: true }, h('summary', { style: { cursor: 'pointer', fontWeight: 700 } }, t('place.why')),
         h('div', { class: 'stack', style: { marginTop: '.6rem' } },
           layers.map((k) => h('div', null,
-            h('p', { class: 'sect-title' }, `${t(`mode.${k}.score`)} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` − ${place[k].reportPenalty} ${t(k === 'safety' || k === 'heat' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(place[k].score)}`),
-            place[k].factors.map((f) => factorRow(f, k)))),
+            h('p', { class: 'sect-title' }, `${t(`mode.${k}.score`)} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` − ${place[k].reportPenalty} ${t(k === 'flood' || k === 'air' ? 'place.fromReportsLive' : 'place.fromReports')}` : ''} = ${Math.round(place[k].score)}`),
+            place[k].factors.filter((f) => f.weight > 0).map((f) => factorRow(f, k)))),
           h('div', { class: 'row wrap' }, h('button', { class: 'btn sm', type: 'button', onclick: () => openScoreExplainer({ layer: m, place, meta: ctx.grid?.grid }) }, icon('info', 'sm'), t('explain.how')),
             h('button', { class: 'btn sm quiet', type: 'button', onclick: () => openMethod(ctx.grid?.grid) }, icon('list', 'sm'), t('explain.fullMethod'))),
           h('p', { class: 'tiny muted' }, t('place.whyNote')))));
@@ -558,6 +671,7 @@ export function mountResident(root) {
   /** The place card as one text for "Read aloud": where, the score in words, what it is made of, and help nearby. */
   function placeSpeech(body, sel, place, m, layer) {
     const where = body.querySelector('.addr')?.textContent.trim() || sel.label || coords(sel.lat, sel.lon);
+    if (layer.hasData === false) return `${where}. ${t('accl.speakNoData', { label: t(`mode.${m}.score`) })} ${noDataText(layer)}`;
     const parts = [where, t('a11y.placeScore', { label: t(`mode.${m}.score`), n: Math.round(layer.score), band: bandText(layer.band, kindOf(m)), dir: t(`explain.dir.${m}`) })];
     if (place?.[m]?.factors?.length) parts.push(`${t('read.factors')}: ${place[m].factors.map((f) => `${t(`factor.${f.key}`)} ${factorValue(f)}`).join('; ')}`);
     const keys = RELIEF[m];
@@ -608,9 +722,18 @@ export function mountResident(root) {
   /** One score: the number, its band in words, which way is good, and a "!" that explains it with this place's numbers. */
   function scoreBox(kind, layer, big, place) {
     const band = layer.band;
+    const profileName = kind === 'access' ? ` · ${t(`accl.p.${profileNow()}`)}` : '';
+    // No accessibility data: the box says so instead of showing a number (and no meter, no band colour).
+    if (layer.hasData === false) {
+      return h('div', { class: `score-box ${big ? 'active' : ''}`, title: t('accl.noDataHere') },
+        h('div', { class: 'grow' },
+          h('div', { class: 'lbl' }, icon(LAYERS[kind].icon, 'sm'), `${t(`mode.${kind}.score`)}${profileName}`),
+          h('div', { class: 'row' }, h('span', { class: 'band nodata', 'data-band': 'NoData' }, t('accl.noData'))),
+          h('div', { class: 'tiny muted' }, t('accl.noDataHere'))));
+    }
     return h('div', { class: `score-box ${big ? 'active' : ''}`, title: scoreSummary(kind, layer.score, band) },
       h('div', { class: 'grow' },
-        h('div', { class: 'lbl' }, icon(LAYERS[kind].icon, 'sm'), t(`mode.${kind}.score`),
+        h('div', { class: 'lbl' }, icon(LAYERS[kind].icon, 'sm'), `${t(`mode.${kind}.score`)}${profileName}`,
           infoButton(() => openScoreExplainer({ layer: kind, place, meta: ctx.grid?.grid }), `${t('explain.how')} ${t(`mode.${kind}.score`)}`)),
         h('div', { class: 'row' }, h('span', { class: 'big num' }, Math.round(layer.score)), h('span', { class: 'band', 'data-band': band }, bandText(band, kindOf(kind)))),
         h('div', { class: 'tiny muted' }, t(`explain.dir.${kind}`)),
@@ -619,6 +742,12 @@ export function mountResident(root) {
 
   /** A factor of the score. Clicking it explains the factor: weight, why, data source and how many are mapped. */
   function factorRow(f, layerKey) {
+    if (f.hasData === false) {   // not available (e.g. no stop flagged accessible): "no data", never "0 of N points"
+      return h('div', { class: 'factor', 'data-fk': `factor-${layerKey}-${f.key}` },
+        h('span', { class: `chip ${FACTOR_LAYER[f.key] || 'heat'}`, style: { padding: '.15rem' } }, icon(FACTOR_ICON[f.key] || 'info', 'sm')),
+        h('div', null, h('div', { style: { fontWeight: 600 } }, t(`factor.${f.key}`)), h('div', { class: 'tiny muted' }, t('accl.factorNoData'))),
+        h('div', { class: 'val' }, t('accl.noData')));
+    }
     const band = bandOf(f.score, ctx.grid?.grid);
     const valueText = factorValue(f);
     const effect = t(layerKey === 'safety' ? 'explain.addsSafety' : `explain.adds.${layerKey}`, { n: Math.round(f.contribution * 10) / 10, max: f.weight });
@@ -631,6 +760,9 @@ export function mountResident(root) {
   }
 
   function factorValue(f) {
+    if (f.hasData === false) return t('accl.noData');
+    if (f.unit === 'barriers') return f.value === null || f.value === undefined ? t('factor.notMapped') : t('factor.barriers', { n: Math.round(f.value * 10) / 10 });
+    if (f.unit === '%') return f.value === null || f.value === undefined ? t('factor.notMapped') : t('factor.pctSmooth', { n: Math.round(f.value) });
     return f.unit === 'm' ? (f.value === null ? t(f.score === 50 && (f.key === 'river' || f.key === 'traffic') ? 'factor.unknown' : f.key === 'river' || f.key === 'traffic' ? 'factor.noneAway' : 'factor.none', { r: formatDistance(searchRadius()) }) : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`;
   }
 
@@ -643,6 +775,20 @@ export function mountResident(root) {
         h('div', { class: 'small muted' }, `${t(`factor.${n.key}`)} · ${formatDistance(n.distanceMeters)} · ${t('place.walkMin', { n: n.walkingMinutes })}${n.openingHours ? ` · ${n.openingHours}` : ''}`),
         h('div', { class: 'small' }, wheelchairBadge(n.wheelchair))),
       h('a', { class: 'btn icon quiet', href: directionsLink(n.latitude, n.longitude), target: '_blank', rel: 'noopener', 'aria-label': `${t('place.directions')}: ${n.name || t(`kind.${n.kind}`)}` }, icon('external', 'sm')));
+  }
+
+  /** The same place for the three profiles in one line each (a profile with no data says so). */
+  function otherProfiles(place) {
+    const by = place.accessByProfile;
+    if (!by) return '';
+    const cur = profileNow();
+    return h('section', null, h('h3', null, t('accl.otherProfiles')),
+      h('div', { class: 'access-by-profile', role: 'list' }, ACCESS_PROFILES.map((p) => {
+        const l = by[p];
+        const has = l && l.hasData !== false && typeof l.score === 'number';
+        const text = has ? t('accl.scoreOf', { p: t(`accl.p.${p}`), n: Math.round(l.score) }) : t('accl.scoreNone', { p: t(`accl.p.${p}`) });
+        return h('span', { class: 'chip', role: 'listitem', 'aria-current': p === cur ? 'true' : null }, text, has ? h('span', { class: 'band', 'data-band': l.band, style: { marginLeft: '.25rem' } }, bandText(l.band, 'good')) : null);
+      })));
   }
 
   function reportRow(r) {
@@ -666,7 +812,7 @@ export function mountResident(root) {
 
   function placeActions(sel) {
     return h('div', { class: 'row wrap' },
-      h('button', { class: 'btn primary', type: 'button', 'data-fk': 'pa-report', onclick: () => showView('report') }, icon('flag', 'sm'), t('place.report')),
+      h('button', { class: 'btn primary', type: 'button', 'data-fk': 'pa-report', onclick: () => showView('report') }, icon('flag', 'sm'), t(mode() === 'access' ? 'accl.reportBarrier' : 'place.report')),
       h('button', { class: 'btn cta', 'data-layer': mode(), type: 'button', 'data-fk': 'pa-walk', onclick: () => showView('walk', { to: [sel.lat, sel.lon], toLabel: sel.label }) }, icon('walk', 'sm'), t(`place.walkTo.${mode()}`)),
       h('button', { class: 'btn', type: 'button', 'data-fk': 'pa-area', onclick: () => { set({ me: { lat: sel.lat, lon: sel.lon, source: 'manual' } }); ctx.alerts?.refresh(); toast(t('place.areaSet')); } }, icon('bell', 'sm'), t('place.setArea')),
       h('a', { class: 'btn', href: directionsLink(sel.lat, sel.lon), target: '_blank', rel: 'noopener', 'data-fk': 'pa-directions' }, icon('external', 'sm'), t('place.directions')));
@@ -707,7 +853,7 @@ export function mountResident(root) {
           h('li', { class: 'row' }, icon('sun'), h('span', null, t('welcome.heat'))),
           h('li', { class: 'row' }, icon('wave'), h('span', null, t('welcome.flood'))),
           h('li', { class: 'row' }, icon('wind'), h('span', null, t('welcome.air'))),
-          h('li', { class: 'row' }, h('span', { class: 'ico', 'aria-hidden': 'true' }, '♿'), h('span', null, t('welcome.access'))),
+          h('li', { class: 'row' }, icon('access'), h('span', null, t('welcome.access'))),
           h('li', { class: 'row' }, icon('flag'), h('span', null, t('welcome.report'))),
           h('li', { class: 'row' }, icon('offline'), h('span', null, t('welcome.offline')))),
         h('p', { class: 'banner info small' }, icon('info'), h('span', null, t('how.notCrime')))),

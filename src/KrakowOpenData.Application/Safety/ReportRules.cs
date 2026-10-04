@@ -36,7 +36,8 @@ public static class ReportRules
     {
         [ReportType.LightOut] = new(ScoreLayer.Safety, 3, 14 * 24, "Street light out or too dark"),
         [ReportType.UnsafeAtNight] = new(ScoreLayer.Safety, 3, 7 * 24, "Feels unsafe at night"),
-        [ReportType.PathHazard] = new(ScoreLayer.Safety, 2, 7 * 24, "Blocked or hazardous path"),
+        // Blocked or hazardous path, also a barrier for a wheelchair or pram (steps with no ramp, high kerb, broken lift): feeds the accessibility layer.
+        [ReportType.PathHazard] = new(ScoreLayer.Access, 2, 7 * 24, "Blocked or hazardous path"),
         [ReportType.WaterNotWorking] = new(ScoreLayer.Heat, 2, 3 * 24, "Water point not working"),
         [ReportType.NoShade] = new(ScoreLayer.Heat, 2, 2 * 24, "No shade, very hot spot"),
         [ReportType.HeatSpot] = new(ScoreLayer.Heat, 3, 24, "Overheated area, no relief nearby"),

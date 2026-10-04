@@ -70,13 +70,22 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router, Rou
             var only = await DescribeAsync("fastest", line, mode, ct);
             return new RoutesDto(ScoreService.EventName(mode), "straight-line", only, null, "none", 0, 0, 0,
                 "Street routing is unavailable right now, so this is a straight-line check, not a route. Try again shortly.",
-                false, true, limit0.Average, limit0.Worst);
+                false, true, limit0.Average, limit0.Worst, ScoreService.AccessProfileOf(mode)?.Key);
         }
 
         var scored = new List<(RoutePath Path, RouteOptionDto Option)>();
         foreach (var path in candidates) scored.Add((path, await DescribeAsync("candidate", path, mode, ct)));
 
         var fastest = scored.MinBy(c => c.Path.DistanceMeters);   // shortest walk = fastest at a constant walking speed
+        var profile = ScoreService.AccessProfileOf(mode)?.Key;
+
+        if (ScoreService.IsAccess(mode) && fastest.Option.NoDataShare >= 0.999)
+        {
+            // Nothing is known about accessibility along this route: say so and do not search for a "better" one in the dark.
+            return new RoutesDto(ScoreService.EventName(mode), "street", fastest.Option with { Kind = "fastest" }, null, "none", 0, 0, 0,
+                "There is no accessibility data along this route (outside the downloaded area or nothing mapped). That is not the same as accessible: check the way on site.",
+                false, false, limit0.Average, limit0.Worst, profile);
+        }
 
         // Is the fastest route good enough? If not, safety matters more than distance: look farther and allow a longer detour.
         var acceptable = IsAcceptable(fastest.Option, mode, limit0);
@@ -127,7 +136,8 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router, Rou
             widened,
             acceptable,
             limit0.Average,
-            limit0.Worst);
+            limit0.Worst,
+            profile);
     }
 
     /// <summary>True when the route is good enough with the default thresholds (see <see cref="AcceptableAverage"/>).</summary>
@@ -135,7 +145,10 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router, Rou
 
     /// <summary>True when the route is good enough, under the given thresholds, that only a modest, nearby improvement is worth offering.</summary>
     public static bool IsAcceptable(RouteOptionDto route, PlanningEvent mode, RouteThreshold threshold) =>
-        Goodness(route.Average, mode) >= threshold.Average && Goodness(route.Worst, mode) >= threshold.Worst;
+        Goodness(route.Average, mode) >= threshold.Average && Goodness(route.Worst, mode) >= threshold.Worst && route.NoDataShare <= MaxAcceptableNoData;
+
+    /// <summary>A route whose accessibility is unknown for more than this share is not "acceptable": no data is not accessibility.</summary>
+    public const double MaxAcceptableNoData = 0.5;
 
     /// <summary>
     /// Via points for the wide search: left and right of the middle of the straight line at 50 %, 80 % and 120 % of its length
@@ -150,6 +163,7 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router, Rou
         PlanningEvent.Night => "safest",
         PlanningEvent.Flood => "driest",
         PlanningEvent.Air => "cleanest",
+        PlanningEvent.Access or PlanningEvent.AccessPram or PlanningEvent.AccessMobility => "mostAccessible",
         _ => "balanced"
     };
 
@@ -216,6 +230,26 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router, Rou
     private async Task<RouteOptionDto> DescribeAsync(string kind, RoutePath path, PlanningEvent mode, CancellationToken ct)
     {
         var (samples, reports) = await scores.SamplePathAsync(path.Points, ct);
+        if (ScoreService.IsAccess(mode))
+        {
+            // Accessibility: only samples WITH data are averaged; samples with no data (outside the downloaded area, nothing mapped) are never counted as
+            // accessible. NoDataShare says how much of the route is unknown.
+            var known = samples.Select((s, i) => (Value: AccessValue(s, mode), Index: i)).Where(x => x.Value is not null).ToList();
+            var noData = samples.Count == 0 ? 1 : 1 - (double)known.Count / samples.Count;
+            var weakest = known.Count == 0 ? (Value: (double?)0, Index: 0) : known.MinBy(x => x.Value!.Value);
+            return new RouteOptionDto(
+                kind,
+                Math.Round(path.DistanceMeters),
+                (int)Math.Ceiling(path.DistanceMeters / SafetyModel.WalkMetersPerMinute),
+                Simplify(path.Points),
+                samples,
+                known.Count == 0 ? 0 : Math.Round(known.Average(x => x.Value!.Value), 1),
+                weakest.Value ?? 0,
+                weakest.Index,
+                reports,
+                Math.Round(noData, 3));
+        }
+
         var values = samples.Select(s => ModeValue(s, mode)).ToList();
         var worstIndex = WorstIndex(values, mode);
         return new RouteOptionDto(
@@ -237,7 +271,19 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router, Rou
         PlanningEvent.Night => s.Safety,
         PlanningEvent.Flood => s.Flood,
         PlanningEvent.Air => s.Air,
+        PlanningEvent.Access => s.Access ?? 0,
+        PlanningEvent.AccessPram => s.AccessPram ?? 0,
+        PlanningEvent.AccessMobility => s.AccessMobility ?? 0,
         _ => s.Combined
+    };
+
+    /// <summary>The accessibility score of a sample for an access mode; null for samples with no accessibility data (and for other modes).</summary>
+    public static double? AccessValue(CorridorSampleDto s, PlanningEvent mode) => mode switch
+    {
+        PlanningEvent.Access => s.Access,
+        PlanningEvent.AccessPram => s.AccessPram,
+        PlanningEvent.AccessMobility => s.AccessMobility,
+        _ => null
     };
 
     /// <summary>Same value turned around so that higher is always better (heat 100 â†’ 0).</summary>
@@ -251,8 +297,11 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router, Rou
         return worst;
     }
 
+    /// <summary>Points taken off a route's objective per whole route of unknown accessibility: a route with no data must not win by being unknown.</summary>
+    public const double NoDataPenalty = 30;
+
     private static double Objective(RouteOptionDto o, PlanningEvent mode) =>
-        0.7 * Goodness(o.Average, mode) + 0.3 * Goodness(o.Worst, mode);
+        0.7 * Goodness(o.Average, mode) + 0.3 * Goodness(o.Worst, mode) - NoDataPenalty * o.NoDataShare;
 
     private static double Gain(RouteOptionDto better, RouteOptionDto fastest, PlanningEvent mode) =>
         Goodness(better.Average, mode) - Goodness(fastest.Average, mode);

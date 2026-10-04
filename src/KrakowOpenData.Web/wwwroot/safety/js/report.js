@@ -14,14 +14,14 @@ import { cellOf, cellBounds, LAYERS, layerOfApi } from './model.js';
 import { voiceStep1, voiceStep2 } from './voice.js';
 
 const FALLBACK_TYPES = [
-  { type: 'LightOut', layer: 'Safety' }, { type: 'UnsafeAtNight', layer: 'Safety' }, { type: 'PathHazard', layer: 'Safety' },
+  { type: 'LightOut', layer: 'Safety' }, { type: 'UnsafeAtNight', layer: 'Safety' }, { type: 'PathHazard', layer: 'Access' },
   { type: 'WaterNotWorking', layer: 'Heat' }, { type: 'NoShade', layer: 'Heat' }, { type: 'HeatSpot', layer: 'Heat' },
   { type: 'FloodedStreet', layer: 'Flood' }, { type: 'BlockedDrain', layer: 'Flood' }, { type: 'RisingWater', layer: 'Flood' },
   { type: 'SmokeOrBurning', layer: 'Air' }, { type: 'StrongFumes', layer: 'Air' }, { type: 'DustCloud', layer: 'Air' }
 ];
 
 const TYPE_ICON = {
-  LightOut: 'lamp', UnsafeAtNight: 'moon', PathHazard: 'alert', WaterNotWorking: 'water', NoShade: 'sun', HeatSpot: 'thermo',
+  LightOut: 'lamp', UnsafeAtNight: 'moon', PathHazard: 'access', WaterNotWorking: 'water', NoShade: 'sun', HeatSpot: 'thermo',
   FloodedStreet: 'wave', BlockedDrain: 'wave', RisingWater: 'wave', SmokeOrBurning: 'wind', StrongFumes: 'wind', DustCloud: 'wind'
 };
 

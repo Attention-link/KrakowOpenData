@@ -20,7 +20,7 @@ public sealed class AgencyService(ISafetyStore store, IAgencyGateway gateway, IC
 {
     public static IReadOnlyList<Agency> Agencies { get; } =
     [
-        new("zdmk", "Zarząd Dróg Miasta Krakowa (ZDMK)", "Road faults and street lighting; 24-hour dispatch", "12 616 75 55", "https://zdmk.krakow.pl", false),
+        new("zdmk", "Zarząd Dróg Miasta Krakowa (ZDMK)", "Road faults, pavements, kerbs and street lighting; 24-hour dispatch", "12 616 75 55", "https://zdmk.krakow.pl", false),
         new("portal", "Kraków city services portal", "Report problems in public space (lighting failures, pavements, rubbish)", null, "https://kontakt.krakow.pl", true),
         new("crisis", "City Crisis Management Centre", "Heat waves, floods and other emergencies affecting residents", "12 616 59 99", "https://www.krakow.pl", false),
         new("straz", "Straż Miejska Kraków", "Public order, patrols, antisocial behaviour", null, "https://www.strazmiejska.krakow.pl", false),
