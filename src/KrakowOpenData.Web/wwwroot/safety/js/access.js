@@ -4,7 +4,7 @@
 // "report a problem" action (sent as an unverified PathHazard report). The profile is a preference about barriers, never health
 // data, and is kept on this device only. Also exports the barrier summary block used on walk routes (walk.js).
 
-import { h, icon, clear, toast, openDialog, timeAgo, formatDistance } from './util.js';
+import { h, icon, clear, toast, openDialog, timeAgo, formatDistance, announce } from './util.js';
 import { state, isOffline } from './state.js';
 import { t, getLang } from './i18n.js';
 import { request, cachedGet, errorText, ApiError, NetworkError } from './api.js';
@@ -421,7 +421,8 @@ function summaryText(line) {
 export function accessRouteBlock(route, { layer, onChangeProfile } = {}) {
   const profile = getProfile();
   const key = routeKey(route, profile);
-  const card = h('section', { class: 'card flat acc-route stack tight', 'aria-live': 'polite', 'aria-labelledby': 'acc-route-title' });
+  // Not a live region: the card holds the whole barrier list and links. A short summary is announced once instead.
+  const card = h('section', { class: 'card flat acc-route stack tight', 'aria-labelledby': 'acc-route-title' });
   const fill = (state_) => {
     clear(card);
     card.append(h('div', { class: 'row between wrap' },
@@ -456,7 +457,11 @@ export function accessRouteBlock(route, { layer, onChangeProfile } = {}) {
   else {
     fill({ loading: true });
     assessAccessPath(route.path, profile)
-      .then((data) => { routeCache.set(key, data); if (routeCache.size > 20) routeCache.delete(routeCache.keys().next().value); fill({ data }); })
+      .then((data) => {
+        routeCache.set(key, data); if (routeCache.size > 20) routeCache.delete(routeCache.keys().next().value); fill({ data });
+        const lines = data.summary.filter((l) => l.severity !== 'info' && l.code !== 'unknown_share').map(summaryText);
+        announce(`${t('acc.route.title')}: ${lines.length ? lines.join(', ') : t('acc.route.none')}`);
+      })
       .catch(() => fill({ error: true }));
   }
   return card;
