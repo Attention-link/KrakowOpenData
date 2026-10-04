@@ -2,6 +2,7 @@ using KrakowOpenData.Application.Safety;
 using KrakowOpenData.Contracts;
 using KrakowOpenData.Infrastructure.Ai;
 using KrakowOpenData.Infrastructure.Telegram;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace KrakowOpenData.Api.Endpoints;
 
@@ -50,6 +51,10 @@ public static class NotificationEndpoints
             if (!AudioTypes.Contains(contentType))
                 return Results.ValidationProblem(new Dictionary<string, string[]> { ["contentType"] = [$"Send audio as one of: {string.Join(", ", AudioTypes)}."] });
             if (http.ContentLength > WorkersAiClient.MaxAudioBytes) return TooLarge();
+
+            // Kestrel may cap request bodies well below a voice note; lift the cap for this request only, before reading.
+            if (http.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>() is { IsReadOnly: false } bodyLimit)
+                bodyLimit.MaxRequestBodySize = WorkersAiClient.MaxAudioBytes + 1;
 
             var audio = await ReadLimitedAsync(http.Body, WorkersAiClient.MaxAudioBytes, ct);
             if (audio is null) return TooLarge();
