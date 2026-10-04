@@ -20,6 +20,9 @@ public sealed class SafetyOptions
     /// <summary>
     /// POST/PUT/DELETE requests under /api/safety allowed per client IP per minute (fixed window). 0 or less turns the
     /// limit off. It sits on top of the 5-reports-an-hour limit per device, which a script can dodge with new device ids.
+    /// The default is generous on purpose: at an event hundreds of phones share one public (NAT) address, so this is only a
+    /// flood guard; the per-device limits (reports, voice notes) are the real spam guard. Planner calls with a valid key and
+    /// the read-only <c>POST /api/safety/access/route</c> are not counted (see SafetyRateLimit).
     /// </summary>
-    public int WriteRequestsPerMinute { get; set; } = 20;
+    public int WriteRequestsPerMinute { get; set; } = 120;
 }
