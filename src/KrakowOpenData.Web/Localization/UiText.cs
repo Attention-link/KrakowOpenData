@@ -29,8 +29,6 @@ public static class UiText
         ["nav.safetyGroup"] = Entry(en: "Features", pl: "Funkcje", uk: "Функції"),
         ["nav.staff"] = Entry(en: "City staff only", pl: "Tylko pracownicy miasta", uk: "Лише для працівників міста"),
         ["nav.safetyApp"] = Entry(en: "Kompas Krakowa – app for residents", pl: "Kompas Krakowa – aplikacja dla mieszkańców", uk: "Kompas Krakowa – застосунок для мешканців"),
-        ["nav.access"] = Entry(en: "Accessibility – Kraków without barriers", pl: "Dostępność – Kraków bez barier", uk: "Доступність – Краків без бар’єрів"),
-        ["nav.telegram"] = Entry(en: "Alerts in Telegram", pl: "Alerty w Telegramie", uk: "Сповіщення в Telegram"),
         ["footer.statement"] = Entry(en: "Accessibility statement", pl: "Deklaracja dostępności", uk: "Заява про доступність"),
         ["nav.safetyPlanner"] = Entry(en: "Planner dashboard", pl: "Panel planisty", uk: "Панель планувальника"),
         ["nav.catalog"] = Entry(en: "Available Open Data", pl: "Dostępne otwarte dane", uk: "Доступні відкриті дані"),

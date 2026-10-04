@@ -29,8 +29,6 @@ public class SafetyLinkTests
 
     [Theory]
     [InlineData("/safety/index.html#/")]                // the resident app
-    [InlineData("/safety/index.html#/access")]          // Dostępność (Kraków bez barier)
-    [InlineData("/safety/index.html#/notifications")]   // Telegram alerts
     [InlineData("/safety/index.html#/planner")]         // planner dashboard (staff)
     [InlineData("/safety/index.html#/accessibility")]   // accessibility statement, in the footer of every page
     public void The_site_menu_links_to_every_app_feature(string href) =>
@@ -54,8 +52,10 @@ public class SafetyLinkTests
         Assert.Equal(AppLanguages.All.Select(l => l.Code()).Order(), menu.Keys.Order());
         var json = System.Text.Json.JsonSerializer.Serialize(menu["pl"],
             new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
-        Assert.Contains("Dostępność – Kraków bez barier", json);
-        Assert.Contains("/safety/index.html#/notifications", json);
+        Assert.Contains("/safety/index.html#/planner", json);
+        // Accessibility is a layer of the app now and Telegram alerts live inside it: neither has a menu entry of its own.
+        Assert.DoesNotContain("#/access\"", json);
+        Assert.DoesNotContain("#/notifications", json);
     }
 
     [Fact]

@@ -30,8 +30,6 @@ public static class SiteMenu
         new("nav.safetyGroup",
         [
             new("/safety/index.html#/", "nav.safetyApp", "☀"),
-            new("/safety/index.html#/access", "nav.access", "♿"),
-            new("/safety/index.html#/notifications", "nav.telegram", "\U0001F514"),
             new("/safety/index.html#/planner", "nav.safetyPlanner", "\U0001F512", Staff: true)
         ], Features: true),
         new("cat.Mobility",
