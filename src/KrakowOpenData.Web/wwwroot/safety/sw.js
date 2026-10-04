@@ -74,8 +74,11 @@ async function networkFirst(req, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     // no-cache: always revalidate with the server (a cheap 304 when unchanged), never trust the browser's 4 h copy.
-    // A navigation request cannot be re-created with options, so it is fetched by URL.
-    const fresh = req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : new Request(req, { cache: 'no-cache' });
+    // A navigation request cannot be re-created with options, so it is fetched by URL. It must keep redirect: 'manual':
+    // /safety/ answers 302, and a followed (redirected) response for a navigation is a network error (blank page).
+    const fresh = req.mode === 'navigate'
+      ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin', redirect: 'manual' })
+      : new Request(req, { cache: 'no-cache' });
     const res = await fetch(fresh);
     if (res.ok) cache.put(req, res.clone());
     return res;
