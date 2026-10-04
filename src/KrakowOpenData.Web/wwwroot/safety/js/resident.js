@@ -30,7 +30,9 @@ export function mountResident(root, { start = null } = {}) {
     root, map: null, gridLayer: null, grid: null, gridSavedAt: null, gridStale: false, features: null, conditions: null,
     reportTypes: null, selected: null, view: start === 'access' ? 'access' : 'home', cleanups
   };
-  let focusTelegram = start === 'notifications';
+  // #/notifications: the Telegram card scrolls into view once it is actually on screen. The menu is rebuilt while data loads,
+  // so the request is shared by every card built until one of them is shown (a plain flag was spent on a card that got replaced).
+  const telegramFocus = { pending: start === 'notifications' };
 
   // ── Scaffold ───────────────────────────────────────────────────────────────
   const pill = statusPill();
@@ -464,8 +466,7 @@ export function mountResident(root, { start = null } = {}) {
             notificationToggle()))));
 
     // "Powiadomienia w Telegramie" (telegram.js); hidden when the server has no bot. #/notifications scrolls to it once.
-    stack.append(telegramCard({ focus: focusTelegram }));
-    focusTelegram = false;
+    stack.append(telegramCard({ focusRequest: telegramFocus }));
 
     // 4. How to read the colours
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.read')),

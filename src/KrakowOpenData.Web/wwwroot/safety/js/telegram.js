@@ -10,27 +10,39 @@ import { getTelegramStatus, linkTelegram, unlinkTelegram, errorText } from './ap
 // The home menu is rebuilt often (alerts poll, language, view changes); share one status request for a minute instead of
 // asking the server on every rebuild. Connect / disconnect / "check" ask again.
 const STATUS_TTL_MS = 60_000;
-let statusCache = null; // { at, promise }
+let statusCache = null; // { at, promise, value } – value once the answer is in
 function cachedStatus(force) {
   if (force || !statusCache || Date.now() - statusCache.at > STATUS_TTL_MS) {
     const promise = getTelegramStatus();
-    statusCache = { at: Date.now(), promise };
-    promise.catch(() => { if (statusCache?.promise === promise) statusCache = null; });
+    const entry = { at: Date.now(), promise, value: undefined };
+    statusCache = entry;
+    promise.then((v) => { entry.value = v; }, () => { if (statusCache === entry) statusCache = null; });
   }
   return statusCache.promise;
 }
 
+/** The last answer while it is fresh, so a rebuilt menu shows the card at once (no flicker, and focus can stay on it). */
+function knownStatus() {
+  return statusCache && Date.now() - statusCache.at <= STATUS_TTL_MS ? statusCache.value : undefined;
+}
+
 /**
  * A card for the resident home menu. Starts hidden and removes itself when the feature is off or the API cannot be reached.
- * With <c>focus</c> (the #/notifications deep link) it scrolls into view and takes focus once it is shown.
+ * With a pending <c>focusRequest</c> (the #/notifications deep link) the first card that is shown while on the page scrolls into
+ * view and takes focus, and marks the request done.
  */
-export function telegramCard({ focus = false } = {}) {
+export function telegramCard({ focusRequest = null } = {}) {
   const card = h('div', { class: 'card flat', id: 'notifications', hidden: true });
   const body = h('div', { class: 'stack tight', 'aria-live': 'polite' });
-  const title = h('h3', { tabindex: '-1' }, t('tg.title'));
+  const title = h('h3', { tabindex: '-1', 'data-fk': 'tg-title' }, t('tg.title'));   // data-fk: a menu rebuild keeps focus here
   card.append(title, body);
 
   const paint = (...nodes) => body.replaceChildren(...nodes);
+  const known = knownStatus();
+  if (known?.available) {
+    card.hidden = false;
+    known.linked ? showLinked() : showOff();
+  }
 
   async function refresh(force = false) {
     try {
@@ -38,8 +50,8 @@ export function telegramCard({ focus = false } = {}) {
       if (!s?.available) { card.remove(); return; }
       card.hidden = false;
       s.linked ? showLinked() : showOff();
-      if (focus) {
-        focus = false;
+      if (focusRequest?.pending && card.isConnected) {
+        focusRequest.pending = false;
         card.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
         title.focus({ preventScroll: true });
       }
