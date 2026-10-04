@@ -53,6 +53,12 @@ public static class ReportRules
     public static ReportRule For(ReportType type) => Rules[type];
 
     /// <summary>
+    /// False for a value with no rule (e.g. a number that an older build let into the store). Readers skip such reports
+    /// instead of failing every list and score that contains one.
+    /// </summary>
+    public static bool IsKnown(ReportType type) => Rules.ContainsKey(type);
+
+    /// <summary>
     /// Points one (cell, type) group takes off its layer. <paramref name="reports"/> are the open reports of
     /// that type in the cell.
     /// </summary>
