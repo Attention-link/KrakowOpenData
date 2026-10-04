@@ -21,7 +21,7 @@ Become Kraków's shared, open data layer for everyday conditions and for crises:
 The MVP proves the model on **night safety, heat, flood and air**:
 
 - **Open API** with Swagger docs: data per topic, plus scores for any point, the whole city grid, nearby places, street routes, how every score is built, reports, alerts, planner summary and address search.
-- **Resident app** (installable, offline, English/Polish/Ukrainian): map with streets and places, a cooling score (0 very hot – 100 cool) and a night-safety score (0 unsafe – 100 safe), plus flood and clean-air scores with explanations of weights and sources, fastest versus safer/cooler street routes, address search, reporting with neighbour confirmation, alerts for "my area".
+- **Resident app** (installable, offline, English/Polish/Ukrainian): map with streets and places, a heat-relief score (0 very hot – 100 plenty of relief) and a night-safety score (0 unsafe – 100 safe), plus flood and clean-air scores with explanations of weights and sources, fastest versus safer/cooler street routes, address search, reporting with neighbour confirmation, alerts for "my area".
 - **Planner dashboard**: ranked areas to act on, gap charts, clickable figures with their data sources, reports to verify or resolve, alerts to a map area, simulated agency contact.
 - Scores are **environmental (mapped infrastructure plus resident reports), not crime statistics.**
 
@@ -173,7 +173,7 @@ Visual Studio. The tests replace every public source with in-memory fakes, so th
 A web app and API that combine the open data above into four scores for any place in Kraków (night safety, heat, flood safety and
 clean air), and let residents and city planners act on them.
 
-- **Heat (cooling) score** (0 very hot – 100 cool, **higher = better, like every score**): how well a place can cool down on a hot day, from the relief it has: shade, shade, water, a cool indoor place, toilets and a way to reach relief
+- **Heat-relief score** (0 very hot – 100 cool, **higher = better, like every score**): how well a place can cool down on a hot day, from the relief it has: shade, shade, water, a cool indoor place, toilets and a way to reach relief
 - **Night-safety score** (0 unsafe – 100 safe, **higher = safer**): how well set up is this place for walking at night? (street lighting, night transport, places open at night, a defibrillator)
 
 Both are 0–100, computed for every ~250 m square of the built-up city. They are **environmental scores built from
@@ -188,9 +188,9 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
 
 ### Residents
 
-- A map coloured by the chosen view, four tabs: **Night safety**, **Heat**, **Flood** and **Air**. The view is suggested from the
+- A map coloured by the chosen view, four tabs: **Night safety**, **Heat relief**, **Flood** and **Air**. The view is suggested from the
   conditions: a river above its warning level → flood, high PM2.5 → air, otherwise dark → night safety, hot or a heat warning → heat.
-- **Each view shows only its own data.** Heat: the heat score, its factors, where to cool down, heat reports, heat alerts and the heat situation.
+- **Each view shows only its own data.** Heat relief: the heat-relief score, its factors, where to cool down, heat reports, heat alerts and the heat situation.
   Night safety: the night-safety score, its factors, safe places open at night, night reports and alerts, and daylight. Flood: the flood-safety
   score, distance from rivers, help and exits nearby, flood reports and alerts, and the river situation. Air: the clean-air score, distance from
   main roads, trees and indoor places, air reports and alerts, and the current PM2.5.
@@ -200,11 +200,11 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
   times, and open reports of that view.
 - **Every map says what it is looking at**: the address of the place (looked up from the coordinates), the radius covered (a dashed circle for the
   1.5 km that help is searched within, an outlined square for the 250 m the score and reports apply to) and, for a walk, the start and end addresses.
-- **Report a concern**, limited to the types of the chosen view (Heat: no shade, water point not working, overheated spot; Night safety: lamp out,
+- **Report a concern**, limited to the types of the chosen view (Heat relief: no shade, water point not working, overheated spot; Night safety: lamp out,
   feels unsafe, hazardous path; Flood: flooded street or underpass, blocked drain, river rising fast; Air: smoke or burning smell, strong fumes,
   dust cloud). Place it by dragging the pin, tapping the map or typing an address. Reports move the score of their square, see below.
 - **Walk check** that follows the view: **Check a night walk** (Night safety: lighting, night transport, open places), **Check a cool walk**
-  (Heat: water, shade, cool places, toilets), **Check a flood-safe path** (distance from rivers, help and exits) or **Check a clean-air path**
+  (Heat relief: water, shade, cool places, toilets), **Check a flood-safe path** (distance from rivers, help and exits) or **Check a clean-air path**
   (distance from main roads, trees, indoor places). Type the start and the destination with suggestions, tap the map, or use
   your area. **Safety wins over distance:** when the fastest route is poor (average goodness under 65 or its weakest stretch under 45) the search widens to
   farther via points and a detour of up to its own length again (at most 3 km more), and the app says why it is longer; when the fastest route is
@@ -217,7 +217,7 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
 
 ### Planners
 
-Sign in with the planner key; the dashboard has a global **event selector** (Heat warning / Night safety / Flood / Air quality) that decides what is ranked
+Sign in with the planner key; the dashboard has a global **event selector** (Heat relief / Night safety / Flood / Air quality) that decides what is ranked
 **and what is shown**: with Heat selected the dashboard, drawers, map markers, report lists and conditions are about heat only, with Night safety about
 night safety only, and likewise for Flood and Air. Every page except the overview has a **Back to dashboard** button. Addresses are shown for map squares, alert centres and
 reports; the alert composer and the map take an address to centre on.
@@ -242,7 +242,7 @@ The model lives in one documented file: [`SafetyModel.cs`](src/KrakowOpenData.Ap
 
 1. The city is cut into 250 m squares ([`GridSpec`](src/KrakowOpenData.Application/Safety/GridSpec.cs)); a square is on the map when it has 3+ mapped street lamps or a stop.
 2. Each **factor** is a straight-line distance to the nearest feature (or a density) turned into 0–100: full score up to a near distance, zero beyond a far one, a straight line between. Every factor adds its weight in proportion to its score, so a park within 100 m earns the full 35 cooling points and none nearby earns 0.
-3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the score of their own layer). **All four scores point the same way: higher = better**, with the same four bands and colours (75–100 Good, 55–75 Fair, 35–55 Weak, 0–35 Critical). The heat score used to run the other way (0 = cool); it is now the cooling score so a high number, a long bar and a blue colour always mean good.
+3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the score of their own layer). **All four scores point the same way: higher = better**, with the same four bands and colours (75–100 Good, 55–75 Fair, 35–55 Weak, 0–35 Critical). The heat score used to run the other way (0 = cool); it is now the heat-relief score so a high number, a long bar and a blue colour always mean good.
 
 | Layer | Factor (weight) | Data | Full score → zero |
 | --- | --- | --- | --- |

@@ -149,7 +149,7 @@ public class MethodServiceTests
 
         var heat = method.Layers.Single(l => l.Layer == "Heat");
         var safety = method.Layers.Single(l => l.Layer == "Safety");
-        Assert.StartsWith("Higher = cooler", heat.Direction);
+        Assert.StartsWith("Higher = more heat relief", heat.Direction);
         Assert.StartsWith("Higher = safer", safety.Direction);
         Assert.Equal(100, heat.Factors.Sum(f => f.Weight));
         Assert.Equal(100, safety.Factors.Sum(f => f.Weight));

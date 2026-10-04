@@ -151,6 +151,36 @@ public class TransitQueryServiceTests
         Assert.Equal(18f, v.SpeedKmh);
     }
 
+    [Theory]
+    [InlineData("T:52", 1)]    // the feed's route id
+    [InlineData("t:52", 1)]    // case does not matter
+    [InlineData("52", 1)]      // the line number people read on the vehicle
+    [InlineData(" 52 ", 1)]    // spaces do not matter
+    [InlineData("T52", 1)]     // mode letter + number
+    [InlineData("t 52", 1)]
+    [InlineData("179", 1)]
+    [InlineData("A179", 1)]
+    [InlineData("T179", 0)]    // the wrong mode letter does not match
+    [InlineData("5", 0)]       // not a prefix match: line 5 is not line 52
+    [InlineData("nope", 0)]
+    public async Task Vehicles_can_be_filtered_by_route_id_or_line_number(string typed, int expected)
+    {
+        _vehicles.Items.Add(new VehiclePosition("T:v1", "T:trip1", "T:52", new GeoPoint(50.06, 19.94), null, 5f, "RZ123", null, Now, "T", true));
+        _vehicles.Items.Add(new VehiclePosition("A:v2", "A:trip2", "A:179", new GeoPoint(50.05, 19.93), null, null, "BH001", null, Now, "A", null));
+
+        Assert.Equal(expected, (await CreateService().GetVehiclesAsync(typed)).Count);
+    }
+
+    [Fact]
+    public async Task A_blank_vehicle_filter_returns_every_vehicle()
+    {
+        _vehicles.Items.Add(new VehiclePosition("T:v1", "T:trip1", "T:52", new GeoPoint(50.06, 19.94), null, 5f, "RZ123", null, Now, "T", true));
+        _vehicles.Items.Add(new VehiclePosition("A:v2", "A:trip2", "A:179", new GeoPoint(50.05, 19.93), null, null, "BH001", null, Now, "A", null));
+
+        Assert.Equal(2, (await CreateService().GetVehiclesAsync("  ")).Count);
+        Assert.Equal(2, (await CreateService().GetVehiclesAsync(null)).Count);
+    }
+
     [Fact]
     public async Task Vehicles_without_valid_coordinates_are_dropped()
     {

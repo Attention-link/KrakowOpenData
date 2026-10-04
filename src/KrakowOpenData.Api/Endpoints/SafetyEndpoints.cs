@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using KrakowOpenData.Application.Safety;
+using KrakowOpenData.Domain.Safety;
 using KrakowOpenData.Contracts;
 using KrakowOpenData.Domain.Common;
 using KrakowOpenData.Infrastructure.Options;
@@ -31,7 +32,7 @@ public static class SafetyEndpoints
         g.MapGet("/grid", async (string? @event, ScoreService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetGridAsync(ScoreService.ParseEvent(@event), ct)))
             .WithName("GetSafetyGrid")
-            .WithSummary("The whole 250 m score grid in compact form (heat, safety, combined, exposure, reports, priority). event = heat | night | both.")
+            .WithSummary("The whole 250 m score grid in compact form (heat, safety, combined, exposure, reports, priority). event = heat | night | flood | air (heat is the heat-relief score).")
             .Produces<GridDto>()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
@@ -42,7 +43,7 @@ public static class SafetyEndpoints
             return Results.Ok(await svc.GetPlaceAsync(point, ScoreService.ParseEvent(@event), ct));
         })
             .WithName("GetSafetyPlace")
-            .WithSummary("Heat and night-safety score of any point: factors, nearest relief and safe places, nearby reports, suggested actions.")
+            .WithSummary("Heat-relief, night-safety, flood and air score of any point: factors, nearest relief and safe places, nearby reports, suggested actions.")
             .Produces<PlaceScoreDto>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
@@ -98,8 +99,33 @@ public static class SafetyEndpoints
             .Produces<IReadOnlyList<ReportTypeDto>>();
 
         g.MapGet("/reports", async (double? lat, double? lon, double? radius, bool? includeResolved, int? limit,
+            string? layer, string? type, string? status, bool? verified, string? q,
             HttpContext http, ReportService svc, IOptions<SafetyOptions> options, CancellationToken ct) =>
         {
+            ScoreLayer? parsedLayer = null;
+            if (!string.IsNullOrWhiteSpace(layer))
+            {
+                if (!Enum.TryParse<ScoreLayer>(layer, ignoreCase: true, out var l))
+                    return Results.ValidationProblem(Problem("layer", $"Use one of: {string.Join(", ", Enum.GetNames<ScoreLayer>())}."));
+                parsedLayer = l;
+            }
+
+            ReportType? parsedType = null;
+            if (!string.IsNullOrWhiteSpace(type))
+            {
+                if (!Enum.TryParse<ReportType>(type, ignoreCase: true, out var t))
+                    return Results.ValidationProblem(Problem("type", $"Use one of: {string.Join(", ", Enum.GetNames<ReportType>())}."));
+                parsedType = t;
+            }
+
+            var parsedStatus = includeResolved == true ? ReportStatusFilter.All : ReportStatusFilter.Open;
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                if (!Enum.TryParse<ReportStatusFilter>(status, ignoreCase: true, out var st))
+                    return Results.ValidationProblem(Problem("status", $"Use one of: {string.Join(", ", Enum.GetNames<ReportStatusFilter>())}."));
+                parsedStatus = st;
+            }
+
             GeoPoint? near = null;
             if (lat is not null || lon is not null)
             {
@@ -108,8 +134,10 @@ public static class SafetyEndpoints
                 near = candidate;
             }
 
+            // Residents only ever see open reports, and never notes; planners may ask for resolved ones and search the notes (free text never looks at a note the caller cannot read).
             var planner = IsPlanner(http, options.Value);
-            return Results.Ok(await svc.ListAsync(near, radius ?? 1000, planner && includeResolved == true, planner, limit ?? 300, ct));
+            var filter = new ReportFilter(near, radius ?? 1000, planner ? parsedStatus : ReportStatusFilter.Open, parsedLayer, parsedType, verified, q);
+            return Results.Ok(await svc.ListAsync(filter, planner, limit ?? 300, ct));
         })
             .WithName("GetReports")
             .WithSummary("Open citizen reports (optionally near a point). Notes are visible to planners only.")

@@ -22,11 +22,11 @@ Automated tests are listed in section 14 and should pass before manual testing s
 **Known behaviours that are not defects:**
 
 - Scores are **environmental** (mapped infrastructure plus resident reports), not crime statistics.
-- **Every score reads the same way: higher = better** (heat is a *cooling* score: 100 = cool, 0 = very hot). Colours always show good in blue and bad in red, with the same four bands for every score.
+- **Every score reads the same way: higher = better** (heat relief is a score: 100 = cool, 0 = very hot). Colours always show good in blue and bad in red, with the same four bands for every score.
 - The planner key is a shared demo key (`demo-planner`); the planner opens without sign-in when `Safety:PlannerDemoKey` is set.
 - Agency contact is **simulated**: it records a contact but sends nothing.
 - The first API start takes 1–2 minutes while timetables and OpenStreetMap data load. Until then some endpoints answer 503 or "still loading".
-- There is **no "Both" view**: residents choose *Night safety*, *Heat*, *Flood* or *Air*; planners choose *Heat warning*, *Night safety*, *Flood* or *Air quality*.
+- There is **no "Both" view**: residents choose *Night safety*, *Heat relief*, *Flood* or *Air*; planners choose *Heat relief*, *Night safety*, *Flood* or *Air quality*.
 - **Flood and air are exposure scores, not measurements.** The flood score has no elevation or official flood-hazard map; the air score does not know traffic volume or industry. Both are "higher = better" and are adjusted by live IMGW river levels and GIOŚ PM2.5.
 - The first start downloads rivers and main roads from OpenStreetMap; until they load, the river and traffic factors read "unknown" (50) and the dashboard says datasets are still loading.
 
@@ -122,6 +122,12 @@ Run **CAT-10 to CAT-25** for each dataset page. For every page also check: the t
 | CAT-23 | M | Service cards (`/services/cards`) | Search a procedure; expand a card | Cards show steps, facts and links | |
 | CAT-24 | M | NFZ waiting lists (`/services/waiting-lists`) | Click an example chip; search a benefit | Results table with the shortest waits; hint shown before the first search | |
 | CAT-25 | M | City Open Data tables (`/open-data`) | Pick a table | Columns and rows appear as published; many-column tables stay usable on a phone (see RSP) | |
+| CAT-30 | H | Vehicle line filter | Live vehicles: type a line number a vehicle is running (for example 664), then `T:52`-style ids, `A664`, `a 664`; click **All vehicles** | The count and table show only that line for every spelling (case and spaces ignored); a wrong mode letter or a line that is not running shows 0; **All vehicles** restores everything; Enter submits the filter; the 20 s refresh keeps the filter | |
+| CAT-31 | H | Amenity type and radius | Urban amenities: change the type; change the radius (300, then 10 or 99999); clear the point | Changing the type reloads at once; results are within the radius and nearest first; a radius outside 50–10,000 m is refused with a message and old results are not left on screen; without a point there are no distances | |
+| CAT-32 | H | NFZ examples and urgent | Waiting lists: click each example chip; tick and untick **urgent**; type 2 letters | Every chip returns providers; ticking **urgent** re-runs the search at once and the list matches the box; fewer than 3 letters shows a message, not silence | |
+| CAT-33 | M | Stop search forms | Stops: search by name, word order swapped, without diacritics, by code; use **Near this point** with bad and good coordinates; page through | Matches ignore case, diacritics and word order; bad coordinates show a message; paging is consistent with the filter | |
+| CAT-34 | M | Table filter | Open Data table: type a word that matches nothing | A "no row matches the filter" message with a way to clear it | |
+| CAT-35 | M | API filters | Call the filters in Swagger: stops, nearby, routes?mode, vehicles?routeId, amenities?kind and near, street-lights?technology, warnings?teryt, tables?category, safety reports (layer, type, status, verified, q) | Valid filters narrow the result; unknown kinds, layers, types, categories and statuses return 400 with the allowed values; every filter is applied before any limit | |
 
 ---
 
@@ -134,13 +140,13 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
 | RES-01 | H | First load | Open the app | Top bar with the shield mark and **Kompas Krakowa**, a **Home page** link, an online indicator, a language selector. A map of Kraków with coloured 250 m squares, a mode switch and a menu panel | |
-| RES-02 | H | Mode switch | Click **Night safety**, **Heat**, **Flood**, then **Air** | **Exactly these four** options exist, in this order. The map recolours; the score names, legend and available report types follow the mode | |
+| RES-02 | H | Mode switch | Click **Night safety**, **Heat relief**, **Flood**, then **Air** | **Exactly these four** options exist, in this order. The map recolours; the score names, legend and available report types follow the mode | |
 | RES-03 | H | Colours and legend | Open the colour key (layers button) in each mode | Four bands: Good (blue), Fair (light blue), Weak (light red), Critical (red), each with its score range and meaning. Heat ranges read 0–25 low heat up to 65–100 very high heat. Grey squares mean no mapped streets. Swatches have an outline and are readable | |
-| RES-04 | H | Heat direction | Tap a hot, shadeless square and a leafy one in **Heat** | The card is titled **Cooling score** and says **Higher = cooler**. The hot square shows a LOW number, a SHORT bar and a RED band; the leafy square a HIGH number, a LONG bar and a BLUE band. The legend lists 75–100 Good (low heat) down to 0–35 Critical (very high heat) | |
+| RES-04 | H | Heat direction | Tap a hot, shadeless square and a leafy one in **Heat relief** | The card is titled **Heat-relief score** and says **Higher = more heat relief**. The hot square shows a LOW number, a SHORT bar and a RED band; the leafy square a HIGH number, a LONG bar and a BLUE band. The legend lists 75–100 Good (low heat) down to 0–35 Critical (very high heat) | |
 | RES-04a | H | Same direction everywhere | Compare a score card in each of the four tabs | In every tab a high number, a long bar and blue mean good; low, short and red mean bad; the "!" explanation says so | |
 | RES-05 | M | Conditions strip | Look under the mode switch | Live conditions (time of day or sunrise for night, temperature and heat risk, air quality). If the live conditions suggest the other mode, a **Switch to …** suggestion appears and works | |
 | RES-06 | M | Map controls | Zoom with buttons, scroll and pinch; click **Use my location**; click **Places on the map**, zoom to 14 or closer | Zoom works. Location asks for permission and centres the map (a refusal shows a friendly message, not an error page). Place markers (fountains, parks, toilets, refuges, night-open places, defibrillators) appear from zoom 14 and match the mode | |
-| RES-07 | M | Saved mode | Choose **Heat**, reload | The app reopens in **Heat** | |
+| RES-07 | M | Saved mode | Choose **Heat relief**, reload | The app reopens in **Heat relief** | |
 | RES-08 | M | Stale saved value | In DevTools set `localStorage.mode` to `both`, reload | The app starts in a valid mode (Night safety or Heat), no error, no blank screen | |
 
 ### 6.2 Search and place card
@@ -170,7 +176,7 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
 | RES-30 | H | Night walk | In **Night safety** click **Check a night walk**; enter a start and a destination from suggestions | The route follows real streets. A **fastest** route is shown and, when clearly better, a **safer** alternative (at least 3 points better on average, at most 30 % longer). Start (A) and end (B) are marked with addresses. Each route shows time, length and score; the weakest spot and advice are listed | |
-| RES-31 | H | Cool walk | In **Heat** click **Check a cool walk** with another pair | Same flow with a **cooler** alternative; advice mentions fountains and taps, shade and cool places | |
+| RES-31 | H | Cool walk | In **Heat relief** click **Check a cool walk** with another pair | Same flow with a **cooler** alternative; advice mentions fountains and taps, shade and cool places | |
 | RES-32 | M | Inputs by map or area | Tap the map to set the start; use **My area** and **Selected place** | Each fills the field with an address | |
 | RES-33 | M | Compare routes | Click the other route | The selected route is solid; the other is a dashed grey line; the figures switch | |
 | RES-34 | M | No better route | Pick two close points on one street | Only the fastest route is shown, with a message that no clearly better route exists | |
@@ -215,7 +221,7 @@ Report types depend on the mode:
 
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
-| REP-01 | H | Types follow the mode | In **Night safety** tap a square, click **Report a concern**; go back and repeat in **Heat** | Night safety offers exactly the three night types, Heat the three heat types. Each type has an icon and the layer name. A red note says to call emergency services for emergencies | |
+| REP-01 | H | Types follow the mode | In **Night safety** tap a square, click **Report a concern**; go back and repeat in **Heat relief** | Night safety offers exactly the three night types, Heat the three heat types. Each type has an icon and the layer name. A red note says to call emergency services for emergencies | |
 | REP-01a | H | Flood and air report types | Repeat REP-01 in **Flood** and **Air** | Flood offers *Flooded street or underpass*, *Blocked drain or gully*, *River or stream rising fast*; Air offers *Smoke or burning smell*, *Strong fumes or chemical smell*, *Dust cloud or construction dust*; each with its own icon and layer name | |
 | REP-02 | H | Choose a type | Click one type | The card is pressed; **Next** becomes enabled. Without a choice **Next** is disabled | |
 | REP-03 | H | Place the pin | On step 2 drag the pin; tap the map; type an address and pick a result; use **Use selected place** or **Use my area** | The address, coordinates and outlined 250 m square update each time and say what the report counts for | |
@@ -244,12 +250,12 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | --- | --- | --- | --- | --- | --- |
 | PLN-01 | H | Demo access | Open the planner link from the home tile | The dashboard opens directly; a **Demo access** chip is visible | |
 | PLN-02 | H | Sign-in | Empty `Safety:PlannerDemoKey`, restart, open the planner | A sign-in form. A wrong key shows an error; `demo-planner` signs in; **Sign out** returns to the form | |
-| PLN-03 | H | Event selector | Switch **Heat warning**, **Night safety**, **Flood** and **Air quality** | **Exactly these four** options exist. Ranking, charts, map, report lists and drawers all change to the chosen event; the other event's content is hidden | |
+| PLN-03 | H | Event selector | Switch **Heat relief**, **Night safety**, **Flood** and **Air quality** | **Exactly these four** options exist. Ranking, charts, map, report lists and drawers all change to the chosen event; the other event's content is hidden | |
 | PLN-04 | M | Navigation | Click Overview, Map, Reports, Alerts, Contacts | Each page loads; the active item is marked; every page except Overview has **Back to dashboard** | |
 | PLN-05 | M | Conditions and freshness | Look at the tools bar | Live conditions chip, "Updated … ago" text, and a refresh button that reloads the data | |
 | PLN-06 | M | Switch to resident | Click **Resident view**, then back | Resident app opens; the planner can be reopened from its link | |
 | PLN-07 | M | Saved event | Choose **Night safety**, reload | The planner reopens on **Night safety** | |
-| PLN-08 | M | Stale saved value | Set `localStorage.plannerEvent` to `both`, reload | Opens on **Heat warning**, no error | |
+| PLN-08 | M | Stale saved value | Set `localStorage.plannerEvent` to `both`, reload | Opens on **Heat relief**, no error | |
 
 ### 8.2 Overview
 
@@ -295,6 +301,8 @@ Open `#/planner`. If a sign-in screen shows (demo key emptied), enter `demo-plan
 | PLN-45 | M | Show on map and open area | Click **Show on map**, then **Open area** | The map centres on the report at street zoom; the drawer opens for that square | |
 | PLN-46 | M | Alert from a report | Click **Alert** on an open report | The composer opens centred on the report | |
 | PLN-47 | M | Add demo reports | Click **Add demo reports** twice | First click: "Added N demo reports in the lowest-scoring areas". Second click: "Demo reports already exist" | |
+| PLN-48 | H | Filters are applied by the API | Reports: set **Status**, **Type**, **Verification** and search text one at a time and together; switch the event | Each change re-fetches and the count matches; filters are not cut short by the 500-report limit; search also finds the type name in the language on screen and the planner's notes; a resident cannot find notes by searching | |
+| RES-18 | M | Search filter chips | Resident menu: search "Dworzec", then click **Stops** and **Addresses** | The list narrows to that kind; when the kind has no result the message "Nothing found" shows instead of a silent empty list | |
 
 ### 8.6 Alerts page (planner side)
 
@@ -336,13 +344,13 @@ This is the key integration scenario. Use **two windows**: **Resident A** (norma
 | E2E-03 | H | KPI and ranking update | Planner **Overview** | **Open reports** is one higher; the square's priority rises or its open-report count shows 1 in the ranked list | |
 | E2E-04 | H | Map marker | Planner **Map**, tick **Resident reports** | A lamp marker at the pin location; its tooltip shows the type and supporters; clicking it opens the drawer for the square | |
 | E2E-05 | H | Drawer shows it | In the drawer | The report appears under resident reports with its note and **Verify** and **Resolve** buttons; the safety score is lower than the baseline by a small amount (an unconfirmed report counts a quarter, about 3.8 points for a light-out report) | |
-| E2E-06 | H | Event filtering | Planner switches to **Heat warning** | The night report is **not** listed on Reports, the map, or the drawer; switch back to **Night safety** and it returns | |
+| E2E-06 | H | Event filtering | Planner switches to **Heat relief** | The night report is **not** listed on Reports, the map, or the drawer; switch back to **Night safety** and it returns | |
 | E2E-07 | H | Resident score reflects it | **Resident A** reopens the same square | The night-safety score is lower than the baseline and the card says recent resident reports lower the score here | |
 | E2E-08 | H | Confirmation increases weight | **Resident B** reports the same type in the same square (REP-07) or clicks **Still true** (REP-08) | B sees the confirmation message. The planner list now shows **2 supporters**; the safety score drops by about 19 points in total for a light-out report (from about 3.8 to about 18.8), up to the cap | |
 | E2E-09 | H | Planner verifies | **Planner** clicks **Verify** | The toast appears, the report is marked verified, the effect counts in full even with 1 supporter | |
 | E2E-10 | H | Planner resolves | **Planner** clicks **Resolve** with "Lamp replaced" | The toast says the score recovers; the report moves to **Resolved** with the resolution text; the open count falls by one | |
 | E2E-11 | H | Resident sees recovery | **Resident A** refreshes the square | The report no longer lowers the score; the score is back near the baseline | |
-| E2E-12 | H | Heat report round trip | Repeat E2E-01 to E2E-05 with **Heat** mode and **Overheated area, no relief nearby**, planner on **Heat warning** | Same flow. The report shows in the planner's heat view only; the **heat** score of the square is **higher** (hotter) | |
+| E2E-12 | H | Heat report round trip | Repeat E2E-01 to E2E-05 with **Heat relief** mode and **Overheated area, no relief nearby**, planner on **Heat relief** | Same flow. The report shows in the planner's heat view only; the **heat** score of the square is **higher** (hotter) | |
 | E2E-12a | H | Flood report round trip | Repeat E2E-01 to E2E-10 with **Flood** and *Flooded street or underpass* near a river; planner on **Flood** | Same flow. The report is listed under Flood only (not under Heat, Night safety or Air), the map marker has the flood icon, the flood-safety score of the square drops, verify and resolve work, and the score recovers | |
 | E2E-12b | H | Air report round trip | Repeat with **Air** and *Strong fumes or chemical smell*; planner on **Air quality** | Same flow for the clean-air score | |
 | E2E-12c | M | Flood alert | Planner **Alerts**, template **Flood: river rising**; resident has *my area* set in the **Flood** view | The resident sees the alert only in the Flood view (and as a general alert if sent as General); the layer shows **Flood** | |
@@ -384,7 +392,7 @@ Use Swagger at http://localhost:5080/swagger or any HTTP client.
 | --- | --- | --- | --- | --- | --- |
 | UX-01 | H | First-time resident task | Give a new person no help: "Find out how safe the street where you live is at night" | They find the place, read the score and understand the colour within **2 minutes**; they find **Night safety** without help | |
 | UX-02 | H | Report task | "Report a broken street light" | They complete the report in **under 2 minutes** and understand what happens next | |
-| UX-03 | M | Planner task | "Find the area that most needs action during a heatwave and the reports about it" | They switch to **Heat warning**, use the ranked list and the drawer without help | |
+| UX-03 | M | Planner task | "Find the area that most needs action during a heatwave and the reports about it" | They switch to **Heat relief**, use the ranked list and the drawer without help | |
 | UX-04 | M | Consistent naming | Read the home page, menus, titles and tooltips | The product is always **Kompas Krakowa**; the catalog is always **Available Open Data**; the water factor always says fountains and taps; no leftover "Kraków Open Data" title, "Raw data catalog" or "Both" option (data-source names like "City of Kraków Open Data API" are allowed) | |
 | UX-05 | M | Navigation | From every page find the way back | Home is always reachable; the resident and planner views have **Home page**; planner sub-pages have **Back to dashboard** | |
 | UX-06 | M | Feedback | Trigger loading, success, error and empty states in several places | Each shows a clear message in the current language with a next step (Retry, Back) | |

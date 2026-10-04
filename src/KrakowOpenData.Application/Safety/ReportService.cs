@@ -84,18 +84,44 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
     }
 
     /// <summary>Open reports within a circle (or citywide). Notes are included for planners only.</summary>
-    public async Task<IReadOnlyList<ReportDto>> ListAsync(
-        GeoPoint? near, double radiusMeters, bool includeResolved, bool includeNotes, int limit, CancellationToken ct = default)
+    public Task<IReadOnlyList<ReportDto>> ListAsync(
+        GeoPoint? near, double radiusMeters, bool includeResolved, bool includeNotes, int limit, CancellationToken ct = default) =>
+        ListAsync(new ReportFilter(near, radiusMeters, includeResolved ? ReportStatusFilter.All : ReportStatusFilter.Open), includeNotes, limit, ct);
+
+    /// <summary>
+    /// Reports that match <paramref name="filter"/>, newest activity first, at most <paramref name="limit"/> (1–1000). Every filter is applied
+    /// BEFORE the limit, so a filtered list is never cut short by reports that would have been filtered out anyway.
+    /// </summary>
+    public async Task<IReadOnlyList<ReportDto>> ListAsync(ReportFilter filter, bool includeNotes, int limit, CancellationToken ct = default)
     {
         var cutoff = clock.UtcNow - ReportRules.ListAge;
+        var text = filter.Text?.Trim();
         return (await store.ListReportsAsync(ct))
-            .Where(r => r.LastActivityAt >= cutoff && (includeResolved || r.Status == ReportStatus.Open))
-            .Where(r => near is not { } p || GridSpec.Distance(p, r.Location) <= radiusMeters)
+            .Where(r => r.LastActivityAt >= cutoff)
+            .Where(r => filter.Status switch
+            {
+                ReportStatusFilter.Open => r.Status == ReportStatus.Open,
+                ReportStatusFilter.Resolved => r.Status == ReportStatus.Resolved,
+                _ => true
+            })
+            .Where(r => filter.Layer is not { } layer || ReportRules.For(r.Type).Layer == layer)
+            .Where(r => filter.Type is not { } type || r.Type == type)
+            .Where(r => filter.Verified is not { } verified || r.VerifiedByPlanner == verified)
+            .Where(r => filter.Near is not { } p || GridSpec.Distance(p, r.Location) <= filter.RadiusMeters)
+            // Free text only looks at what the caller may read: notes are visible to planners alone.
+            .Where(r => string.IsNullOrEmpty(text) || Matches(r, text, includeNotes))
             .OrderByDescending(r => r.LastActivityAt)
             .Take(Math.Clamp(limit, 1, 1000))
             .Select(r => r.ToDto(includeNotes))
             .ToList();
     }
+
+    private static bool Matches(CitizenReport r, string text, bool includeNotes) =>
+        Contains(ReportRules.For(r.Type).Label, text) || Contains(r.Type.ToString(), text) || Contains(GridSpec.IdOf(r.Location), text) ||
+        (includeNotes && (Contains(r.Note, text) || Contains(r.ResolutionNote, text)));
+
+    private static bool Contains(string? haystack, string needle) =>
+        haystack is not null && haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
 
     private static CitizenReport WithSupporter(CitizenReport report, string device, DateTimeOffset now) =>
         report with
@@ -123,3 +149,20 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
         return cleaned.Length > MaxNoteLength ? cleaned[..MaxNoteLength] : cleaned;
     }
 }
+
+public enum ReportStatusFilter
+{
+    Open,
+    Resolved,
+    All
+}
+
+/// <summary>What a report list is filtered by. Everything is optional; null means "do not filter on this".</summary>
+public sealed record ReportFilter(
+    GeoPoint? Near = null,
+    double RadiusMeters = 1000,
+    ReportStatusFilter Status = ReportStatusFilter.Open,
+    ScoreLayer? Layer = null,
+    ReportType? Type = null,
+    bool? Verified = null,
+    string? Text = null);

@@ -108,7 +108,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.NotNull(m);
         Assert.Equal(4, m.Layers.Count);
         Assert.All(m.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
-        Assert.StartsWith("Higher = cooler", m.Layers.Single(l => l.Layer == "Heat").Direction);
+        Assert.StartsWith("Higher = more heat relief", m.Layers.Single(l => l.Layer == "Heat").Direction);
         Assert.Contains(m.Kpis, k => k.Key == "noWater500");
     }
 
@@ -211,6 +211,29 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         var reset = await Send<WeightsDto>(Planner(HttpMethod.Delete, "/api/safety/planner/weights"));
         Assert.False(reset!.Customized);
+    }
+
+    [Fact]
+    public async Task Report_lists_can_be_filtered_and_bad_filters_are_rejected()
+    {
+        await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest("FloodedStreet", Lat, Lon, "secret flood note", "device-filter-001"));
+        await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest("NoShade", Lat + 0.01, Lon, null, "device-filter-002"));
+
+        var flood = await _client.GetFromJsonAsync<List<ReportDto>>("/api/safety/reports?layer=flood");
+        Assert.All(flood!, r => Assert.Equal("Flood", r.Layer));
+        Assert.Contains(flood!, r => r.Type == "FloodedStreet");
+        Assert.All(flood!, r => Assert.Null(r.Note));   // residents never get notes
+
+        var byType = await _client.GetFromJsonAsync<List<ReportDto>>("/api/safety/reports?type=noshade");
+        Assert.All(byType!, r => Assert.Equal("NoShade", r.Type));
+
+        // Free text only works for planners: a resident cannot search the notes.
+        Assert.Empty((await _client.GetFromJsonAsync<List<ReportDto>>("/api/safety/reports?q=secret"))!);
+        var planner = await Send<List<ReportDto>>(Planner(HttpMethod.Get, "/api/safety/reports?q=secret"));
+        Assert.Contains(planner!, r => r.Note == "secret flood note");
+
+        foreach (var bad in new[] { "layer=nope", "type=nope", "status=nope" })
+            Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync("/api/safety/reports?" + bad)).StatusCode);
     }
     [Fact]
     public async Task Writes_are_protected_too()
