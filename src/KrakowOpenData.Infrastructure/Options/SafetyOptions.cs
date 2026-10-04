@@ -16,4 +16,10 @@ public sealed class SafetyOptions
 
     /// <summary>File to save to. Empty = %LOCALAPPDATA%/KrakowOpenData/safety-store.json.</summary>
     public string StorePath { get; set; } = string.Empty;
+
+    /// <summary>
+    /// POST/PUT/DELETE requests under /api/safety allowed per client IP per minute (fixed window). 0 or less turns the
+    /// limit off. It sits on top of the 5-reports-an-hour limit per device, which a script can dodge with new device ids.
+    /// </summary>
+    public int WriteRequestsPerMinute { get; set; } = 20;
 }

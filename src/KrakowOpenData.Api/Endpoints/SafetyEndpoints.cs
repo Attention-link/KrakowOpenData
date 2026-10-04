@@ -105,7 +105,7 @@ public static class SafetyEndpoints
             ScoreLayer? parsedLayer = null;
             if (!string.IsNullOrWhiteSpace(layer))
             {
-                if (!Enum.TryParse<ScoreLayer>(layer, ignoreCase: true, out var l) || !Enum.IsDefined(l))
+                if (!SafetyEnum.TryParseName<ScoreLayer>(layer, out var l))
                     return Results.ValidationProblem(Problem("layer", $"Use one of: {string.Join(", ", Enum.GetNames<ScoreLayer>())}."));
                 parsedLayer = l;
             }
@@ -113,7 +113,7 @@ public static class SafetyEndpoints
             ReportType? parsedType = null;
             if (!string.IsNullOrWhiteSpace(type))
             {
-                if (!Enum.TryParse<ReportType>(type, ignoreCase: true, out var t) || !Enum.IsDefined(t))
+                if (!SafetyEnum.TryParseName<ReportType>(type, out var t))
                     return Results.ValidationProblem(Problem("type", $"Use one of: {string.Join(", ", Enum.GetNames<ReportType>())}."));
                 parsedType = t;
             }
@@ -121,7 +121,7 @@ public static class SafetyEndpoints
             var parsedStatus = includeResolved == true ? ReportStatusFilter.All : ReportStatusFilter.Open;
             if (!string.IsNullOrWhiteSpace(status))
             {
-                if (!Enum.TryParse<ReportStatusFilter>(status, ignoreCase: true, out var st) || !Enum.IsDefined(st))
+                if (!SafetyEnum.TryParseName<ReportStatusFilter>(status, out var st))
                     return Results.ValidationProblem(Problem("status", $"Use one of: {string.Join(", ", Enum.GetNames<ReportStatusFilter>())}."));
                 parsedStatus = st;
             }

@@ -46,6 +46,21 @@ public static class GridSpec
         return parts is { Length: 2 } && int.TryParse(parts[0], out row) && int.TryParse(parts[1], out col);
     }
 
+    /// <summary>Longest cell id accepted from a client (real ids are a few characters).</summary>
+    public const int MaxIdLength = 32;
+
+    /// <summary>
+    /// An optional cell id sent by a client: empty means none, anything else must be a canonical "row-col" id of at most
+    /// <see cref="MaxIdLength"/> characters, or <see cref="SafetyValidationException"/> is thrown.
+    /// </summary>
+    public static string? CleanCellId(string? id)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return null;
+        if (id.Length > MaxIdLength || !TryParseId(id, out var row, out var col) || IdOf(row, col) != id)
+            throw new SafetyValidationException("cellId", "cellId must be a grid cell id such as \"54-93\".");
+        return id;
+    }
+
     public static bool IsInArea(GeoPoint p) =>
         p.IsValid && p.Latitude is >= MinLatitude and <= MaxLatitude && p.Longitude is >= MinLongitude and <= MaxLongitude;
 

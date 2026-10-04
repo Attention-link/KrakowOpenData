@@ -48,9 +48,10 @@ public sealed class AgencyService(ISafetyStore store, IAgencyGateway gateway, IC
             location = point;
         }
 
+        var cellId = GridSpec.CleanCellId(request.CellId);
         var delivery = await gateway.SendAsync(agency, subject, body, ct);
         var dispatch = new AgencyDispatch(
-            $"dis-{Guid.NewGuid():N}"[..16], agency.Id, agency.Name, subject, body, location, request.CellId, delivery.Delivery, delivery.Reference, clock.UtcNow);
+            $"dis-{Guid.NewGuid():N}"[..16], agency.Id, agency.Name, subject, body, location, cellId, delivery.Delivery, delivery.Reference, clock.UtcNow);
         await store.AddDispatchAsync(dispatch, ct);
         return dispatch.ToDto();
     }

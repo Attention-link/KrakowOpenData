@@ -24,7 +24,7 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
 
     public async Task<ReportDto> CreateAsync(CreateReportRequest request, CancellationToken ct = default)
     {
-        if (!Enum.TryParse<ReportType>(request.Type, ignoreCase: true, out var type))
+        if (!SafetyEnum.TryParseName<ReportType>(request.Type, out var type))
             throw new SafetyValidationException("type", $"Use one of: {string.Join(", ", Enum.GetNames<ReportType>())}.");
 
         var point = new GeoPoint(request.Latitude, request.Longitude);
@@ -97,7 +97,7 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
         var cutoff = clock.UtcNow - ReportRules.ListAge;
         var text = filter.Text?.Trim();
         return (await store.ListReportsAsync(ct))
-            .Where(r => r.LastActivityAt >= cutoff)
+            .Where(r => r.LastActivityAt >= cutoff && ReportRules.IsKnown(r.Type))
             .Where(r => filter.Status switch
             {
                 ReportStatusFilter.Open => r.Status == ReportStatus.Open,

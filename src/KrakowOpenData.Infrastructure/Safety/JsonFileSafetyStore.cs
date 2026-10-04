@@ -124,7 +124,10 @@ public sealed class JsonFileSafetyStore : ISafetyStore
             if (_path is null || !File.Exists(_path)) return;
             var snapshot = JsonSerializer.Deserialize<Snapshot>(File.ReadAllText(_path), Json);
             if (snapshot is null) return;
-            foreach (var r in snapshot.Reports) _reports[r.Id] = r;
+            // A report type without a rule (a number an older build accepted) would break every list and score: drop it.
+            foreach (var r in snapshot.Reports.Where(r => ReportRules.IsKnown(r.Type))) _reports[r.Id] = r;
+            var skipped = snapshot.Reports.Count(r => !ReportRules.IsKnown(r.Type));
+            if (skipped > 0) _logger.LogWarning("Skipped {Count} stored reports with an unknown type", skipped);
             foreach (var a in snapshot.Alerts) _alerts[a.Id] = a;
             _dispatches.AddRange(snapshot.Dispatches);
             if (snapshot.Weights is not null) _weights = new Dictionary<string, double>(snapshot.Weights, StringComparer.Ordinal);

@@ -20,6 +20,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
         builder.UseSetting("KrakowData:PreloadOnStartup", "false"); // no OpenStreetMap downloads in tests
         builder.UseSetting("Safety:Persist", "false");               // reports and alerts stay in memory
+        builder.UseSetting("Safety:WriteRequestsPerMinute", "0");    // the shared test client would trip the per-IP limit; its own test turns it on
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<IGtfsDatasetProvider, FakeGtfsDatasetProvider>();
