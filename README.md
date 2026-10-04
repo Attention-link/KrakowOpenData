@@ -21,7 +21,7 @@ Become Kraków's shared, open data layer for everyday conditions and for crises:
 The MVP proves the model on **night safety, heat, flood and air**:
 
 - **Open API** with Swagger docs: data per topic, plus scores for any point, the whole city grid, nearby places, street routes, how every score is built, reports, alerts, planner summary and address search.
-- **Resident app** (installable, offline, English/Polish/Ukrainian): map with streets and places, a heat score (0 cool – 100 very hot) and a night-safety score (0 unsafe – 100 safe) with explanations of weights and sources, fastest versus safer/cooler street routes, address search, reporting with neighbour confirmation, alerts for "my area".
+- **Resident app** (installable, offline, English/Polish/Ukrainian): map with streets and places, a cooling score (0 very hot – 100 cool) and a night-safety score (0 unsafe – 100 safe), plus flood and clean-air scores with explanations of weights and sources, fastest versus safer/cooler street routes, address search, reporting with neighbour confirmation, alerts for "my area".
 - **Planner dashboard**: ranked areas to act on, gap charts, clickable figures with their data sources, reports to verify or resolve, alerts to a map area, simulated agency contact.
 - Scores are **environmental (mapped infrastructure plus resident reports), not crime statistics.**
 
@@ -173,7 +173,7 @@ Visual Studio. The tests replace every public source with in-memory fakes, so th
 A web app and API that combine the open data above into four scores for any place in Kraków (night safety, heat, flood safety and
 clean air), and let residents and city planners act on them.
 
-- **Heat score** (0 cool – 100 very hot, **higher = hotter**): how much heat stress a place carries on a hot day because it lacks shade, water, a cool indoor place, toilets and a way to reach relief
+- **Heat (cooling) score** (0 very hot – 100 cool, **higher = better, like every score**): how well a place can cool down on a hot day, from the relief it has: shade, shade, water, a cool indoor place, toilets and a way to reach relief
 - **Night-safety score** (0 unsafe – 100 safe, **higher = safer**): how well set up is this place for walking at night? (street lighting, night transport, places open at night, a defibrillator)
 
 Both are 0–100, computed for every ~250 m square of the built-up city. They are **environmental scores built from
@@ -209,7 +209,7 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
   your area. **Safety wins over distance:** when the fastest route is poor (average goodness under 65 or its weakest stretch under 45) the search widens to
   farther via points and a detour of up to its own length again (at most 3 km more), and the app says why it is longer; when the fastest route is
   good enough only a nearby improvement is offered. **Routes follow real streets** (OpenStreetMap foot routing): the fastest route is shown with a **safer / cooler / better** alternative when one scores clearly better (at least 3 points on average, at most 30 % longer). Start (A) and destination (B) are clearly marked, the route is coloured by score along the way, the weakest spot is marked with its address and the nearest help to it.
-- **Every score explains itself.** The "?" next to a score, a factor row, the map legend and "Weights and sources" open a panel with what 0 and 100 mean, the colour ranges (for heat 0–25 = low heat … 65–100 = very high), the weight of each factor and *why* it has that weight, the data source, how many such features are mapped in Kraków, and for this place which factors added how many points. The text comes from `GET /api/safety/method`, built from the same code as the scores. The map shows streets and, from zoom 14, the places that feed the scores (water, parks, toilets, refuges, night-open places, defibrillators).
+- **Every score explains itself.** The "!" next to a score, a factor row, the map legend and "Weights and sources" open a panel with what 0 and 100 mean, the colour ranges (the same four for every score: 75–100 Good … 0–35 Critical), the weight of each factor and *why* it has that weight, the data source, how many such features are mapped in Kraków, and for this place which factors added how many points. The text comes from `GET /api/safety/method`, built from the same code as the scores. The map shows streets and, from zoom 14, the places that feed the scores (water, parks, toilets, refuges, night-open places, defibrillators).
 - **Alerts** from planners for the area the resident has chosen ("my area"), shown for the current view (heat alerts in Heat, night alerts in Night safety, flood alerts in Flood, air alerts in Air,
   general alerts always). Banners while the app is open, optionally device notifications (switch on the menu).
 - Languages: **Polish, English, Ukrainian** (selector in the top bar; there is no settings screen). Works on phones (bottom sheet) and wide screens
@@ -241,8 +241,8 @@ The model lives in one documented file: [`SafetyModel.cs`](src/KrakowOpenData.Ap
 [`ReportRules.cs`](src/KrakowOpenData.Application/Safety/ReportRules.cs) for reports). Summary:
 
 1. The city is cut into 250 m squares ([`GridSpec`](src/KrakowOpenData.Application/Safety/GridSpec.cs)); a square is on the map when it has 3+ mapped street lamps or a stop.
-2. Each **factor** is a straight-line distance to the nearest feature (or a density) turned into 0–100: full score up to a near distance, zero beyond a far one, a straight line between. In the heat score a factor adds **heat in proportion to what is missing**: no park nearby adds its full weight (35 points), no drinking water 25.
-3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the safety score and raise the heat score). Internally the model measures a place's *cooling capacity* (higher = better) and the heat score is 100 minus it.
+2. Each **factor** is a straight-line distance to the nearest feature (or a density) turned into 0–100: full score up to a near distance, zero beyond a far one, a straight line between. Every factor adds its weight in proportion to its score, so a park within 100 m earns the full 35 cooling points and none nearby earns 0.
+3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the score of their own layer). **All four scores point the same way: higher = better**, with the same four bands and colours (75–100 Good, 55–75 Fair, 35–55 Weak, 0–35 Critical). The heat score used to run the other way (0 = cool); it is now the cooling score so a high number, a long bar and a blue colour always mean good.
 
 | Layer | Factor (weight) | Data | Full score → zero |
 | --- | --- | --- | --- |

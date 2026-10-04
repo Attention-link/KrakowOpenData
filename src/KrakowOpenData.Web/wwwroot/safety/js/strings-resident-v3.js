@@ -111,7 +111,7 @@ export const residentStringsV3 = {
   // ── Overrides of older wording ──
   'how.intro': ['Each 250 m square of the city gets two scores from 0 to 100: a heat score (higher = hotter) and a night safety score (higher = safer).', 'Każdy kwadrat miasta o boku 250 m dostaje dwa wyniki od 0 do 100: wskaźnik upału (wyżej = goręcej) i wskaźnik bezpieczeństwa nocą (wyżej = bezpieczniej).', 'Кожен квадрат міста 250 м отримує дві оцінки від 0 до 100: індекс спеки (вище = спекотніше) та індекс безпеки вночі (вище = безпечніше).'],
   'cov.walk': ['Scored every 50 m along the route; help searched within {r} of each point.', 'Ocena co 50 m wzdłuż trasy; pomoc szukana w promieniu {r} od każdego punktu.', 'Оцінка кожні 50 м уздовж маршруту; допомога шукається в радіусі {r} від кожної точки.'],
-  'legend.note': ['Grey = no mapped streets here. Click the ? for what the numbers mean and why.', 'Szare = brak zmapowanych ulic. Kliknij ?, aby zobaczyć, co oznaczają liczby i dlaczego.', 'Сірий = немає нанесених вулиць. Натисніть ?, щоб побачити, що означають числа і чому.'],
+  'legend.note': ['Grey = no mapped streets here. Click the ! for what the numbers mean and why.', 'Szare = brak zmapowanych ulic. Kliknij !, aby zobaczyć, co oznaczają liczby i dlaczego.', 'Сірий = немає нанесених вулиць. Натисніть !, щоб побачити, що означають числа і чому.'],
 
   // ── Places layer ──
   'map.places': ['Places on the map', 'Miejsca na mapie', 'Місця на мапі'],

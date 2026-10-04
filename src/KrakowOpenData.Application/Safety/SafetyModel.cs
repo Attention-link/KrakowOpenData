@@ -6,7 +6,7 @@ namespace KrakowOpenData.Application.Safety;
 ///
 /// <para><b>What the scores are.</b> Two scores per place, both 0–100, each named for what it measures:</para>
 /// <list type="bullet">
-/// <item><b>Heat score</b> (0 = cool, 100 = very hot): how much heat stress a place carries on a hot day, because it lacks the means to cool down:
+/// <item><b>Heat (cooling) score</b> (0 = very hot, 100 = cool): how well a place can cool down on a hot day, from the means to do so:
 /// shade/green, water, indoor refuge, toilets and a way to reach relief. <b>Higher = hotter / worse.</b> Internally the model first measures the
 /// place's <i>cooling capacity</i> (higher = better) and the heat score is 100 minus that (<see cref="HeatScore"/>).</item>
 /// <item><b>Safety score (night)</b> (0 = unsafe, 100 = safe): how well the place is set up for walking at night: street lighting, night
@@ -236,13 +236,13 @@ public static class SafetyModel
         Math.Clamp(baseScore - Math.Min(reportPenalty, MaxReportPenalty), 0, 100);
 
     /// <summary>
-    /// The heat score people see: 100 − <paramref name="coolingCapacity"/> (the layer score after reports). 0 = plenty of ways to cool down,
-    /// 100 = none. Open heat reports lower the cooling capacity, so they raise the heat score.
+    /// The heat score people see is the cooling score: how well a place can cool down (the layer score after reports). Like every other score,
+    /// <b>higher = better</b>: 100 = every kind of relief is close, 0 = none. Open heat reports lower it.
     /// </summary>
-    public static double HeatScore(double coolingCapacity) => Math.Clamp(100 - coolingCapacity, 0, 100);
+    public static double HeatScore(double coolingCapacity) => Math.Clamp(coolingCapacity, 0, 100);
 
-    /// <summary>Band of a heat score: Good = low heat stress (≤ 25), Fair ≤ 45, Weak ≤ 65, Critical above that.</summary>
-    public static ScoreBand HeatBand(double heatScore) => Band(100 - heatScore);
+    /// <summary>Band of a heat (cooling) score: the same bands as every score. Good ≥ 75, Fair ≥ 55, Weak ≥ 35, Critical below.</summary>
+    public static ScoreBand HeatBand(double heatScore) => Band(heatScore);
 
     /// <summary>"Weakest link" blend for the "both" view: 0.6 × lower score + 0.4 × average. Takes the cooling capacity (not the heat score) and the safety score, so both point the same way (higher = better).</summary>
     public static double Combine(double coolingCapacity, double safety) =>

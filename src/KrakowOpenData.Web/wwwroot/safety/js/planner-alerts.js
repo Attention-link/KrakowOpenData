@@ -23,7 +23,7 @@ const TPL_OF_EVENT = { heat: 'heat', night: 'night', flood: 'flood', air: 'air' 
 
 /** The weakest layer of an area, as a template id (heat is turned around: a hot place scores low). */
 function weakestTemplate(cell) {
-  const goodness = { heat: 100 - cell.heat.score, night: cell.safety.score, flood: cell.flood ? cell.flood.score : 100, air: cell.air ? cell.air.score : 100 };
+  const goodness = { heat: cell.heat.score, night: cell.safety.score, flood: cell.flood ? cell.flood.score : 100, air: cell.air ? cell.air.score : 100 };
   return Object.entries(goodness).sort((a, b) => a[1] - b[1])[0][0];
 }
 

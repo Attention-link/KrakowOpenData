@@ -495,7 +495,7 @@ table.t th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em
 .field label { font-weight: 600; }
 @media (max-width: 959.98px) { .map-top { right: 3.6rem; } }
 
-/* ── Explanations: "?" buttons, clickable figures, dialogs ── */
+/* ── Explanations: "!" buttons, clickable figures, dialogs ── */
 .info-btn { display: inline-grid; place-items: center; width: 22px; height: 22px; min-width: 22px; border-radius: 50%; border: 1.5px solid var(--ink-3); background: var(--surface); color: var(--ink-2); font: 700 .75rem/1 var(--font); cursor: pointer; padding: 0; vertical-align: middle; }
 .info-btn:hover { border-color: var(--accent); color: var(--accent); }
 .explainable { cursor: pointer; text-decoration: underline dotted var(--ink-3); text-underline-offset: 3px; }

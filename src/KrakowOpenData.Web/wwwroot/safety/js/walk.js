@@ -157,10 +157,10 @@ export function renderWalkView(ctx, body) {
       const lat = ws.from[0] + (ws.to[0] - ws.from[0]) * f, lon = ws.from[1] + (ws.to[1] - ws.from[1]) * f;
       const c = cellOf(ctx.grid.grid, lat, lon);
       const row = ctx.gridIndex.get(`${c.row}-${c.col}`);
-      samples.push({ latitude: lat, longitude: lon, safety: row ? row[COL.safety] : 0, heat: row ? row[COL.heat] : 100, combined: row ? row[COL.combined] : 0, flood: row ? row[COL.flood] : 0, air: row ? row[COL.air] : 0 });
+      samples.push({ latitude: lat, longitude: lon, safety: row ? row[COL.safety] : 0, heat: row ? row[COL.heat] : 0, combined: row ? row[COL.combined] : 0, flood: row ? row[COL.flood] : 0, air: row ? row[COL.air] : 0 });
     }
     const vals = samples.map((s) => s[key]);
-    const worstIdx = vals.indexOf(kind === 'heat' ? Math.max(...vals) : Math.min(...vals));
+    const worstIdx = vals.indexOf(Math.min(...vals));
     const fastest = {
       kind: 'fastest', lengthMeters: Math.round(length), walkingMinutes: Math.ceil(length / 80), path: [ws.from, ws.to], samples,
       average: vals.reduce((a, v) => a + v, 0) / vals.length, worst: vals[worstIdx], weakestSampleIndex: worstIdx, openReportsNearby: 0

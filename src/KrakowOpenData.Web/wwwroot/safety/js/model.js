@@ -37,11 +37,11 @@ export const BANDS = ['Critical', 'Weak', 'Fair', 'Good'];
 
 const DEFAULT_THRESHOLDS = { GoodFrom: 75, FairFrom: 55, WeakFrom: 35 };
 
-/** 'heat' for the heat layer / heat mode, otherwise 'good' (higher = better). */
+/** Which WORDS a layer uses for its bands: 'heat' (Low heat ... Very high heat) or 'good' (Good ... Critical). Every score is higher = better. */
 export const kindOf = (layerOrMode) => (layerOrMode === 'heat' || layerOrMode === 'Heat' ? 'heat' : 'good');
 
-/** A score turned so that higher is always better (a heat score of 80 is a goodness of 20). */
-export const goodness = (score, kind = 'good') => (kind === 'heat' ? 100 - score : score);
+/** Every score now points the same way (higher = better, heat included), so this is the score itself. Kept so callers read the same. */
+export const goodness = (score) => score;
 
 export function bandOf(score, meta, kind = 'good') {
   const t = meta ? { GoodFrom: meta.goodFrom, FairFrom: meta.fairFrom, WeakFrom: meta.weakFrom } : DEFAULT_THRESHOLDS;
@@ -50,13 +50,13 @@ export function bandOf(score, meta, kind = 'good') {
 }
 
 /**
- * The score range a band covers, in the scale of the score. Safety/overall: Good = 75-100. Heat: Good = 0-25 (low heat).
+ * The score range a band covers: Good = 75-100, Fair = 55-75, Weak = 35-55, Critical = 0-35, for every score (heat included).
  * Returns [from, to] of the displayed score.
  */
 export function bandRange(band, meta, kind = 'good') {
   const g = meta ? { good: meta.goodFrom, fair: meta.fairFrom, weak: meta.weakFrom } : { good: 75, fair: 55, weak: 35 };
   const r = { Good: [g.good, 100], Fair: [g.fair, g.good], Weak: [g.weak, g.fair], Critical: [0, g.weak] }[band];
-  return kind === 'heat' ? [100 - r[1], 100 - r[0]] : r;
+  return r;
 }
 
 export const BAND_FILL = { Good: '#2a78d6', Fair: '#9ec5f4', Weak: '#ee9b95', Critical: '#d03b3b' };

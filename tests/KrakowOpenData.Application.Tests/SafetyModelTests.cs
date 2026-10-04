@@ -54,12 +54,12 @@ public class SafetyModelTests
     }
 
     [Theory]
-    [InlineData(100, 0, ScoreBand.Good)]      // full cooling capacity = no heat stress
-    [InlineData(75, 25, ScoreBand.Good)]
-    [InlineData(55, 45, ScoreBand.Fair)]
-    [InlineData(35, 65, ScoreBand.Weak)]
-    [InlineData(10, 90, ScoreBand.Critical)]
-    public void Heat_score_is_hot_when_cooling_capacity_is_low(double cooling, double expectedHeat, ScoreBand expectedBand)
+    [InlineData(100, 100, ScoreBand.Good)]      // full cooling capacity = the best score
+    [InlineData(75, 75, ScoreBand.Good)]
+    [InlineData(55, 55, ScoreBand.Fair)]
+    [InlineData(35, 35, ScoreBand.Weak)]
+    [InlineData(10, 10, ScoreBand.Critical)]
+    public void Heat_score_points_the_same_way_as_every_other_score(double cooling, double expectedHeat, ScoreBand expectedBand)
     {
         Assert.Equal(expectedHeat, SafetyModel.HeatScore(cooling), 6);
         Assert.Equal(expectedBand, SafetyModel.HeatBand(expectedHeat));

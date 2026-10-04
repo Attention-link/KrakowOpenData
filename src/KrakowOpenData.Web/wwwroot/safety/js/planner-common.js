@@ -125,9 +125,7 @@ export async function openCellDrawer(cellId, { meta } = {}) {
   // Why: the full factor tables (transparency), only for the layers of the event
   stack.append(h('section', null, h('h3', null, t('cell.why')),
     layers.map((k) => [k, c[k]]).map(([k, l]) => h('div', { style: { marginTop: '.6rem' } },
-      explainable(h('p', { class: 'sect-title' }, k === 'heat'
-        ? `${t('mode.heat.score')} · ${t('cell.base')} ${Math.round(l.baseScore)}${l.reportPenalty ? ` + ${l.reportPenalty} ${t('place.fromReports')}` : ''} = ${Math.round(l.score)} (${t('explain.dir.heat')})`
-        : `${t(`mode.${k}.score`)} · ${t('cell.base')} ${Math.round(l.baseScore)}${l.reportPenalty ? ` − ${l.reportPenalty} ${t(k === 'safety' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(l.score)} (${t(`explain.dir.${k}`)})`),
+      explainable(h('p', { class: 'sect-title' }, `${t(`mode.${k}.score`)} · ${t('cell.base')} ${Math.round(l.baseScore)}${l.reportPenalty ? ` − ${l.reportPenalty} ${t(k === 'safety' || k === 'heat' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(l.score)} (${t(`explain.dir.${k}`)})`),
       () => openScoreExplainer({ layer: k, place: c, meta: gm }), t(`mode.${k}.score`)),
       h('div', { class: 'tbl-wrap' }, h('table', { class: 't' },
         h('thead', null, h('tr', null, [t('cell.factor'), t('cell.weight'), t('cell.value'), t('cell.score'), k === 'heat' ? t('explain.colHeat') : k === 'safety' ? t('explain.colSafety') : t(`explain.col.${k}`)].map((x) => h('th', { scope: 'col' }, x)))),

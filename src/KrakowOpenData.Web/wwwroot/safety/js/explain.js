@@ -38,9 +38,9 @@ export function scoreSummary(layer, score, band) {
 }
 
 // ── Small building blocks ────────────────────────────────────────────────────
-/** A round "?" button that opens an explanation. */
+/** A round "!" button that opens an explanation. */
 export function infoButton(onClick, label) {
-  return h('button', { class: 'info-btn', type: 'button', title: t('explain.click'), 'aria-label': label || t('explain.how'), onclick: (e) => { e.stopPropagation(); onClick(); } }, '?');
+  return h('button', { class: 'info-btn', type: 'button', title: t('explain.click'), 'aria-label': label || t('explain.how'), onclick: (e) => { e.stopPropagation(); onClick(); } }, '!');
 }
 
 /** Makes any element clickable (and keyboard operable) as an explanation trigger, with a hover hint. */
@@ -82,7 +82,6 @@ function valueText(f, radius) {
 /** What a measured factor did to the score, in words and numbers ("adds 25 points of heat"). */
 function effectText(layerKey, f) {
   const pts = Math.round(f.contribution * 10) / 10;
-  if (layerKey === 'heat') return pts > 0 ? t('explain.addsHeat', { n: pts }) : t('explain.addsNoHeat');
   return t(layerKey === 'safety' ? 'explain.addsSafety' : `explain.adds.${layerKey}`, { n: pts, max: f.weight });
 }
 
@@ -186,7 +185,7 @@ function whyPlace(layerKey, L, data, meta) {
     h('div', { class: 'tbl-wrap' }, h('table', { class: 't' },
       h('thead', null, h('tr', null, [t('cell.factor'), t('cell.value'), t('cell.weight'), layerKey === 'heat' ? t('explain.colHeat') : layerKey === 'safety' ? t('explain.colSafety') : t(`explain.col.${layerKey}`), t('explain.colMapped')].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, rows,
-        reports ? h('tr', null, h('td', { colspan: 3 }, layerKey === 'heat' ? t('explain.reportsAddHeat') : layerKey === 'safety' ? t('explain.reportsSubtract') : t('explain.reportsAndLive')), h('td', { class: 'num' }, layerKey === 'heat' ? `+${reports}` : `−${reports}`), h('td')) : null,
+        reports ? h('tr', null, h('td', { colspan: 3 }, layerKey === 'heat' || layerKey === 'safety' ? t('explain.reportsSubtract') : t('explain.reportsAndLive')), h('td', { class: 'num' }, `−${reports}`), h('td')) : null,
         h('tr', null, h('td', { colspan: 3 }, h('b', null, t('explain.total'))), h('td', { class: 'num' }, h('b', null, total)), h('td'))))),
     h('p', { class: 'tiny muted' }, layerKey === 'heat' ? t('explain.heatTableNote') : layerKey === 'safety' ? t('explain.safetyTableNote') : t(`explain.tableNote.${layerKey}`)));
 }

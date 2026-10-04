@@ -113,9 +113,9 @@ public class ScoreServiceTests
         var served = await scores.GetPlaceAsync(SafetyWorld.Centre, PlanningEvent.Both);
         var remote = await scores.GetPlaceAsync(SafetyWorld.Remote, PlanningEvent.Both);
 
-        Assert.True(served.Heat.Score <= 10, $"heat was {served.Heat.Score}");   // heat: LOW is good
+        Assert.True(served.Heat.Score >= 90, $"heat was {served.Heat.Score}");   // like every score, HIGH is good
         Assert.True(served.Safety.Score >= 90, $"safety was {served.Safety.Score}");
-        Assert.True(remote.Heat.Score >= 85 && remote.Safety.Score <= 15);   // a remote place is hot (high) and unsafe (low)
+        Assert.True(remote.Heat.Score <= 15 && remote.Safety.Score <= 15);   // a remote place cools badly and is unsafe (both low)
         Assert.Equal("Good", served.Heat.Band);
         Assert.Equal("Critical", remote.Heat.Band);
         Assert.True(served.Combined > remote.Combined);
@@ -130,7 +130,7 @@ public class ScoreServiceTests
         Assert.Equal(60, water.Value);
         Assert.Equal(100, water.Score);
         Assert.Equal(25, water.Weight);
-        Assert.Equal(0, water.Contribution);            // water is close, so it adds no heat
+        Assert.Equal(25, water.Contribution);           // water is close, so it earns its full 25 points
 
         var green = place.Heat.Factors.Single(f => f.Key == "green");
         Assert.Equal(50, green.Value);                  // 300 m to the centre minus the 250 m radius

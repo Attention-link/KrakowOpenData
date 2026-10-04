@@ -50,7 +50,7 @@ export function hbars(items, { max = 100, onClick, selectedKey, onInfo } = {}) {
       h('span', { class: 'n num' }, it.text ?? `${Math.round(it.value)}`));
     if (onInfo) {
       wrap.append(h('div', { class: 'hbar-row', role: interactive ? 'group' : null }, row,
-        h('button', { class: 'info-btn', type: 'button', title: t('explain.click'), 'aria-label': `${t('explain.how')}: ${it.label}`, onclick: () => onInfo(it.key) }, '?')));
+        h('button', { class: 'info-btn', type: 'button', title: t('explain.click'), 'aria-label': `${t('explain.how')}: ${it.label}`, onclick: () => onInfo(it.key) }, '!')));
     } else wrap.append(row);
   }
   return wrap;

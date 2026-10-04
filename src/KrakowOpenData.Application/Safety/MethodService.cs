@@ -143,15 +143,15 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
 
         var heat = new LayerMethodDto(
             "Heat",
-            "Heat score",
-            "Higher = hotter. 0 is a cool place with every kind of relief close by; 100 is a place with none.",
-            "How much heat stress a place carries on a hot day because it lacks ways to cool down. It is built from what is missing around the place (shade, water, indoor refuge, toilets, transport), not from a temperature reading, so it shows where a heatwave hurts most. The live temperature is shown next to it.",
-            "Heat score = Σ weight × (100 − factor score) ÷ 100 over the five factors, + open heat reports (up to 30 points), limited to 0–100. A factor scores 100 when its nearest feature is within the 'full' distance and 0 beyond the 'zero' distance, in a straight line in between.",
+            "Cooling score",
+            "Higher = cooler. 100 is a place with every kind of relief close by; 0 is a place with none, where a hot day is hardest to cope with.",
+            "How well a place can cool down on a hot day, from the relief around it (shade, water, indoor refuge, toilets, transport). It is built from what is mapped around the place, not from a temperature reading, so it shows where a heatwave hurts most. The live temperature is shown next to it. Like every score here, higher is better.",
+            "Cooling score = Σ weight × factor score ÷ 100 over the five factors, − open heat reports (up to 30 points), limited to 0–100. A factor scores 100 when its nearest feature is within the 'full' distance and 0 beyond the 'zero' distance, in a straight line in between.",
             [
-                new BandInfoDto("Good", 0, 25, "Low heat stress: shade, water and indoor refuge are close."),
-                new BandInfoDto("Fair", 25, 45, "Moderate: most relief is within reach, some is missing."),
-                new BandInfoDto("Weak", 45, 65, "High: important relief is missing or far."),
-                new BandInfoDto("Critical", 65, 100, "Very high: little or no relief nearby. A hot day here is hard to cope with.")
+                new BandInfoDto("Good", 75, 100, "Low heat stress: shade, water and indoor refuge are close."),
+                new BandInfoDto("Fair", 55, 75, "Moderate heat: most relief is within reach, some is missing."),
+                new BandInfoDto("Weak", 35, 55, "High heat: important relief is missing or far."),
+                new BandInfoDto("Critical", 0, 35, "Very high heat: little or no relief nearby. A hot day here is hard to cope with.")
             ],
             Factors(model.Definitions(Layer.Heat)));
 
@@ -206,9 +206,9 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
             new("noTrees500", "No park within 500 m", "Share of built-up area where the nearest mapped park or green area is more than 500 m away.", "Σ exposure of squares with park distance > 500 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap parks"),
             new("airLevel", "Air pollution now", "How polluted the air is right now: 0 % at or below 15 µg/m³ PM2.5, 100 % at 75 µg/m³ or more.", "(average PM2.5 across Kraków GIOŚ stations − 15) ÷ 60, limited to 0–1.", "GIOŚ national air-quality network"),
             new("cells", "Squares scored", "Number of 250 m × 250 m squares that are built up (at least 3 mapped street lamps or a public transport stop) and so get a score.", "Count of grid squares with ≥ 3 mapped lamps or ≥ 1 stop.", "OpenStreetMap lamps + ZTP Kraków GTFS stops"),
-            new("averageScore", "Average score", "The mean of the score of the planned event across all scored squares. For Heat this is the heat score (higher = hotter); for Night safety the safety score (higher = safer); for Both the overall score (higher = better).", "Mean of the event score over all squares (each square counts once).", "This model (SafetyModel)"),
-            new("criticalCells", "Critical squares", "Squares in the worst band for the planned event: heat score of 65 or more, safety score below 35, or overall score below 35.", "Count of squares whose band is Critical.", "This model (SafetyModel)"),
-            new("weakCells", "Weak squares", "Squares in the second worst band: heat score 45 to 65, safety or overall score 35 to 55.", "Count of squares whose band is Weak.", "This model (SafetyModel)"),
+            new("averageScore", "Average score", "The mean of the score of the planned event across all scored squares. Every score points the same way, higher = better: for Heat the cooling score, for Night safety the safety score, for Flood the flood-safety score, for Air the clean-air score.", "Mean of the event score over all squares (each square counts once).", "This model (SafetyModel)"),
+            new("criticalCells", "Critical squares", "Squares in the worst band for the planned event: a score below 35.", "Count of squares whose band is Critical.", "This model (SafetyModel)"),
+            new("weakCells", "Weak squares", "Squares in the second worst band: a score from 35 to 55.", "Count of squares whose band is Weak.", "This model (SafetyModel)"),
             new("noWater500", "No drinking fountain within 500 m", "Share of built-up area where the nearest mapped drinking fountain or tap is more than 500 m away, or none is mapped within 1.5 km.", "Σ exposure of squares with water distance > 500 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap drinking-water points"),
             new("noGreen500", "No park within 500 m", "Share of built-up area where the nearest mapped park or green area is more than 500 m away.", "Σ exposure of squares with park distance > 500 m ÷ Σ exposure of all squares × 100.", "OpenStreetMap parks"),
             new("poorlyLit", "Poorly lit", "Share of built-up area where the lighting factor scores below 35 (fewer than about 165 mapped lamps per km²).", "Σ exposure of squares with lighting factor < 35 ÷ Σ exposure of all squares × 100.", "OpenStreetMap street lamps"),
@@ -250,9 +250,9 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
 /// <summary>Formulas shown to people, kept next to the code that implements them.</summary>
 internal static class SafetyModelFormulas
 {
-    public const string Combined = "Overall (both views) = 0.6 × the lower of cooling capacity (100 − heat score) and the safety score + 0.4 × their average, so a place is only as good as its weak side. Higher = better.";
+    public const string Combined = "Overall (API only) = 0.6 × the lower of the cooling score and the safety score + 0.4 × their average, so a place is only as good as its weak side. Higher = better.";
 
-    public const string Priority = "Priority = (100 − score) × exposure × pressure, limited to 100. For heat, 'score' is the cooling capacity (100 − heat score) and pressure is 0.8 with no warning, 1.0 on a hot day (30 °C or more), 1.1 / 1.25 / 1.5 for heat warnings level 1 / 2 / 3. For night safety, pressure is 1.0.";
+    public const string Priority = "Priority = (100 − score) × exposure × pressure, limited to 100. For heat, 'score' is the cooling score and pressure is 0.8 with no warning, 1.0 on a hot day (30 °C or more), 1.1 / 1.25 / 1.5 for heat warnings level 1 / 2 / 3. For night safety, pressure is 1.0.";
 
     public const string Exposure = "Exposure (0.2–1.0) = (street lamps + 3 × stops in the 3×3 squares around) ÷ 200. Busy, built-up squares count more than thin edges. There is no population grid, so this is a proxy.";
 }

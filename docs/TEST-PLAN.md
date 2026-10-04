@@ -22,7 +22,7 @@ Automated tests are listed in section 14 and should pass before manual testing s
 **Known behaviours that are not defects:**
 
 - Scores are **environmental** (mapped infrastructure plus resident reports), not crime statistics.
-- **Heat score: higher = hotter.** Night safety and the overall score: higher = better. Colours always show good in blue and bad in red.
+- **Every score reads the same way: higher = better** (heat is a *cooling* score: 100 = cool, 0 = very hot). Colours always show good in blue and bad in red, with the same four bands for every score.
 - The planner key is a shared demo key (`demo-planner`); the planner opens without sign-in when `Safety:PlannerDemoKey` is set.
 - Agency contact is **simulated**: it records a contact but sends nothing.
 - The first API start takes 1–2 minutes while timetables and OpenStreetMap data load. Until then some endpoints answer 503 or "still loading".
@@ -136,7 +136,8 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | RES-01 | H | First load | Open the app | Top bar with the shield mark and **Kompas Krakowa**, a **Home page** link, an online indicator, a language selector. A map of Kraków with coloured 250 m squares, a mode switch and a menu panel | |
 | RES-02 | H | Mode switch | Click **Night safety**, **Heat**, **Flood**, then **Air** | **Exactly these four** options exist, in this order. The map recolours; the score names, legend and available report types follow the mode | |
 | RES-03 | H | Colours and legend | Open the colour key (layers button) in each mode | Four bands: Good (blue), Fair (light blue), Weak (light red), Critical (red), each with its score range and meaning. Heat ranges read 0–25 low heat up to 65–100 very high heat. Grey squares mean no mapped streets. Swatches have an outline and are readable | |
-| RES-04 | H | Heat direction | Tap a square in **Heat** | The card says **Higher = hotter**; a hot area shows a high number and a red band | |
+| RES-04 | H | Heat direction | Tap a hot, shadeless square and a leafy one in **Heat** | The card is titled **Cooling score** and says **Higher = cooler**. The hot square shows a LOW number, a SHORT bar and a RED band; the leafy square a HIGH number, a LONG bar and a BLUE band. The legend lists 75–100 Good (low heat) down to 0–35 Critical (very high heat) | |
+| RES-04a | H | Same direction everywhere | Compare a score card in each of the four tabs | In every tab a high number, a long bar and blue mean good; low, short and red mean bad; the "!" explanation says so | |
 | RES-05 | M | Conditions strip | Look under the mode switch | Live conditions (time of day or sunrise for night, temperature and heat risk, air quality). If the live conditions suggest the other mode, a **Switch to …** suggestion appears and works | |
 | RES-06 | M | Map controls | Zoom with buttons, scroll and pinch; click **Use my location**; click **Places on the map**, zoom to 14 or closer | Zoom works. Location asks for permission and centres the map (a refusal shows a friendly message, not an error page). Place markers (fountains, parks, toilets, refuges, night-open places, defibrillators) appear from zoom 14 and match the mode | |
 | RES-07 | M | Saved mode | Choose **Heat**, reload | The app reopens in **Heat** | |
@@ -149,7 +150,7 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 | RES-10 | H | Address search | In the menu type "Rynek Główny"; pick a suggestion | Suggestions appear while typing with an **All / Addresses / Stops** filter. Picking one centres the map and opens the place card for that address | |
 | RES-11 | M | Search filters | Search "Dworzec", switch the filter to **Stops** | Only stops remain, labelled **Stop** | |
 | RES-12 | M | Nothing found | Search `zzzzqqq` | "Nothing found. Try another spelling." | |
-| RES-13 | H | Place card | Tap any lit square | A card with the address, coordinates, the radius covered, the **score with a band**, a **?** button, **why** (each factor with distance and weight), **nearby help** with walking times, and nearby reports. The map shows the dashed 1.5 km circle and the outlined 250 m square | |
+| RES-13 | H | Place card | Tap any lit square | A card with the address, coordinates, the radius covered, the **score with a band**, an **!** button, **why** (each factor with distance and weight), **nearby help** with walking times, and nearby reports. The map shows the dashed 1.5 km circle and the outlined 250 m square | |
 | RES-14 | H | Factor names | Open a Heat card and read the factor list | The water factor is named **Drinking fountains and taps** (never plain "Drinking water"); other factors: Parks and shade, Cool indoor place, Public toilets, Public transport | |
 | RES-15 | M | Thin water data | Tap a place far from any fountain | A note explains that only N fountains and taps are mapped and one may be missing from the map | |
 | RES-16 | M | Outside the area | Tap the map far outside Kraków | "This spot is outside the mapped area." No crash | |
@@ -159,7 +160,7 @@ Open `/safety/index.html`. Use a fresh browser profile for the first run so the 
 
 | Id | Pri | Scenario | Steps | Expected result | Result |
 | --- | --- | --- | --- | --- | --- |
-| RES-20 | H | Explain a score | Click **?** next to a score | A panel explains what 0 and 100 mean, the colour ranges, each factor's weight and **why** it has that weight, the data source and its limits | |
+| RES-20 | H | Explain a score | Click **!** next to a score | A panel explains what 0 and 100 mean, the colour ranges, each factor's weight and **why** it has that weight, the data source and its limits | |
 | RES-21 | M | Explain a factor | Click a factor row | A factor panel with what it measures, the distances for full and zero score, the source | |
 | RES-22 | M | Weights and sources | Click **Weights and sources** | The full method opens; the water source reads "OpenStreetMap drinking fountains and taps (amenity=drinking_water)" | |
 | RES-23 | L | Close panels | Press **Esc**, click **Close** | The panel closes and focus returns to where it was | |
@@ -220,7 +221,7 @@ Report types depend on the mode:
 | REP-03 | H | Place the pin | On step 2 drag the pin; tap the map; type an address and pick a result; use **Use selected place** or **Use my area** | The address, coordinates and outlined 250 m square update each time and say what the report counts for | |
 | REP-04 | H | Add a note | Type a note | A counter shows `n/200`; typing past 200 characters is blocked; a privacy note says the note is only visible to planners | |
 | REP-05 | H | Send a report | Click **Send report** | A "Sending…" state, then **Thank you!** with "Your report was added. When another person confirms it, it counts in full." | |
-| REP-06 | H | Score changes | Click **See the updated score** | The place card shows a note that recent reports lower the score here, and the report in **Reports near here**. For a night report the night-safety score is lower; for a heat report the heat score is **higher** (hotter). A single unconfirmed report moves it only slightly | |
+| REP-06 | H | Score changes | Click **See the updated score** | The place card shows a note that recent reports lower the score here, and the report in **Reports near here**. For a night report the night-safety score is lower; for a heat report the cooling score is **lower**. A single unconfirmed report moves it only slightly | |
 | REP-07 | H | Second resident confirms by reporting | As **resident B** (other browser profile), report the **same type** in the **same 250 m square** within 24 h | B sees "2 people have now reported this here, so it counts in full." No duplicate report is created; the score effect grows | |
 | REP-08 | H | Confirm with "Still true" | As resident B open the first report on a place card and click **Still true** | The button changes to **Confirmed** with "Thanks for confirming". Supporters rise to 2 | |
 | REP-09 | M | Same device cannot self-confirm | As resident A click **Still true** on A's own report | The count of supporters does not increase | |

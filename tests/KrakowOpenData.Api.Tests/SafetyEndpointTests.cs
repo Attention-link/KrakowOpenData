@@ -108,7 +108,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.NotNull(m);
         Assert.Equal(4, m.Layers.Count);
         Assert.All(m.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
-        Assert.StartsWith("Higher = hotter", m.Layers.Single(l => l.Layer == "Heat").Direction);
+        Assert.StartsWith("Higher = cooler", m.Layers.Single(l => l.Layer == "Heat").Direction);
         Assert.Contains(m.Kpis, k => k.Key == "noWater500");
     }
 

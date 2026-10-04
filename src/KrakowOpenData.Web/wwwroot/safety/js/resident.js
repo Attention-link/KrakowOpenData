@@ -507,9 +507,7 @@ export function mountResident(root) {
       stack.append(h('details', { class: 'card flat', open: true }, h('summary', { style: { cursor: 'pointer', fontWeight: 700 } }, t('place.why')),
         h('div', { class: 'stack', style: { marginTop: '.6rem' } },
           layers.map((k) => h('div', null,
-            h('p', { class: 'sect-title' }, k === 'heat'
-              ? `${t('mode.heat.score')} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` + ${place[k].reportPenalty} ${t('place.fromReports')}` : ''} = ${Math.round(place[k].score)}`
-              : `${t(`mode.${k}.score`)} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` − ${place[k].reportPenalty} ${t(k === 'safety' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(place[k].score)}`),
+            h('p', { class: 'sect-title' }, `${t(`mode.${k}.score`)} · ${Math.round(place[k].baseScore)}${place[k].reportPenalty ? ` − ${place[k].reportPenalty} ${t(k === 'safety' || k === 'heat' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(place[k].score)}`),
             place[k].factors.map((f) => factorRow(f, k)))),
           h('div', { class: 'row wrap' }, h('button', { class: 'btn sm', type: 'button', onclick: () => openScoreExplainer({ layer: m, place, meta: ctx.grid?.grid }) }, icon('info', 'sm'), t('explain.how')),
             h('button', { class: 'btn sm quiet', type: 'button', onclick: () => openMethod(ctx.grid?.grid) }, icon('list', 'sm'), t('explain.fullMethod'))),
@@ -563,7 +561,7 @@ export function mountResident(root) {
     return el;
   }
 
-  /** One score: the number, its band in words, which way is good, and a "?" that explains it with this place's numbers. */
+  /** One score: the number, its band in words, which way is good, and a "!" that explains it with this place's numbers. */
   function scoreBox(kind, layer, big, place) {
     const band = layer.band;
     return h('div', { class: `score-box ${big ? 'active' : ''}`, title: scoreSummary(kind, layer.score, band) },
@@ -579,9 +577,7 @@ export function mountResident(root) {
   function factorRow(f, layerKey) {
     const band = bandOf(f.score, ctx.grid?.grid);
     const valueText = f.unit === 'm' ? (f.value === null ? t(f.score === 50 && (f.key === 'river' || f.key === 'traffic') ? 'factor.unknown' : f.key === 'river' || f.key === 'traffic' ? 'factor.noneAway' : 'factor.none', { r: formatDistance(searchRadius()) }) : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`;
-    const effect = layerKey === 'heat'
-      ? (f.contribution > 0 ? t('explain.addsHeat', { n: Math.round(f.contribution * 10) / 10 }) : t('explain.addsNoHeat'))
-      : t(layerKey === 'safety' ? 'explain.addsSafety' : `explain.adds.${layerKey}`, { n: Math.round(f.contribution * 10) / 10, max: f.weight });
+    const effect = t(layerKey === 'safety' ? 'explain.addsSafety' : `explain.adds.${layerKey}`, { n: Math.round(f.contribution * 10) / 10, max: f.weight });
     return h('button', { class: 'factor', type: 'button', title: `${t(`factor.${f.key}`)}: ${valueText} · ${effect} · ${t('explain.click')}`,
       onclick: () => openFactorExplainer(f.key, { factor: f, layer: layerKey, meta: ctx.grid?.grid }) },
       h('span', { class: `chip ${FACTOR_LAYER[f.key] || 'heat'}`, style: { padding: '.15rem' } }, icon(FACTOR_ICON[f.key] || 'info', 'sm')),

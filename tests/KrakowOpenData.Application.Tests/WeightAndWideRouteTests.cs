@@ -194,11 +194,10 @@ public class WideRouteSearchTests
     }
 
     [Fact]
-    public void For_heat_the_scale_is_turned_around()
+    public void Heat_uses_the_same_thresholds_as_every_score()
     {
-        // Heat 30 average / 50 worst = goodness 70 / 50: acceptable. Heat 40 average = goodness 60: not.
-        Assert.True(RouteService.IsAcceptable(new RouteOptionDto("fastest", 600, 8, [], [], 30, 50, 0, 0), PlanningEvent.Heat));
-        Assert.False(RouteService.IsAcceptable(new RouteOptionDto("fastest", 600, 8, [], [], 40, 50, 0, 0), PlanningEvent.Heat));
+        Assert.True(RouteService.IsAcceptable(new RouteOptionDto("fastest", 600, 8, [], [], 70, 50, 0, 0), PlanningEvent.Heat));
+        Assert.False(RouteService.IsAcceptable(new RouteOptionDto("fastest", 600, 8, [], [], 60, 50, 0, 0), PlanningEvent.Heat));
     }
 
     [Fact]

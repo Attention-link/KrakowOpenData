@@ -2,6 +2,25 @@
 // Entries are [en, pl, uk].
 
 export const layerStrings = {
+  // ── Heat is now a cooling score: higher = cooler, like every other score ──
+  'mode.heat.score': ['Cooling score', 'Wskaźnik chłodu', 'Індекс прохолоди'],
+  'explain.dir.heat': ['Higher = cooler', 'Wyżej = chłodniej', 'Вище = прохолодніше'],
+  'legend.heatTitle': ['Cooling score (0 very hot – 100 cool)', 'Wskaźnik chłodu (0 bardzo gorąco – 100 chłodno)', 'Індекс прохолоди (0 дуже спекотно – 100 прохолодно)'],
+  'explain.adds.heat': ['{n} of {max} possible cooling points', '{n} z {max} możliwych pkt chłodu', '{n} з {max} можливих балів прохолоди'],
+  'explain.colHeat': ['Cooling points', 'Pkt chłodu', 'Бали прохолоди'],
+  'explain.heatBiggest': ['Biggest contributors to cooling: {list}.', 'Największy wkład w chłód: {list}.', 'Найбільший внесок у прохолоду: {list}.'],
+  'explain.heatNone': ['No kind of relief is close, so nothing here cools the place down.', 'Żaden rodzaj ulgi nie jest blisko, więc nic tu nie chłodzi miejsca.', 'Жодного виду полегшення поруч немає, тож ніщо тут не охолоджує місце.'],
+  'explain.heatTableNote': ['For each kind of relief: the closer it is, the more of its weight is added to the cooling score. Nothing close = nothing added. The score is the total, less open reports.', 'Dla każdego rodzaju ulgi: im bliżej, tym więcej jego wagi dodaje się do wskaźnika chłodu. Nic blisko = nic nie dodaje. Wynik to suma, pomniejszona o otwarte zgłoszenia.', 'Для кожного виду полегшення: чим ближче, тим більше його ваги додається до індексу прохолоди. Нічого поруч = нічого не додається. Оцінка – це сума мінус відкриті звіти.'],
+  'explain.liveHeat': ['Right now it is {c} °C in Kraków ({p}). The temperature is shown next to the cooling score; it is not part of it.', 'Teraz w Krakowie jest {c} °C ({p}). Temperatura jest pokazana obok wskaźnika chłodu, ale nie jest jego częścią.', 'Зараз у Кракові {c} °C ({p}). Температура показана поруч з індексом прохолоди, але не входить до нього.'],
+  'ov.low.heat': ['Very hot (0)', 'Bardzo gorąco (0)', 'Дуже спекотно (0)'],
+  'ov.high.heat': ['Cool (100)', 'Chłodno (100)', 'Прохолодно (100)'],
+  'ov.distHelp.heat': ['Number of squares by cooling score (higher = cooler). Click a bar for what the range means.', 'Liczba kwadratów wg wskaźnika chłodu (wyżej = chłodniej). Kliknij słupek, aby zobaczyć znaczenie przedziału.', 'Кількість квадратів за індексом прохолоди (вище = прохолодніше). Натисніть стовпчик, щоб побачити значення діапазону.'],
+  'route.avg.heat': ['Average cooling {n}', 'Średni chłód {n}', 'Середня прохолода {n}'],
+  'route.worst.heat': ['Least cool stretch {n}', 'Najmniej chłodny odcinek {n}', 'Найменш прохолодна ділянка {n}'],
+  'brief.scores': ['Scores (0-100, higher is better): night safety {safety} ({sb}), cooling {heat} ({hb}). Priority {priority}.', 'Wyniki (0–100, więcej = lepiej): bezpieczeństwo nocą {safety} ({sb}), chłód {heat} ({hb}). Priorytet {priority}.', 'Оцінки (0–100, більше = краще): безпека вночі {safety} ({sb}), прохолода {heat} ({hb}). Пріоритет {priority}.'],
+  'how.intro': ['Each 250 m square of the city gets four scores from 0 to 100, and for every one higher is better: night safety, heat (a cooling score), flood safety and clean air.', 'Każdy kwadrat miasta o boku 250 m dostaje cztery wyniki od 0 do 100, w każdym więcej = lepiej: bezpieczeństwo nocą, upał (wskaźnik chłodu), bezpieczeństwo powodziowe i czyste powietrze.', 'Кожен квадрат міста 250 м отримує чотири оцінки від 0 до 100, і в кожній більше = краще: безпека вночі, спека (індекс прохолоди), безпека від повені та чисте повітря.'],
+  'explain.methodIntro': ['Every place gets four scores (night safety, heat, flood safety, clean air) from mapped data, live conditions and resident reports. Each factor has a weight that says how much it matters; the weights add up to 100. All scores read the same way: higher is better.', 'Każde miejsce dostaje cztery wyniki (bezpieczeństwo nocą, upał, bezpieczeństwo powodziowe, czyste powietrze) na podstawie zmapowanych danych, bieżących warunków i zgłoszeń mieszkańców. Każdy czynnik ma wagę mówiącą, jak bardzo się liczy; wagi dają razem 100. Wszystkie wyniki czyta się tak samo: więcej = lepiej.', 'Кожне місце отримує чотири оцінки (безпека вночі, спека, безпека від повені, чисте повітря) на основі нанесених даних, поточних умов і звітів мешканців. Кожен чинник має вагу, яка показує, наскільки він важливий; ваги дають разом 100. Усі оцінки читаються однаково: більше = краще.'],
+
   // ── Tabs, scores, directions ──
   'mode.flood': ['Flood', 'Powódź', 'Повінь'],
   'mode.air': ['Air', 'Powietrze', 'Повітря'],

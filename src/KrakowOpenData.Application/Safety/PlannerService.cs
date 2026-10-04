@@ -22,7 +22,7 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         var cells = grid.Cells;
         var now = grid.GeneratedAt;
 
-        // The score shown for the event: heat score (higher = hotter) for Heat, safety score for Night, the overall score for Both.
+        // The score shown for the event: the cooling score for Heat, safety score for Night, flood safety, clean air; every score is higher = better.
         double EventScore(ScoredCell c) => evt switch
         {
             PlanningEvent.Heat => c.Heat,

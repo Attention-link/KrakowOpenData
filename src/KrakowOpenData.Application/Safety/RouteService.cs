@@ -229,7 +229,7 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
     };
 
     /// <summary>Same value turned around so that higher is always better (heat 100 â†’ 0).</summary>
-    private static double Goodness(double value, PlanningEvent mode) => mode == PlanningEvent.Heat ? 100 - value : value;
+    private static double Goodness(double value, PlanningEvent mode) => value;
 
     private static int WorstIndex(IReadOnlyList<double> values, PlanningEvent mode)
     {

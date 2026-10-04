@@ -2,7 +2,7 @@ namespace KrakowOpenData.Contracts;
 
 // ── Safety concerns (heat + night safety scores, citizen reports, planner tools) ───────────────
 // Enums are exposed as strings. Scores are 0–100. Heat score: HIGHER = HOTTER (worse). Safety score: HIGHER = SAFER (better).
-// The "combined" score and per-factor scores point the other way for heat: higher = better served.
+// Every score points the same way: higher = better (for heat, higher = better able to cool down).
 // How every number is computed is documented on KrakowOpenData.Application.Safety.SafetyModel.
 
 /// <summary>Where the score grid sits. A cell (row, col) covers latitude OriginLatitude + row × CellLatitudeDegrees (and likewise for longitude).</summary>
@@ -94,7 +94,7 @@ public sealed record CorridorDto(
     IReadOnlyList<CorridorSampleDto> Samples,
     double MinSafety,
     double AverageSafety,
-    double MaxHeat,
+    double MinHeat,
     double AverageHeat,
     int WeakestSampleIndex,
     int OpenReportsNearby,

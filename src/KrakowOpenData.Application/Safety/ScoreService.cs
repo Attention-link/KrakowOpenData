@@ -32,8 +32,8 @@ public sealed record ScoredCell(
     double FloodLive = 0,
     double AirLive = 0)
 {
-    /// <summary>How well the place can cool down (100 − heat score); points the same way as the safety score.</summary>
-    public double Cooling => 100 - Heat;
+    /// <summary>How well the place can cool down. The heat score is this number; it points the same way as every other score (higher = better).</summary>
+    public double Cooling => Heat;
 
     /// <summary>The event's score expressed so that higher = better (heat is turned around), used for bands and ordering.</summary>
     public double Goodness(PlanningEvent evt) => evt switch { PlanningEvent.Heat => Cooling, PlanningEvent.Night => Safety, PlanningEvent.Flood => Flood, PlanningEvent.Air => Air, _ => Combined };
@@ -165,7 +165,7 @@ public sealed class ScoreService(
             samples,
             samples.Min(s => s.Safety),
             Math.Round(samples.Average(s => s.Safety), 1),
-            samples.Max(s => s.Heat),
+            samples.Min(s => s.Heat),
             Math.Round(samples.Average(s => s.Heat), 1),
             weakest,
             reportsNearby,
@@ -303,10 +303,7 @@ public sealed class ScoreService(
             // Flood and air: the penalty shown is reports plus the live adjustment (river levels, PM2.5), all taken off the base.
             if (layer is Layer.Flood or Layer.Air)
                 return new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
-            // Heat: the score is hot-ness (100 − cooling capacity), so the base is what the missing relief adds, and reports add to it.
-            return layer == Layer.Heat
-                ? new LayerScoreDto(R(score), SafetyModel.HeatBand(score).ToString(), R(100 - basePoints), Math.Round(penalty, 1), factors)
-                : new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
+            return new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
         }
 
         var nearest = NearestFeatures(measure.Point, model);
@@ -383,7 +380,7 @@ public static class SafetyMapping
     public static FactorDto ToDto(this FactorResult f) =>
         new(f.Definition.Key, LabelOf(f.Definition.Key), f.Definition.Layer.ToString(), f.Definition.Weight, f.Value,
             f.Definition.Kind == FactorKind.Density ? "lamps/km²" : "m", Math.Round(f.Score, 1), Math.Round(f.Points, 1), f.NearestName,
-            Math.Round(f.Definition.Layer == Layer.Heat ? f.Definition.Weight - f.Points : f.Points, 1));
+            Math.Round(f.Points, 1));
 
     public static ReportDto ToDto(this CitizenReport r, bool includeNote) =>
         new(r.Id, r.Type.ToString(), ReportRules.For(r.Type).Layer.ToString(), Math.Round(r.Location.Latitude, 6), Math.Round(r.Location.Longitude, 6),
