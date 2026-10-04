@@ -39,6 +39,7 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
             services.AddSingleton(FakeData.Of(FakeData.Amenities));
             services.AddSingleton(FakeData.Of(FakeData.StreetLights));
             services.AddSingleton(FakeData.Of(FakeData.SafetyPlaces));
+            services.AddSingleton(FakeData.Of(FakeData.AccessFeatures));
         });
     }
 }

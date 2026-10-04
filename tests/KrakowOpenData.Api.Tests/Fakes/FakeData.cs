@@ -77,4 +77,9 @@ public static class FakeData
         new("osm-n3", SafetyPlaceKind.Pharmacy, "Apteka", new GeoPoint(50.0615, 19.9370), "24/7", 0, Source),
         new("osm-n4", SafetyPlaceKind.Police, "Komisariat I", new GeoPoint(50.0610, 19.9380), null, 0, Source)
     ];
+
+    /// <summary>Accessibility items parsed from the shared Overpass-shaped fixture (tests/Fixtures/osm-access-sample.json).</summary>
+    public static KrakowOpenData.Domain.Accessibility.AccessFeature[] AccessFeatures { get; } =
+        KrakowOpenData.Infrastructure.OpenStreetMap.AccessFeaturesParser.Parse(
+            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "osm-access-sample.json"))).ToArray();
 }
