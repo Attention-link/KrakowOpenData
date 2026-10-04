@@ -68,6 +68,13 @@ public class SafetyPlacesParserTests
     }
 
     [Fact]
+    public void An_empty_overpass_answer_is_an_error_so_it_never_replaces_good_data()
+    {
+        Assert.Throws<InvalidOperationException>(() => SafetyPlacesParser.ParseNonEmpty("{\"elements\":[]}"));
+        Assert.NotEmpty(SafetyPlacesParser.ParseNonEmpty(Json));
+    }
+
+    [Fact]
     public void The_query_asks_for_waterways_and_main_roads_with_geometry()
     {
         var query = SafetyPlacesParser.BuildQuery("Kraków");

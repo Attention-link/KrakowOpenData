@@ -120,6 +120,7 @@ public sealed class SafetyModelProvider(
         };
 
         // Rivers and main roads come with the places dataset; if it loaded without them (an old saved copy), say so.
+        if (placeList.Count == 0 && !gaps.Contains("places")) gaps.Add("places");   // loaded, but empty: parks, hospitals, rivers and roads are all missing
         if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.Waterway)) gaps.Add("rivers");
         if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.MajorRoad)) gaps.Add("mainRoads");
 
