@@ -131,6 +131,20 @@ public sealed class ReportService(ISafetyStore store, IClock clock)
         };
 
     /// <summary>
+    /// Device ids the Telegram bot uses for reports filed in a chat: this prefix plus a hash of the chat id. The hash is not secret
+    /// (a private chat id is the person's Telegram user id), so the public endpoints refuse these ids; otherwise anyone could act
+    /// as a bot user or link their own chat to that user's reports.
+    /// </summary>
+    public const string BotDevicePrefix = "tg-";
+
+    /// <summary>Throws for a device id reserved for the bot (see <see cref="BotDevicePrefix"/>). Call it on every public input.</summary>
+    public static void RejectBotDevice(string? deviceId)
+    {
+        if (deviceId?.TrimStart().StartsWith(BotDevicePrefix, StringComparison.OrdinalIgnoreCase) == true)
+            throw new SafetyValidationException("deviceId", "This deviceId is reserved.");
+    }
+
+    /// <summary>
     /// The device id is a random value made by the app. It is only used to count independent supporters and to
     /// rate-limit; it is shortened and never linked to a person.
     /// </summary>

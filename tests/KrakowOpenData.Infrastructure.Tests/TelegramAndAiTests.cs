@@ -284,7 +284,7 @@ public class TelegramAndAiTests
         var safety = new JsonFileSafetyStore(Microsoft.Extensions.Options.Options.Create(new SafetyOptions { Persist = false }), NullLogger<JsonFileSafetyStore>.Instance);
         var sink = new CapturingSink();
         var bot = new TelegramBotService(rig.Client, rig.Store, rig.Outbox, new ReportService(safety, _clock), safety, sink,
-            new FakeTriage(null), new FakeTranscriber(voice), _clock, rig.Options, NullLogger<TelegramBotService>.Instance);
+            new FakeTriage(null), new FakeTranscriber(voice), new VoiceQuota(_clock), _clock, rig.Options, NullLogger<TelegramBotService>.Instance);
         return (bot, safety, sink);
     }
 
@@ -329,6 +329,36 @@ public class TelegramAndAiTests
         Assert.NotNull(report.Triage);
         Assert.Equal(SafetyEventKind.ReportCreated, Assert.Single(sink.Events).Kind);
         Assert.StartsWith("Zgłoszenie przyjęte", MessageText(_http.Requests.Last().Body));
+    }
+
+    [Fact]
+    public async Task A_chat_over_the_voice_quota_is_asked_to_type_instead()
+    {
+        var rig = Build();
+        var (bot, _, _) = Bot(rig, new VoiceTranscript("Na Plantach nie świeci lampa", "pl", Triage()));
+        _http.Respond = (req, _) => req.RequestUri!.AbsolutePath.EndsWith("/getFile")
+            ? FakeHttp.Json(HttpStatusCode.OK, """{"ok":true,"result":{"file_path":"voice/1.oga","file_size":4}}""")
+            : req.RequestUri.AbsolutePath.Contains("/file/")
+                ? new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent([1, 2, 3, 4]) }
+                : FakeHttp.Json(HttpStatusCode.OK, """{"ok":true,"result":{"message_id":1}}""");
+
+        for (var i = 0; i < VoiceQuota.PerDevicePerHour; i++)
+            await bot.HandleUpdateAsync(Update("\"voice\":{\"file_id\":\"F1\",\"duration\":5}"));
+        var downloads = _http.Requests.Count(r => r.Url.Contains("/file/"));
+
+        await bot.HandleUpdateAsync(Update("\"voice\":{\"file_id\":\"F1\",\"duration\":5}"));
+        Assert.Equal(downloads, _http.Requests.Count(r => r.Url.Contains("/file/")));   // nothing downloaded or transcribed
+        Assert.Contains("Opisz problem tekstem", MessageText(_http.Requests.Last().Body));
+    }
+
+    [Fact]
+    public void Text_triage_has_its_own_hourly_limit_per_chat()
+    {
+        var quota = new VoiceQuota(_clock);
+        for (var i = 0; i < VoiceQuota.TriagePerDevicePerHour; i++) Assert.True(quota.TryTakeTriage("tg-chat-a"));
+        Assert.False(quota.TryTakeTriage("tg-chat-a"));
+        Assert.True(quota.TryTakeTriage("tg-chat-b"));
+        Assert.True(quota.TryTake("tg-chat-a"));   // voice is counted separately
     }
 
     [Fact]

@@ -150,6 +150,7 @@ public static class SafetyEndpoints
 
         g.MapPost("/reports", async (CreateReportRequest request, ReportService svc, ISafetyEventSink events, CancellationToken ct) =>
         {
+            ReportService.RejectBotDevice(request.DeviceId);
             var created = await svc.CreateAsync(request, ct);
             events.ReportFiled(created, request.DeviceId); // AI triage + Telegram (new report or a merged repeat); never blocks
             return Results.Created($"/api/safety/reports/{created.Id}", created);
@@ -161,7 +162,10 @@ public static class SafetyEndpoints
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         g.MapPost("/reports/{id}/confirm", async (string id, ConfirmReportRequest request, ReportService svc, CancellationToken ct) =>
-            await svc.ConfirmAsync(id, request.DeviceId, ct) is { } r ? Results.Ok(r) : Results.NotFound())
+        {
+            ReportService.RejectBotDevice(request.DeviceId);
+            return await svc.ConfirmAsync(id, request.DeviceId, ct) is { } r ? Results.Ok(r) : Results.NotFound();
+        })
             .WithName("ConfirmReport")
             .WithSummary("\"Still true\": adds the device as an independent supporter and keeps the report alive.")
             .Produces<ReportDto>()
@@ -172,6 +176,7 @@ public static class SafetyEndpoints
         {
             var point = new GeoPoint(lat, lon);
             if (!GridSpec.IsInArea(point)) return Results.ValidationProblem(Problem("lat,lon", "The location must be in or around Kraków."));
+            ReportService.RejectBotDevice(deviceId);
             return Results.Ok(await svc.ForPointAsync(point, deviceId, ct));
         })
             .WithName("GetAlertsForPoint")

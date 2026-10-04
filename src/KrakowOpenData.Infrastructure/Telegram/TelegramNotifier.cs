@@ -21,7 +21,7 @@ namespace KrakowOpenData.Infrastructure.Telegram;
 public sealed class TelegramNotifier(
     TelegramStore store, TelegramOutbox outbox, PresenceTracker presence, IClock clock, IOptions<TelegramOptions> options)
 {
-    public const string BotDevicePrefix = "tg-";
+    public const string BotDevicePrefix = ReportService.BotDevicePrefix;
 
     public bool Enabled => options.Value.IsConfigured;
 

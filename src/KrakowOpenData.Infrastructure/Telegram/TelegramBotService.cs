@@ -35,6 +35,7 @@ public sealed class TelegramBotService(
     ISafetyEventSink events,
     IReportTriage triage,
     IVoiceTranscriber transcriber,
+    VoiceQuota quota,
     IClock clock,
     IOptions<TelegramOptions> options,
     ILogger<TelegramBotService> logger) : BackgroundService
@@ -239,6 +240,13 @@ public sealed class TelegramBotService(
             return;
         }
 
+        // Same per-device limit as voice notes from the app, so one chat cannot use up the Workers AI free tier.
+        if (!quota.TryTake(DeviceIdFor(chatId)))
+        {
+            await ReplyAsync(chatId, TelegramMessages.VoiceLimited(), ct);
+            return;
+        }
+
         var fileId = voice.TryGetProperty("file_id", out var f) ? f.GetString() : null;
         var mime = voice.TryGetProperty("mime_type", out var m) ? m.GetString() ?? "audio/ogg" : "audio/ogg";
         VoiceTranscript? transcript = null;
@@ -272,7 +280,8 @@ public sealed class TelegramBotService(
 
     private async Task OnTextAsync(long chatId, string text, CancellationToken ct)
     {
-        var suggestion = triage.IsAvailable ? await triage.TriageAsync("Unknown", text, [], ct) : null;
+        // Over the quota the report still works: the resident just picks the category without an AI suggestion.
+        var suggestion = triage.IsAvailable && quota.TryTakeTriage(DeviceIdFor(chatId)) ? await triage.TriageAsync("Unknown", text, [], ct) : null;
         await StartDraftAsync(chatId, text, suggestion, heard: false, ct);
     }
 

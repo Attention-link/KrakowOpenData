@@ -707,6 +707,7 @@ export function mountResident(root) {
           h('li', { class: 'row' }, icon('sun'), h('span', null, t('welcome.heat'))),
           h('li', { class: 'row' }, icon('wave'), h('span', null, t('welcome.flood'))),
           h('li', { class: 'row' }, icon('wind'), h('span', null, t('welcome.air'))),
+          h('li', { class: 'row' }, h('span', { class: 'ico', 'aria-hidden': 'true' }, '♿'), h('span', null, t('welcome.access'))),
           h('li', { class: 'row' }, icon('flag'), h('span', null, t('welcome.report'))),
           h('li', { class: 'row' }, icon('offline'), h('span', null, t('welcome.offline')))),
         h('p', { class: 'banner info small' }, icon('info'), h('span', null, t('how.notCrime')))),

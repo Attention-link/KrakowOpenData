@@ -59,6 +59,20 @@ public class NotificationEndpointTests(ApiFactory factory) : IClassFixture<ApiFa
     }
 
     [Fact]
+    public async Task Device_ids_reserved_for_the_bot_are_refused_on_every_public_endpoint()
+    {
+        const string bot = "tg-0123456789abcdef";   // what TelegramBotService.DeviceIdFor makes for a chat
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync($"/api/safety/telegram/link?deviceId={bot}")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.PostAsJsonAsync("/api/safety/telegram/link", new TelegramLinkRequest(bot, null, null))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.DeleteAsync($"/api/safety/telegram/link?deviceId=TG-0123456789abcdef")).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest("DustCloud", 50.0301, 19.9502, null, bot))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest,
+            (await _client.PostAsJsonAsync("/api/safety/reports/rep-x/confirm", new ConfirmReportRequest(bot))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync($"/api/safety/alerts?lat=50.06&lon=19.94&deviceId={bot}")).StatusCode);
+    }
+
+    [Fact]
     public async Task Without_a_worker_voice_input_is_unavailable()
     {
         var audio = new ByteArrayContent([1, 2, 3]);

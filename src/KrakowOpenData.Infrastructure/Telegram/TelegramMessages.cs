@@ -161,6 +161,8 @@ public static class TelegramMessages
 
     public static Message VoiceTooLong() => new("Nagranie jest za długie. Wyślij wiadomość głosową do 60 sekund.");
 
+    public static Message VoiceLimited() => new("Wysłano już dużo nagrań w ostatniej godzinie. Opisz problem tekstem albo spróbuj później.");
+
     public static Message VoiceFailed() => new("Nie udało się rozpoznać nagrania. Spróbuj ponownie albo opisz problem tekstem.");
 
     public static Message NothingPending() => new("Najpierw opisz problem (tekstem albo głosem), potem wyślij lokalizację.", RemoveKeyboard());

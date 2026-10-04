@@ -22,8 +22,8 @@ public sealed class TelegramLinkService(TelegramStore store, TelegramOutbox outb
 
     public LinkCode? CreateCode(string deviceId, double? latitude, double? longitude)
     {
+        var device = CleanDevice(deviceId);   // bad input is a 400 whether or not Telegram is configured
         if (!Available) return null;
-        var device = CleanDevice(deviceId);
         GeoPoint? area = null;
         if (latitude is { } lat && longitude is { } lon && GridSpec.IsInArea(new GeoPoint(lat, lon)))
             area = new GeoPoint(Math.Round(lat, 3), Math.Round(lon, 3));
@@ -43,9 +43,10 @@ public sealed class TelegramLinkService(TelegramStore store, TelegramOutbox outb
         return true;
     }
 
-    /// <summary>Same rule as report device ids: 8–64 letters, digits or dashes.</summary>
+    /// <summary>Same rule as report device ids: 8–64 letters, digits or dashes, and never a bot id (only public endpoints call this).</summary>
     public static string CleanDevice(string? deviceId)
     {
+        ReportService.RejectBotDevice(deviceId);
         var value = deviceId?.Trim() ?? string.Empty;
         if (value.Length is < 8 or > 64 || value.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-'))
             throw new SafetyValidationException("deviceId", "deviceId must be 8–64 letters, digits or dashes.");

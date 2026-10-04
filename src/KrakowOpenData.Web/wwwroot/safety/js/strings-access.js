@@ -2,6 +2,9 @@
 // [en, pl, uk]; Polish is first-class (the API's own wording is Polish too). A missing Ukrainian entry falls back to English.
 export const accessStrings = {
   'acc.open': ['Accessibility', 'Dostępność', 'Доступність'],
+  'welcome.access': ['Accessibility: steps, kerbs, lifts and barriers on your way, for a wheelchair, a pram or limited mobility.',
+    'Dostępność: schody, krawężniki, windy i bariery na Twojej drodze – dla wózka, wózka dziecięcego i osób o ograniczonej mobilności.',
+    'Доступність: сходи, бордюри, ліфти та бар’єри на вашому шляху – для візка, дитячого візка й людей з обмеженою мобільністю.'],
   'acc.title': ['Accessibility: barriers and amenities', 'Dostępność: bariery i udogodnienia', 'Доступність: бар’єри та зручності'],
   'acc.homeHelp': ['Steps, kerbs, ramps, lifts, entrances, surfaces, accessible toilets and benches around a place, for a wheelchair, a pram or limited mobility.', 'Schody, krawężniki, rampy, windy, wejścia, nawierzchnia, dostępne toalety i ławki wokół miejsca — dla wózka inwalidzkiego, wózka dziecięcego lub ograniczonej mobilności.', 'Сходи, бордюри, пандуси, ліфти, входи, покриття, доступні туалети й лавки навколо місця — для візка, дитячої коляски чи обмеженої мобільності.'],
   'acc.intro': ['Every item shows what is mapped, where it comes from, when it was last edited in OpenStreetMap and how reliable it is. Missing data is shown grey as “no data” and never counts as accessible.', 'Każda pozycja pokazuje, co jest zmapowane, skąd pochodzi, kiedy ostatnio edytowano ją w OpenStreetMap i jak jest wiarygodna. Brak danych jest szary („brak danych”) i nigdy nie oznacza dostępności.', 'Кожен пункт показує, що нанесено на мапу, звідки дані, коли їх востаннє редагували в OpenStreetMap і наскільки вони надійні. Відсутні дані сірі («немає даних») і ніколи не означають доступність.'],
