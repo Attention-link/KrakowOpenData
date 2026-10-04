@@ -27,6 +27,8 @@ public static class UiText
         ["nav.safetyPlanner"] = Entry(en: "Planner dashboard", pl: "Panel planisty", uk: "Панель планувальника"),
         ["nav.catalog"] = Entry(en: "Available Open Data", pl: "Dostępne otwarte dane", uk: "Доступні відкриті дані"),
         ["nav.home"] = Entry(en: "Home", pl: "Strona główna", uk: "Головна"),
+        ["nav.menu"] = Entry(en: "Menu", pl: "Menu", uk: "Меню"),
+        ["nav.skip"] = Entry(en: "Skip to content", pl: "Przejdź do treści", uk: "Перейти до вмісту"),
         ["start.title"] = Entry(en: "Kompas Krakowa", pl: "Kompas Krakowa", uk: "Kompas Krakowa"),
         ["start.lede"] = Entry(en: "One place for open data about Kraków. Choose where to start.", pl: "Jedno miejsce na otwarte dane o Krakowie. Wybierz, od czego zacząć.", uk: "Єдине місце для відкритих даних про Краків. Оберіть, з чого почати."),
         ["start.catalog.title"] = Entry(en: "Available Open Data", pl: "Dostępne otwarte dane", uk: "Доступні відкриті дані"),

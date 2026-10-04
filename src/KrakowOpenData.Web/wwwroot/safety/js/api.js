@@ -147,3 +147,46 @@ export const geoReverse = (lat, lon) => request(`/api/geo/reverse?${q({ lat: lat
 /** mode: night | heat | both. Returns the fastest street route and, when clearly better, a safer / cooler one. */
 export const getRoutes = (from, to, mode) => request(`/api/safety/route?${q({ from: `${from[0]},${from[1]}`, to: `${to[0]},${to[1]}`, mode })}`, { timeout: 40000 });
 export const getMethod = () => request('/api/safety/method', { timeout: 30000 });
+
+// ── Optional server features: Telegram notifications, voice notes, AI explanations ──
+// Each one may be switched off on the server (503) or missing entirely; callers hide the feature then.
+export const getTelegramStatus = () => request(`/api/safety/telegram/link?${q({ deviceId: state.deviceId })}`, { timeout: 8000 });
+export const linkTelegram = (lat, lon) => request('/api/safety/telegram/link', { method: 'POST', body: { deviceId: state.deviceId, latitude: lat ?? null, longitude: lon ?? null } });
+export const unlinkTelegram = () => request(`/api/safety/telegram/link?${q({ deviceId: state.deviceId })}`, { method: 'DELETE' });
+
+/** Sends a recording (Blob) for speech to text. Own fetch: a failed transcription must not mark the whole API as down. */
+export async function postVoice(blob) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 40000);
+  try {
+    const res = await fetch(`${API_BASE}/api/safety/voice?${q({ deviceId: state.deviceId })}`, {
+      method: 'POST', headers: { 'Content-Type': (blob.type || 'audio/webm').split(';')[0] }, body: blob, signal: ctrl.signal
+    });
+    if (!res.ok) {
+      let problem = null;
+      try { problem = await res.json(); } catch { /* not JSON */ }
+      throw new ApiError(res.status, problem);
+    }
+    return await res.json();
+  } catch (e) {
+    if (e instanceof ApiError) throw e;
+    throw new NetworkError(e?.name === 'AbortError' ? 'timeout' : 'network');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Plain-language explanation from the AI Worker, which lives on the site itself at /ai/ (not under the API base). 8 s limit. */
+export async function aiExplain(body) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch('/ai/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal });
+    if (!res.ok) throw new ApiError(res.status, null);
+    const data = await res.json();
+    if (typeof data?.text !== 'string' || !data.text.trim()) throw new ApiError(502, null);
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}

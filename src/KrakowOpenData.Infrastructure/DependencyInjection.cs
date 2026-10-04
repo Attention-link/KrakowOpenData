@@ -22,6 +22,7 @@ using KrakowOpenData.Infrastructure.OpenDataPortal;
 using KrakowOpenData.Infrastructure.OpenStreetMap;
 using KrakowOpenData.Infrastructure.Options;
 using KrakowOpenData.Infrastructure.Repositories;
+using KrakowOpenData.Infrastructure.Telegram;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -141,6 +142,7 @@ public static class DependencyInjection
         services.AddSingleton<AgencyService>();
         services.AddSingleton<PlannerService>();
         services.AddSingleton<DemoDataService>();
+        services.AddSafetyNotifications(configuration); // events, Workers AI triage / voice, Telegram bot (all off without config)
 
         return services;
     }

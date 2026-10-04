@@ -32,5 +32,14 @@ export const plannerStringsV2 = {
   'cell.exposureLabel': ['Exposure (people affected, proxy)', 'Narażenie (liczba osób, przybliżenie)', 'Вразливість (кількість людей, оцінка)'],
   'kpi.cells': ['Squares scored', 'Ocenione kwadraty', 'Оцінені квадрати'],
   'cond.temp.title': ['Temperature', 'Temperatura', 'Температура'],
-  'cond.daylight.title': ['Daylight', 'Światło dzienne', 'Денне світло']
+  'cond.daylight.title': ['Daylight', 'Światło dzienne', 'Денне світло'],
+
+  // ── AI suggestion on a report (planner-ai.js) ──
+  'ai.suggestion': ['AI suggestion · unverified', 'Sugestia AI · niezweryfikowane', 'Пропозиція ШІ · неперевірено'],
+  'ai.disclaimer': ['Made by an AI model from the resident\'s note. Advice only: it does not change the score or the report.', 'Utworzone przez model AI na podstawie opisu mieszkańca. Tylko podpowiedź: nie zmienia wyniku ani zgłoszenia.', 'Створено моделлю ШІ з опису мешканця. Лише порада: не змінює оцінку чи звернення.'],
+  'ai.severity': ['Severity {n}/3', 'Ważność {n}/3', 'Важливість {n}/3'],
+  'ai.otherType': ['suggests: {type}', 'sugeruje: {type}', 'пропонує: {type}'],
+  'ai.duplicate': ['possible duplicate', 'możliwy duplikat', 'можливий дублікат'],
+  'ai.personal': ['may contain personal data', 'może zawierać dane osobowe', 'може містити персональні дані'],
+  'ai.abuse': ['possible abuse', 'możliwe nadużycie', 'можливе зловживання']
 };
