@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using KrakowOpenData.Web.Localization;
+using KrakowOpenData.Web.Navigation;
 
 namespace KrakowOpenData.Web.Tests;
 
@@ -25,12 +27,43 @@ public class SafetyLinkTests
         return links;
     }
 
+    [Theory]
+    [InlineData("/safety/index.html#/")]                // the resident app
+    [InlineData("/safety/index.html#/access")]          // Dostępność (Kraków bez barier)
+    [InlineData("/safety/index.html#/notifications")]   // Telegram alerts
+    [InlineData("/safety/index.html#/planner")]         // planner dashboard (staff)
+    [InlineData("/safety/index.html#/accessibility")]   // accessibility statement, in the footer of every page
+    public void The_site_menu_links_to_every_app_feature(string href) =>
+        Assert.Contains(SiteMenu.AllItems, i => i.Href == href);
+
     [Fact]
-    public void The_menu_links_to_the_resident_app_and_the_planner_dashboard()
+    public void Every_portal_page_is_in_the_site_menu_with_a_label_in_every_language()
     {
-        var links = LinksIntoTheSafetyApp();
-        Assert.Contains(links, l => l.Contains("href=\"/safety/index.html\""));
-        Assert.Contains(links, l => l.Contains("href=\"/safety/index.html#/planner\""));
+        foreach (var item in SiteMenu.AllItems)
+        {
+            Assert.StartsWith("/", item.Href);
+            foreach (var language in AppLanguages.All)
+                Assert.True(Translator.For(language).Has(item.LabelKey), $"{item.LabelKey} has no {language} text");
+        }
+    }
+
+    [Fact]
+    public void The_app_gets_the_same_menu_in_every_language()
+    {
+        var menu = SiteMenu.ForApp();
+        Assert.Equal(AppLanguages.All.Select(l => l.Code()).Order(), menu.Keys.Order());
+        var json = System.Text.Json.JsonSerializer.Serialize(menu["pl"],
+            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+        Assert.Contains("Dostępność – Kraków bez barier", json);
+        Assert.Contains("/safety/index.html#/notifications", json);
+    }
+
+    [Fact]
+    public void The_side_menu_is_rendered_from_the_site_menu_and_opens_app_links_as_pages()
+    {
+        var nav = File.ReadAllText(Path.Combine(ComponentsFolder(), "Layout", "NavMenu.razor"));
+        Assert.Contains("SiteMenu.Groups", nav);
+        Assert.Matches("<a [^>]*href=\"@item.Href\" target=\"_top\"", nav);
     }
 
     [Fact]

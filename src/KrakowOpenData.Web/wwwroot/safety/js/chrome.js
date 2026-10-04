@@ -6,6 +6,7 @@ import { state, set, on, isOffline } from './state.js';
 import { t, setLang, LANGS, getLang } from './i18n.js';
 import { kvGet, kvSet, kvClearAll, ls } from './db.js';
 import { ping, postReport, ApiError, DOCS_URL } from './api.js';
+import { openSiteMenu } from './site-menu.js';
 
 // ── Connection monitoring ────────────────────────────────────────────────────
 let pinger;
@@ -111,6 +112,9 @@ export function langSelect() {
 /** The top bar: brand, connection status, language. (There is no settings screen: everything a user needs is on the page.) */
 export function topbar({ subtitle, right = [], pill } = {}) {
   return h('header', { class: 'topbar' },
+    // The site's one menu (site-menu.js): the same entries as the portal's side menu, on every page of this app.
+    h('button', { class: 'btn sm quiet', type: 'button', 'aria-haspopup': 'dialog', 'aria-label': t('nav.menu'), onclick: openSiteMenu },
+      icon('menu', 'sm'), h('span', { class: 'hide-sm' }, t('nav.menu'))),
     h('a', { class: 'brand', href: '#/', 'aria-label': t('app.title') },
       h('img', { src: 'icon.svg', alt: '' }),
       h('div', { class: 'truncate' }, h('b', null, t('app.title')), h('span', null, subtitle || t('app.subtitle')))),
