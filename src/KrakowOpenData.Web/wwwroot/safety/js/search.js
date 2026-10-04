@@ -62,12 +62,20 @@ export function searchBox({ label, placeholder, near = null, onPick, filters = t
     onPick?.(r);
   }
 
+  // 300 ms after the last keystroke, one search; a newer one cancels the request still running, so a busy server
+  // (an event with hundreds of phones) only works on what the user is typing now.
+  let inflight = null;
   const run = debounce(async () => {
     const text = input.value.trim();
     const mine = ++token;
+    inflight?.abort();
+    inflight = null;
     if (text.length < 2) { results = []; paintList(); status.textContent = ''; return; }
     status.textContent = t('search.searching');
-    const [addr, stops] = await Promise.allSettled([geoSearch(text, near?.()), searchStops(text)]);
+    const ctrl = new AbortController();
+    inflight = ctrl;
+    const [addr, stops] = await Promise.allSettled([geoSearch(text, near?.(), ctrl.signal), searchStops(text, ctrl.signal)]);
+    if (inflight === ctrl) inflight = null;
     if (mine !== token) return;
     results = [];
     if (addr.status === 'fulfilled') results.push(...addr.value.map((a) => ({ kind: 'address', label: a.label, lat: a.latitude, lon: a.longitude, detail: a.postcode ? `${a.postcode}` : null })));
