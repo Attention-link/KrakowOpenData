@@ -78,7 +78,7 @@ export const accessStrings = {
 
   // List
   'acc.list': ['List of barriers and amenities', 'Lista barier i udogodnień', 'Список бар’єрів і зручностей'],
-  'acc.listCaption': ['{n} items, nearest first ({shown} shown). The same items as on the map.', '{n} pozycji, najbliższe najpierw (pokazano {shown}). Te same pozycje co na mapie.', '{n} пунктів, найближчі першими (показано {shown}). Ті самі, що й на мапі.'],
+  'acc.listCaption': ['{n} items: barriers first, then limited, no data and accessible, nearest first in each ({shown} shown). The same items as on the map.', '{n} pozycji: najpierw bariery, potem ograniczone, bez danych i dostępne, w każdej grupie najbliższe najpierw (pokazano {shown}). Te same pozycje co na mapie.', '{n} пунктів: спочатку бар’єри, далі обмежені, без даних і доступні, у кожній групі найближчі першими (показано {shown}). Ті самі, що й на мапі.'],
   'acc.col.item': ['Item', 'Obiekt', 'Об’єкт'],
   'acc.col.status': ['Accessible for my profile', 'Dostępne dla mojego profilu', 'Доступно для мого профілю'],
   'acc.col.facts': ['Details', 'Szczegóły', 'Деталі'],

@@ -17,7 +17,9 @@ public class AccessEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.NotNull(r);
         Assert.Equal("wheelchair", r.Profile);
         Assert.NotEmpty(r.Items);
-        Assert.Equal(r.Items.OrderBy(i => i.DistanceMeters).Select(i => i.Id), r.Items.Select(i => i.Id));
+        // Barriers first (no, limited, no data, yes), nearest first within each group.
+        static int Rank(string status) => status switch { "no" => 0, "limited" => 1, "unknown" => 2, _ => 3 };
+        Assert.Equal(r.Items.OrderBy(i => Rank(i.Status)).ThenBy(i => i.DistanceMeters).Select(i => i.Id), r.Items.Select(i => i.Id));
         Assert.All(r.Items, i =>
         {
             Assert.Equal("OpenStreetMap", i.Source);

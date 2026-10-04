@@ -82,6 +82,14 @@ public sealed class AccessService(
         return set;
     }
 
+    private static int ListRank(AccessStatus s) => s switch
+    {
+        AccessStatus.No => 0,
+        AccessStatus.Limited => 1,
+        AccessStatus.Unknown => 2,
+        _ => 3
+    };
+
     public async Task<AccessNearbyDto> NearAsync(GeoPoint point, double radius, AccessProfile profile, IReadOnlySet<AccessKind>? kinds, int limit, CancellationToken ct = default)
     {
         if (radius <= 0 || radius > MaxRadiusMeters) throw new SafetyValidationException("radius", $"radius must be between 1 and {MaxRadiusMeters:0} metres.");
@@ -103,7 +111,8 @@ public sealed class AccessService(
         }
 
         var filtered = kinds is null ? listed : listed.Where(x => kinds.Contains(x.F.Kind)).ToList();
-        var items = filtered.OrderBy(x => x.D).Take(limit).Select(x => Item(x.F, x.S, now, x.D, null)).ToList();
+        // Barriers first, so they are not buried under dozens of benches: no, limited, no data, yes; nearest first within each.
+        var items = filtered.OrderBy(x => ListRank(x.S)).ThenBy(x => x.D).Take(limit).Select(x => Item(x.F, x.S, now, x.D, null)).ToList();
 
         var counts = filtered.GroupBy(x => x.F.Kind)
             .OrderBy(g => g.Key)

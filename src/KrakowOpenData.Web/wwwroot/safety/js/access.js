@@ -261,6 +261,9 @@ export function renderAccessView(ctx, body) {
     ctx.accessCircle?.remove();
     ctx.accessCircle = L.circle(as.center, { radius: as.radius, color: '#17171a', weight: 1.5, opacity: 0.7, dashArray: '6 6', fill: false, interactive: false }).addTo(ctx.map);
     ctx.info.show({ lat: as.center[0], lon: as.center[1], radiusMeters: as.radius });
+    // Bring the searched circle into view (the city overview piles every symbol on one spot).
+    const bounds = ctx.accessCircle.getBounds();
+    if (!ctx.map.getBounds().contains(bounds) || ctx.map.getZoom() < 15) ctx.map.fitBounds(bounds, { padding: [24, 24], maxZoom: 18 });
   }
 
   function drawMap() {
