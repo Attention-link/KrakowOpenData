@@ -151,6 +151,25 @@ public static class SafetyEndpoints
 
         p.MapGet("/ping", () => Results.Ok(new { ok = true })).WithName("PlannerPing").WithSummary("Checks the planner key.");
 
+        p.MapGet("/weights", async (WeightService svc, CancellationToken ct) => Results.Ok(await svc.GetAsync(ct)))
+            .WithName("GetFactorWeights")
+            .WithSummary("The factor weights in use for every layer, with the default, what each factor measures and why it is weighted that way.")
+            .Produces<WeightsDto>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        p.MapPut("/weights", async (SetWeightsRequest request, WeightService svc, CancellationToken ct) => Results.Ok(await svc.SetAsync(request, ct)))
+            .WithName("SetFactorWeights")
+            .WithSummary("Sets factor weights (factor key to any non-negative number). Each layer is scaled to add up to 100. Changes every score for everyone.")
+            .Produces<WeightsDto>()
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
+        p.MapDelete("/weights", async (WeightService svc, CancellationToken ct) => Results.Ok(await svc.ResetAsync(ct)))
+            .WithName("ResetFactorWeights")
+            .WithSummary("Goes back to the default weights.")
+            .Produces<WeightsDto>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
+
         p.MapGet("/summary", async (string? @event, int? top, PlannerService svc, CancellationToken ct) =>
             Results.Ok(await svc.GetSummaryAsync(ScoreService.ParseEvent(@event), top ?? PlannerService.DefaultTop, ct)))
             .WithName("GetPlannerSummary")

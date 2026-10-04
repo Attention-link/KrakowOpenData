@@ -137,7 +137,8 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
                 text.Why,
                 text.Source,
                 model.FeatureCount(def.Key),
-                text.Caveat);
+                text.Caveat,
+                SafetyModel.FactorsOf(def.Layer).First(d => d.Key == def.Key).Weight);
         }).ToList();
 
         var heat = new LayerMethodDto(
@@ -152,7 +153,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
                 new BandInfoDto("Weak", 45, 65, "High: important relief is missing or far."),
                 new BandInfoDto("Critical", 65, 100, "Very high: little or no relief nearby. A hot day here is hard to cope with.")
             ],
-            Factors(SafetyModel.HeatFactors));
+            Factors(model.Definitions(Layer.Heat)));
 
         var safety = new LayerMethodDto(
             "Safety",
@@ -166,7 +167,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
                 new BandInfoDto("Weak", 35, 55, "Poor: lighting or night transport is thin."),
                 new BandInfoDto("Critical", 0, 35, "Very poor: little light, no night transport or help nearby.")
             ],
-            Factors(SafetyModel.SafetyFactors));
+            Factors(model.Definitions(Layer.Safety)));
 
         var flood = new LayerMethodDto(
             "Flood",
@@ -180,7 +181,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
                 new BandInfoDto("Weak", 35, 55, "Exposed: near a river, or help and exits are far."),
                 new BandInfoDto("Critical", 0, 35, "Very exposed: on or next to the water, with little help or no way out nearby.")
             ],
-            Factors(SafetyModel.FloodFactors));
+            Factors(model.Definitions(Layer.Flood)));
 
         var air = new LayerMethodDto(
             "Air",
@@ -194,7 +195,7 @@ public sealed class MethodService(SafetyModelProvider models, ConditionsService 
                 new BandInfoDto("Weak", 35, 55, "Exposed: close to main roads with little green."),
                 new BandInfoDto("Critical", 0, 35, "Very exposed: next to heavy traffic with no green and no refuge nearby.")
             ],
-            Factors(SafetyModel.AirFactors));
+            Factors(model.Definitions(Layer.Air)));
 
         var kpis = new List<KpiInfoDto>
         {

@@ -178,6 +178,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     [InlineData("/api/safety/planner/alerts")]
     [InlineData("/api/safety/planner/agencies")]
     [InlineData("/api/safety/planner/dispatches")]
+    [InlineData("/api/safety/planner/weights")]
     public async Task Planner_endpoints_need_the_key(string url)
     {
         Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync(url)).StatusCode);
@@ -189,6 +190,28 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(Planner(HttpMethod.Get, url))).StatusCode);
     }
 
+
+    [Fact]
+    public async Task A_planner_can_change_and_reset_factor_weights()
+    {
+        var unauthorised = await _client.PutAsJsonAsync("/api/safety/planner/weights", new SetWeightsRequest(new Dictionary<string, double> { ["lighting"] = 10 }));
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorised.StatusCode);
+
+        var set = await Send<WeightsDto>(Planner(HttpMethod.Put, "/api/safety/planner/weights",
+            new SetWeightsRequest(new Dictionary<string, double> { ["lighting"] = 1, ["nightTransit"] = 1, ["openPlaces"] = 1, ["aed"] = 1 })));
+        Assert.True(set!.Customized);
+        Assert.All(set.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
+        Assert.Equal(25, set.Layers.Single(l => l.Layer == "Safety").Factors.Single(f => f.Key == "aed").Weight);
+
+        var method = await _client.GetFromJsonAsync<MethodDto>("/api/safety/method");
+        Assert.Equal(25, method!.Layers.Single(l => l.Layer == "Safety").Factors.Single(f => f.Key == "lighting").Weight);
+
+        var bad = await _client.SendAsync(Planner(HttpMethod.Put, "/api/safety/planner/weights", new SetWeightsRequest(new Dictionary<string, double> { ["nope"] = 1 })));
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+
+        var reset = await Send<WeightsDto>(Planner(HttpMethod.Delete, "/api/safety/planner/weights"));
+        Assert.False(reset!.Customized);
+    }
     [Fact]
     public async Task Writes_are_protected_too()
     {

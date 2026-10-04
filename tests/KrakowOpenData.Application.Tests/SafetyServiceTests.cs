@@ -25,6 +25,9 @@ public sealed class InMemorySafetyStore : ISafetyStore
     public Task SaveAlertAsync(PlannerAlert alert, CancellationToken ct = default) { _alerts[alert.Id] = alert; return Task.CompletedTask; }
     public Task<IReadOnlyList<AgencyDispatch>> ListDispatchesAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<AgencyDispatch>>(_dispatches.ToList());
     public Task AddDispatchAsync(AgencyDispatch dispatch, CancellationToken ct = default) { _dispatches.Add(dispatch); return Task.CompletedTask; }
+    private IReadOnlyDictionary<string, double> _weights = new Dictionary<string, double>();
+    public Task<IReadOnlyDictionary<string, double>> GetWeightOverridesAsync(CancellationToken ct = default) => Task.FromResult(_weights);
+    public Task SaveWeightOverridesAsync(IReadOnlyDictionary<string, double> weights, CancellationToken ct = default) { _weights = new Dictionary<string, double>(weights); return Task.CompletedTask; }
 }
 
 public sealed class ThrowingRepository<T> : IReadRepository<T> where T : class, IEntity
@@ -90,7 +93,7 @@ public sealed class SafetyWorld
     public static GeoPoint Offset(GeoPoint p, double north, double east) =>
         new(p.Latitude + north / 111_320.0, p.Longitude + east / (111_320.0 * Math.Cos(50.06 * Math.PI / 180)));
 
-    public SafetyModelProvider Models() => new(Lights, Amenities, PlacesForModel, Stops, Schedule, Clock);
+    public SafetyModelProvider Models() => new(Lights, Amenities, PlacesForModel, Stops, Schedule, Clock, Store);
 
     public ConditionsService Conditions() => new(new ClimateCrisisQueryService(Hydro, Warnings, Clock), new EnvironmentQueryService(Weather, Air), Clock);
 

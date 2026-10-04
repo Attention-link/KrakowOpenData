@@ -25,6 +25,12 @@ public interface ISafetyStore
     Task<IReadOnlyList<AgencyDispatch>> ListDispatchesAsync(CancellationToken ct = default);
 
     Task AddDispatchAsync(AgencyDispatch dispatch, CancellationToken ct = default);
+
+    /// <summary>The factor weights a planner has set (factor key → weight), or an empty map when the defaults are in use.</summary>
+    Task<IReadOnlyDictionary<string, double>> GetWeightOverridesAsync(CancellationToken ct = default);
+
+    /// <summary>Replaces the saved factor weights; an empty map goes back to the defaults.</summary>
+    Task SaveWeightOverridesAsync(IReadOnlyDictionary<string, double> weights, CancellationToken ct = default);
 }
 
 /// <summary>

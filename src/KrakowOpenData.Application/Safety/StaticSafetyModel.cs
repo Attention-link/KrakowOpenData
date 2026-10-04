@@ -49,14 +49,22 @@ public sealed class StaticSafetyModel
     private readonly IReadOnlyDictionary<(int Row, int Col), int> _lamps;
     private readonly IReadOnlyDictionary<(int Row, int Col), int> _stops;
     private readonly Dictionary<string, PlaceMeasure> _cellsById;
+    private readonly IReadOnlyDictionary<Layer, IReadOnlyList<FactorDefinition>> _definitions;
+
+    private static readonly Layer[] Layers = [Layer.Heat, Layer.Safety, Layer.Flood, Layer.Air];
+
+    /// <summary>The factors of a layer with the weights this model was built with (the defaults, or what a planner set).</summary>
+    public IReadOnlyList<FactorDefinition> Definitions(Layer layer) => _definitions[layer];
 
     public StaticSafetyModel(
         IReadOnlyDictionary<string, IReadOnlyList<Feature>> featuresByFactor,
         IReadOnlyDictionary<(int Row, int Col), int> lampsPerCell,
         IReadOnlyDictionary<(int Row, int Col), int> stopsPerCell,
         IReadOnlyList<string> dataGaps,
-        DateTimeOffset builtAt)
+        DateTimeOffset builtAt,
+        IReadOnlyDictionary<Layer, IReadOnlyList<FactorDefinition>>? definitions = null)
     {
+        _definitions = definitions ?? Layers.ToDictionary(l => l, SafetyModel.FactorsOf);
         _features = featuresByFactor;
         _lamps = lampsPerCell;
         _stops = stopsPerCell;
@@ -130,10 +138,10 @@ public sealed class StaticSafetyModel
             Lamps3x3 = lamps,
             Stops3x3 = stops,
             Exposure = SafetyModel.Exposure(lamps, stops),
-            Heat = SafetyModel.HeatFactors.Select(Score).ToList(),
-            Safety = SafetyModel.SafetyFactors.Select(Score).ToList(),
-            Flood = SafetyModel.FloodFactors.Select(Score).ToList(),
-            Air = SafetyModel.AirFactors.Select(Score).ToList()
+            Heat = Definitions(Layer.Heat).Select(Score).ToList(),
+            Safety = Definitions(Layer.Safety).Select(Score).ToList(),
+            Flood = Definitions(Layer.Flood).Select(Score).ToList(),
+            Air = Definitions(Layer.Air).Select(Score).ToList()
         };
     }
 

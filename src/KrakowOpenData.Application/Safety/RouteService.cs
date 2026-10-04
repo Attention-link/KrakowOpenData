@@ -1,4 +1,4 @@
-﻿using KrakowOpenData.Application.Abstractions;
+using KrakowOpenData.Application.Abstractions;
 using KrakowOpenData.Contracts;
 using KrakowOpenData.Domain.Common;
 
@@ -23,6 +23,24 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
     public const double MinGain = 3;
     public const double MaxExtraShare = 0.30;
     public const double MinExtraMeters = 300;
+
+    /// <summary>
+    /// When is the fastest route "not that unsafe"? When, in the mode's goodness (heat is turned around), its average is at least
+    /// <see cref="AcceptableAverage"/> AND its weakest stretch is at least <see cref="AcceptableWorst"/> (that is, no stretch is in the Weak
+    /// band's lower half or worse). Then a small, nearby improvement is all that is offered.
+    /// </summary>
+    public const double AcceptableAverage = 65;
+
+    public const double AcceptableWorst = 45;
+
+    /// <summary>
+    /// When the fastest route is NOT acceptable, safety wins over distance: the search widens (more and farther via points) and a
+    /// detour of up to its own length again (at least <see cref="MinExtraMeters"/>, at most <see cref="WideMaxExtraMeters"/>) is allowed.
+    /// </summary>
+    public const double WideMaxExtraShare = 1.0;
+
+    public const double WideMaxExtraMeters = 3000;
+    public const double WideMinExtraMeters = 1000;
 
     public async Task<RoutesDto> GetRoutesAsync(GeoPoint from, GeoPoint to, PlanningEvent mode, CancellationToken ct = default)
     {
@@ -52,7 +70,25 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
         foreach (var path in candidates) scored.Add((path, await DescribeAsync("candidate", path, mode, ct)));
 
         var fastest = scored.MinBy(c => c.Path.DistanceMeters);   // shortest walk = fastest at a constant walking speed
-        var limit = fastest.Path.DistanceMeters + Math.Max(MinExtraMeters, fastest.Path.DistanceMeters * MaxExtraShare);
+
+        // Is the fastest route good enough? If not, safety matters more than distance: look farther and allow a longer detour.
+        var acceptable = IsAcceptable(fastest.Option, mode);
+        var widened = false;
+        if (!acceptable && straight > 150)
+        {
+            widened = true;
+            var wide = await Task.WhenAll(WideViaPoints(from, to, straight).Select(v => TryRouteAsync([from, v, to], ct)));
+            foreach (var path in wide.SelectMany(p => p).OrderBy(p => p.DistanceMeters))
+            {
+                if (scored.Any(s => Math.Abs(s.Path.DistanceMeters - path.DistanceMeters) < 25)) continue;
+                scored.Add((path, await DescribeAsync("candidate", path, mode, ct)));
+            }
+        }
+
+        var extra = widened
+            ? Math.Clamp(Math.Max(WideMinExtraMeters, fastest.Path.DistanceMeters * WideMaxExtraShare), MinExtraMeters, WideMaxExtraMeters)
+            : Math.Max(MinExtraMeters, fastest.Path.DistanceMeters * MaxExtraShare);
+        var limit = fastest.Path.DistanceMeters + extra;
         var best = scored
             .Where(c => !ReferenceEquals(c.Path, fastest.Path) && c.Path.DistanceMeters <= limit)
             .OrderByDescending(c => Objective(c.Option, mode))
@@ -75,9 +111,26 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
             hasBetter ? Math.Round(betterOption!.LengthMeters - fastestOption.LengthMeters) : 0,
             hasBetter ? betterOption!.WalkingMinutes - fastestOption.WalkingMinutes : 0,
             hasBetter
-                ? "The route is longer but scores better on average along the way."
-                : "No street route nearby scores clearly better, so the fastest route is also the best option.");
+                ? (widened
+                    ? "The fastest route scores poorly here, so a safer route was searched for farther away. It is longer, but it scores better along the way."
+                    : "The route is longer but scores better on average along the way.")
+                : (widened
+                    ? "The fastest route scores poorly and no street route within reach is clearly better. Take extra care or consider another way to travel."
+                    : "No street route nearby scores clearly better, so the fastest route is also the best option."),
+            widened,
+            acceptable);
     }
+
+    /// <summary>True when the route is good enough that only a modest, nearby improvement is worth offering (see <see cref="AcceptableAverage"/>).</summary>
+    public static bool IsAcceptable(RouteOptionDto route, PlanningEvent mode) =>
+        Goodness(route.Average, mode) >= AcceptableAverage && Goodness(route.Worst, mode) >= AcceptableWorst;
+
+    /// <summary>
+    /// Via points for the wide search: left and right of the middle of the straight line at 50 %, 80 % and 120 % of its length
+    /// (the offset is limited to 120 m–2.5 km), so a detour can swing well away from a poor area.
+    /// </summary>
+    public static IReadOnlyList<GeoPoint> WideViaPoints(GeoPoint from, GeoPoint to, double straightMeters) =>
+        ViaPointsAt(from, to, straightMeters, [0.5, 0.8, 1.2], 2500);
 
     public static string BetterKind(PlanningEvent mode) => mode switch
     {
@@ -121,7 +174,10 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
     }
 
     /// <summary>Four points to bend the route through: left and right of the middle of the straight line, at 15 % and 30 % of its length.</summary>
-    public static IReadOnlyList<GeoPoint> ViaPoints(GeoPoint from, GeoPoint to, double straightMeters)
+    public static IReadOnlyList<GeoPoint> ViaPoints(GeoPoint from, GeoPoint to, double straightMeters) =>
+        ViaPointsAt(from, to, straightMeters, [0.15, 0.30], 900);
+
+    private static IReadOnlyList<GeoPoint> ViaPointsAt(GeoPoint from, GeoPoint to, double straightMeters, double[] shares, double maxOffset)
     {
         var mid = new GeoPoint((from.Latitude + to.Latitude) / 2, (from.Longitude + to.Longitude) / 2);
         // Perpendicular direction in metres (x east, y north), then back to degrees.
@@ -135,9 +191,9 @@ public sealed class RouteService(ScoreService scores, IWalkingRouter router)
         var py = dx / len;
 
         var result = new List<GeoPoint>();
-        foreach (var share in new[] { 0.15, 0.30 })
+        foreach (var share in shares)
         {
-            var offset = Math.Clamp(straightMeters * share, 120, 900);
+            var offset = Math.Clamp(straightMeters * share, 120, maxOffset);
             foreach (var side in new[] { 1, -1 })
                 result.Add(new GeoPoint(mid.Latitude + side * py * offset / mLat, mid.Longitude + side * px * offset / mLon));
         }

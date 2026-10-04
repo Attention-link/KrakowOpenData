@@ -278,7 +278,9 @@ public sealed record RoutesDto(
     double ScoreGain,
     double ExtraMeters,
     int ExtraMinutes,
-    string Note);
+    string Note,
+    bool Widened = false,
+    bool FastestIsAcceptable = true);
 
 // ── How the scores are built (documentation served by the API, used for tooltips, legends and the planner) ──
 public sealed record BandInfoDto(string Band, double From, double To, string Meaning);
@@ -294,7 +296,21 @@ public sealed record FactorInfoDto(
     string WhyWeighted,
     string Source,
     int MappedCount,
-    string? DataCaveat);
+    string? DataCaveat,
+    double? DefaultWeight = null);
+
+// ── Factor weights (planner) ─────────────────────────────────────────────────
+/// <param name="Weight">The weight in use (points out of 100 in its layer).</param>
+/// <param name="DefaultWeight">The weight the model ships with.</param>
+/// <param name="Why">Why this factor carries weight at all, and why the default is what it is.</param>
+public sealed record FactorWeightDto(string Key, string Label, double Weight, double DefaultWeight, string Measures, string Why, string Source, string? Caveat);
+
+public sealed record LayerWeightsDto(string Layer, string Title, bool Customized, IReadOnlyList<FactorWeightDto> Factors);
+
+public sealed record WeightsDto(IReadOnlyList<LayerWeightsDto> Layers, bool Customized);
+
+/// <summary>Weights by factor key. Any non-negative numbers: each layer is scaled so its weights add up to 100.</summary>
+public sealed record SetWeightsRequest(IReadOnlyDictionary<string, double> Weights);
 
 public sealed record LayerMethodDto(
     string Layer,
