@@ -67,7 +67,10 @@ export function telegramCard() {
   async function disconnect() {
     try {
       await unlinkTelegram();
-    } catch { /* already unlinked */ }
+    } catch (e) {
+      // 404 means it was already unlinked; anything else did not unlink, so say so instead of "unlinked".
+      if (e?.status !== 404) { toast(errorText(e, t), { error: true }); return; }
+    }
     statusCache = null;
     toast(t('tg.unlinked'));
     showOff();

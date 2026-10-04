@@ -31,14 +31,17 @@ export interface Env {
   ALLOWED_ORIGIN?: string;
 }
 
-const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
+// Triage needs JSON mode (response_format), which only some models support: llama-3.1-8b-instruct does, the -fast variant
+// does not (developers.cloudflare.com/workers-ai/features/json-mode). Explain is plain text, so the cheaper -fast model is fine.
+const DEFAULT_MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const DEFAULT_EXPLAIN_MODEL = '@cf/meta/llama-3.1-8b-instruct-fast';
 const DEFAULT_WHISPER = '@cf/openai/whisper-large-v3-turbo';
 const DEFAULT_WHISPER_FALLBACK = '@cf/openai/whisper';
 const CACHE_TTL = 24 * 60 * 60;
 
 const models = (env: Env) => ({
   triage: env.MODEL || DEFAULT_MODEL,
-  explain: env.MODEL_EXPLAIN || env.MODEL || DEFAULT_MODEL,
+  explain: env.MODEL_EXPLAIN || DEFAULT_EXPLAIN_MODEL,
   whisper: env.WHISPER_MODEL || DEFAULT_WHISPER,
   whisperFallback: env.WHISPER_FALLBACK || DEFAULT_WHISPER_FALLBACK
 });
@@ -132,7 +135,9 @@ async function transcribe(env: Env, audio: Uint8Array): Promise<{ text: string; 
   };
   try {
     return read(await env.AI.run(m.whisper, { audio: toBase64(audio), task: 'transcribe', vad_filter: true }));
-  } catch {
+  } catch (e) {
+    // Bad audio fails on both models: only fall back when the model itself failed, so a bad file costs one call, not two.
+    if (/invalid|input|decode|format/i.test(String((e as Error)?.message ?? e))) throw new HttpError(422, 'The recording could not be read');
     // The older Whisper takes the bytes as an array of numbers.
     return read(await env.AI.run(m.whisperFallback, { audio: [...audio] }));
   }
@@ -147,6 +152,12 @@ async function handle(request: Request, env: Env): Promise<Response> {
   if (request.method !== 'POST') return json({ error: 'Not found' }, 404, c);
 
   if (route === '/explain') {
+    // Public, so keep other sites from spending our free tier through their visitors' browsers: JSON only (a cross-site
+    // JSON POST needs a CORS preflight, which only our own origin passes) and, when the browser says, same-origin only.
+    const type = (request.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+    if (type !== 'application/json') return json({ error: 'Send application/json' }, 415, c);
+    const site = request.headers.get('sec-fetch-site');
+    if (site && site !== 'same-origin' && site !== 'none') return json({ error: 'Forbidden' }, 403, c);
     const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
     if (env.LIMITER && !(await env.LIMITER.limit({ key: `explain:${ip}` })).success) return json({ error: 'Too many requests' }, 429, { ...c, 'retry-after': '60' });
     const input = validateExplain(await readJson(request));

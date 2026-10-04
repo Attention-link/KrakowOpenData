@@ -12,12 +12,12 @@ routes = [
 [ai]
 binding = "AI"
 
-# Public /ai/explain: 20 requests a minute per visitor IP (keyed calls from the API are not limited here).
+# Public /ai/explain: 6 requests a minute per visitor IP (keyed calls from the API are not limited here).
 [[ratelimits]]
 name = "LIMITER"
 namespace_id = "1001"
   [ratelimits.simple]
-  limit = 20
+  limit = 6
   period = 60
 
 # Optional 24 h cache of triage / explain answers (saves neurons). Create it and paste the id, then uncomment:
@@ -27,10 +27,10 @@ namespace_id = "1001"
 # id = "<id printed by the command above>"
 
 [vars]
-# Cheap model for triage (free tier: 10,000 neurons a day). JSON mode is supported on it.
-MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
-# Optional bigger model for /explain only, e.g. "@cf/meta/llama-3.3-70b-instruct-fp8-fast" (about 6x the neurons). Empty = MODEL.
-MODEL_EXPLAIN = ""
+# Triage model: must support JSON mode (response_format); the "-fast" variant does not. Free tier: 10,000 neurons a day.
+MODEL = "@cf/meta/llama-3.1-8b-instruct"
+# /explain is plain text, so the cheaper "-fast" model is enough. A bigger one, e.g. "@cf/meta/llama-3.3-70b-instruct-fp8-fast", costs about 6x.
+MODEL_EXPLAIN = "@cf/meta/llama-3.1-8b-instruct-fast"
 WHISPER_MODEL = "@cf/openai/whisper-large-v3-turbo"
 WHISPER_FALLBACK = "@cf/openai/whisper"
 ALLOWED_ORIGIN = "https://opendata.al.mt"
