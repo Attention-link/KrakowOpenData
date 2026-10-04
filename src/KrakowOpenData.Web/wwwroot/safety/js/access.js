@@ -82,8 +82,9 @@ export function factLabel(f) {
 
 export function factText(f) {
   if (f.value === 'unknown') return t('acc.status.unknown');
-  if (getLang() === 'pl') return f.text;
   const tr = (key) => { const s = t(key); return s === key ? null : s; };
+  if (f.key === 'category') return tr(`acc.cat.${f.value}`) || String(f.value).replace(/_/g, ' ');
+  if (getLang() === 'pl') return f.text;
   if (YESNO_KEYS.has(f.key)) return tr(`acc.yn.${f.value}`) || f.value;
   if (f.key === 'kerb') return tr(`acc.kerb.${f.value}`) || f.value;
   if (f.key === 'ramp') return tr(`acc.ramp.${f.value}`) || f.value;
