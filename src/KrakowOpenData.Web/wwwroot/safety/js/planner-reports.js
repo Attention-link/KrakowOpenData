@@ -2,13 +2,13 @@
 
 import { h, icon, clear, toast, timeAgo } from './util.js';
 import { t, getLang } from './i18n.js';
-import { P, pOn, loadReports, reportItem, staleBanner, openCellDrawer, requireOnline, dataChanged, openAlertDialog } from './planner-common.js';
-import { seedDemo, errorText } from './api.js';
+import { P, pOn, reportItem, staleBanner, openCellDrawer, requireOnline, dataChanged, openAlertDialog } from './planner-common.js';
+import { seedDemo, errorText, cachedGet, getReports } from './api.js';
+import { debounce } from './util.js';
+import { REPORT_LAYER, LAYERS, modeOfEvent } from './model.js';
 
-const TYPE_LAYER = { LightOut: 'Safety', UnsafeAtNight: 'Safety', PathHazard: 'Safety', WaterNotWorking: 'Heat', NoShade: 'Heat', HeatSpot: 'Heat' };
-
-/** The report layer the planning event shows: Heat reports for Heat, night-safety reports for Night safety, all for Both. */
-const eventLayer = () => (P.event === 'heat' ? 'Heat' : P.event === 'night' ? 'Safety' : null);
+/** The report layer the planning event shows: heat reports for Heat, night-safety reports for Night safety, and so on. */
+const eventLayer = () => modeOfEvent(P.event);
 
 export function mount(host) {
   const cleanups = [];
@@ -17,15 +17,37 @@ export function mount(host) {
   const page = h('div', { class: 'pl-page stack' });
   host.append(page);
 
-  function matches(r) {
-    if (eventLayer() && TYPE_LAYER[r.type] !== eventLayer()) return false;
-    if (f.status && r.status !== f.status) return false;
-    if (f.type && r.type !== f.type) return false;
-    if (f.verified === 'yes' && !r.verifiedByPlanner) return false;
-    if (f.verified === 'no' && r.verifiedByPlanner) return false;
-    if (f.q && !`${r.note || ''} ${t(`rtype.${r.type}`)} ${r.cellId}`.toLowerCase().includes(f.q.toLowerCase())) return false;
-    return true;
+  /**
+   * The filters are applied by the API (layer of the planning event, status, type, verification, free text), so a filtered list is never
+   * cut short by the 500-report limit. Free text also matches the type names in the language on screen, which only the app knows:
+   * those types are asked for as well and the answers are merged.
+   */
+  async function fetchFiltered() {
+    const base = { layer: LAYERS[eventLayer()].api, status: f.status || 'All', verified: f.verified === 'yes' ? true : f.verified === 'no' ? false : undefined, limit: 500 };
+    const asks = [{ ...base, type: f.type || undefined, q: f.q || undefined }];
+    const text = f.q.trim().toLowerCase();
+    if (text) {
+      for (const type of Object.keys(REPORT_LAYER)) {
+        if (REPORT_LAYER[type] !== eventLayer() || (f.type && f.type !== type)) continue;
+        if (t(`rtype.${type}`).toLowerCase().includes(text)) asks.push({ ...base, type });
+      }
+    }
+    const answers = await Promise.all(asks.map((p) => cachedGet(`p:reports:${JSON.stringify(p)}`, () => getReports(p, true))));
+    const seen = new Set();
+    const data = answers.flatMap((a) => a.data).filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)))
+      .sort((a, b) => new Date(b.lastActivityAt) - new Date(a.lastActivityAt));
+    return { data, stale: answers.some((a) => a.stale), savedAt: Math.min(...answers.map((a) => a.savedAt)) };
   }
+
+  /** Fetches again after a filter changed and repaints only the list, so the search box keeps its focus. */
+  let filterToken = 0;
+  async function applyFilters() {
+    const mine = ++filterToken;
+    try { const next = await fetchFiltered(); if (mine !== filterToken) return; res = next; }
+    catch (e) { if (mine !== filterToken) return; res = { data: [], stale: false }; toast(errorText(e, t), { error: true }); }
+    paintList();
+  }
+  const applyFiltersSoon = debounce(applyFilters, 300);
 
   function render() {
     clear(page);
@@ -34,16 +56,16 @@ export function mount(host) {
     if (!res) { page.append(h('div', { class: 'skeleton', style: { height: '240px' } })); return; }
     if (res.stale) page.append(staleBanner(res.savedAt));
 
-    const types = ['LightOut', 'UnsafeAtNight', 'PathHazard', 'WaterNotWorking', 'NoShade', 'HeatSpot'];
+    const types = Object.keys(REPORT_LAYER);
     const q = h('input', { type: 'search', id: 'rep-q', value: f.q, placeholder: t('rep.search') });
-    q.addEventListener('input', () => { f.q = q.value; paintList(); });
+    q.addEventListener('input', () => { f.q = q.value; applyFiltersSoon(); });
     // Every filter has a visible label above it.
     const select = (key, options) => h('label', { class: 'field filter' }, t(`rep.f.${key}`),
-      h('select', { onchange: (e) => { f[key] = e.target.value; paintList(); } }, options.map(([v, l]) => h('option', { value: v, selected: f[key] === v }, l))));
+      h('select', { onchange: (e) => { f[key] = e.target.value; applyFilters(); } }, options.map(([v, l]) => h('option', { value: v, selected: f[key] === v }, l))));
     const wantedLayer = eventLayer();
-    const shownTypes = wantedLayer ? types.filter((x) => TYPE_LAYER[x] === wantedLayer) : types;
+    const shownTypes = types.filter((x) => REPORT_LAYER[x] === wantedLayer);
     page.append(h('div', { class: 'card stack tight' },
-      h('p', { class: 'small muted' }, icon('filter', 'sm'), ' ', t(wantedLayer ? `rep.showing.${P.event}` : 'rep.showing.both')),
+      h('p', { class: 'small muted' }, icon('filter', 'sm'), ' ', t(`rep.showing.${P.event}`)),
       h('div', { class: 'row wrap', style: { alignItems: 'flex-end' } },
         select('status', [['Open', t('rep.open')], ['Resolved', t('rep.resolved')], ['', t('rep.all')]]),
         select('type', [['', t('rep.allTypes')], ...shownTypes.map((x) => [x, t(`rtype.${x}`)])]),
@@ -59,7 +81,7 @@ export function mount(host) {
     const box = page.querySelector('#rep-list');
     if (!box || !res) return;
     clear(box);
-    const items = res.data.filter(matches);
+    const items = res.data;
     box.append(h('p', { class: 'small muted', 'aria-live': 'polite' }, t('rep.count', { n: items.length })));
     if (!items.length) { box.append(h('div', { class: 'empty' }, icon('flag'), h('p', null, t('rep.empty')))); return; }
     box.append(h('ul', { class: 'list' }, items.map((r) => {
@@ -82,11 +104,13 @@ export function mount(host) {
   }
 
   async function load() {
-    try { res = await loadReports(); } catch (e) { res = { data: [], stale: false }; toast(errorText(e, t), { error: true }); }
+    filterToken++;   // a debounced filter request still in flight must not overwrite this newer result
+    try { res = await fetchFiltered(); } catch (e) { res = { data: [], stale: false }; toast(errorText(e, t), { error: true }); }
     render();
   }
 
-  cleanups.push(pOn('data', load), pOn('event', render));
+  // A new planning event is a different layer: the list must be fetched again, not just redrawn.
+  cleanups.push(pOn('data', load), pOn('event', () => { f.type = ''; load(); }));
   render();
   load();
   return () => cleanups.forEach((fn) => fn());

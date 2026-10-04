@@ -25,6 +25,9 @@ public sealed class InMemorySafetyStore : ISafetyStore
     public Task SaveAlertAsync(PlannerAlert alert, CancellationToken ct = default) { _alerts[alert.Id] = alert; return Task.CompletedTask; }
     public Task<IReadOnlyList<AgencyDispatch>> ListDispatchesAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<AgencyDispatch>>(_dispatches.ToList());
     public Task AddDispatchAsync(AgencyDispatch dispatch, CancellationToken ct = default) { _dispatches.Add(dispatch); return Task.CompletedTask; }
+    private IReadOnlyDictionary<string, double> _weights = new Dictionary<string, double>();
+    public Task<IReadOnlyDictionary<string, double>> GetWeightOverridesAsync(CancellationToken ct = default) => Task.FromResult(_weights);
+    public Task SaveWeightOverridesAsync(IReadOnlyDictionary<string, double> weights, CancellationToken ct = default) { _weights = new Dictionary<string, double>(weights); return Task.CompletedTask; }
 }
 
 public sealed class ThrowingRepository<T> : IReadRepository<T> where T : class, IEntity
@@ -90,7 +93,7 @@ public sealed class SafetyWorld
     public static GeoPoint Offset(GeoPoint p, double north, double east) =>
         new(p.Latitude + north / 111_320.0, p.Longitude + east / (111_320.0 * Math.Cos(50.06 * Math.PI / 180)));
 
-    public SafetyModelProvider Models() => new(Lights, Amenities, PlacesForModel, Stops, Schedule, Clock);
+    public SafetyModelProvider Models() => new(Lights, Amenities, PlacesForModel, Stops, Schedule, Clock, Store);
 
     public ConditionsService Conditions() => new(new ClimateCrisisQueryService(Hydro, Warnings, Clock), new EnvironmentQueryService(Weather, Air), Clock);
 
@@ -110,9 +113,9 @@ public class ScoreServiceTests
         var served = await scores.GetPlaceAsync(SafetyWorld.Centre, PlanningEvent.Both);
         var remote = await scores.GetPlaceAsync(SafetyWorld.Remote, PlanningEvent.Both);
 
-        Assert.True(served.Heat.Score <= 10, $"heat was {served.Heat.Score}");   // heat: LOW is good
+        Assert.True(served.Heat.Score >= 90, $"heat was {served.Heat.Score}");   // like every score, HIGH is good
         Assert.True(served.Safety.Score >= 90, $"safety was {served.Safety.Score}");
-        Assert.True(remote.Heat.Score >= 85 && remote.Safety.Score <= 15);   // a remote place is hot (high) and unsafe (low)
+        Assert.True(remote.Heat.Score <= 15 && remote.Safety.Score <= 15);   // a remote place cools badly and is unsafe (both low)
         Assert.Equal("Good", served.Heat.Band);
         Assert.Equal("Critical", remote.Heat.Band);
         Assert.True(served.Combined > remote.Combined);
@@ -127,7 +130,7 @@ public class ScoreServiceTests
         Assert.Equal(60, water.Value);
         Assert.Equal(100, water.Score);
         Assert.Equal(25, water.Weight);
-        Assert.Equal(0, water.Contribution);            // water is close, so it adds no heat
+        Assert.Equal(25, water.Contribution);           // water is close, so it earns its full 25 points
 
         var green = place.Heat.Factors.Single(f => f.Key == "green");
         Assert.Equal(50, green.Value);                  // 300 m to the centre minus the 250 m radius
@@ -192,7 +195,7 @@ public class ScoreServiceTests
         var (row, col) = GridSpec.CellOf(SafetyWorld.Centre);
         Assert.Contains(grid.Cells, c => c[0] == row && c[1] == col);
         Assert.DoesNotContain(grid.Cells, c => c[0] == GridSpec.CellOf(SafetyWorld.Remote).Row);
-        Assert.Equal(["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority"], grid.Columns);
+        Assert.Equal(["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority", "flood", "air"], grid.Columns);
         Assert.All(grid.Cells, c => Assert.Equal(grid.Columns.Count, c.Length));
         Assert.Equal(75, grid.Grid.GoodFrom);
     }

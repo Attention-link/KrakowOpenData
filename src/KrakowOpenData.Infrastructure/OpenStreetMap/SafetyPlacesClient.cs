@@ -12,8 +12,8 @@ public sealed class SafetyPlacesClient(
     OverpassQueryRunner runner, ISnapshotStore store, IOptions<KrakowDataOptions> options, IClock clock, ILogger<SafetyPlacesClient> logger)
 {
     public BackgroundDataset<IReadOnlyList<SafetyPlace>> Dataset { get; } = new(
-        "osm-safety-places",
-        "Parks, libraries, pharmacies, hospitals and police stations",
+        "osm-safety-places-v2",
+        "Parks, libraries, pharmacies, hospitals, police stations, rivers and main roads",
         ct => runner.RunAsync(SafetyPlacesParser.BuildQuery(options.Value.OsmAreaName), ct),
         SafetyPlacesParser.Parse,
         store,

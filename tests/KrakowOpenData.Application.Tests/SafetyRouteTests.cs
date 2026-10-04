@@ -79,13 +79,13 @@ public class RouteServiceTests
     }
 
     [Fact]
-    public async Task A_cooler_route_has_a_lower_heat_score()
+    public async Task A_cooler_route_has_a_higher_cooling_score()
     {
         var routes = await Service(new ScriptedRouter(Unserved(), Served(700))).GetRoutesAsync(Far, FarEnd, PlanningEvent.Heat);
 
         Assert.Equal("coolest", routes.BetterKind);
-        Assert.True(routes.Better!.Average < routes.Fastest.Average - 10, $"{routes.Better.Average} vs {routes.Fastest.Average}");
-        Assert.True(routes.Fastest.Worst >= routes.Fastest.Average);   // worst heat = highest
+        Assert.True(routes.Better!.Average > routes.Fastest.Average + 10, $"{routes.Better.Average} vs {routes.Fastest.Average}");
+        Assert.True(routes.Fastest.Worst <= routes.Fastest.Average);   // worst = lowest, for every score
     }
 
     [Fact]
@@ -149,7 +149,7 @@ public class MethodServiceTests
 
         var heat = method.Layers.Single(l => l.Layer == "Heat");
         var safety = method.Layers.Single(l => l.Layer == "Safety");
-        Assert.StartsWith("Higher = hotter", heat.Direction);
+        Assert.StartsWith("Higher = more heat relief", heat.Direction);
         Assert.StartsWith("Higher = safer", safety.Direction);
         Assert.Equal(100, heat.Factors.Sum(f => f.Weight));
         Assert.Equal(100, safety.Factors.Sum(f => f.Weight));

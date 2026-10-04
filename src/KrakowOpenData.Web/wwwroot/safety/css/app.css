@@ -19,6 +19,10 @@
   --safety-soft: #ebe8fa;
   --heat: #b8480f;
   --heat-soft: #fbece3;
+  --flood: #0b5cad;
+  --flood-soft: #e2eefb;
+  --air: #0f6b5c;
+  --air-soft: #dcf1ec;
   --danger: #b42318;
   --danger-soft: #fdeceb;
   --ok: #0b6b0b;
@@ -64,6 +68,10 @@
     --safety-soft: #2a2548;
     --heat: #f0a06f;
     --heat-soft: #3a2518;
+    --flood: #8bbcf7;
+    --flood-soft: #12273f;
+    --air: #62d6bf;
+    --air-soft: #0e2e28;
     --danger: #f2877e;
     --danger-soft: #3a1f1c;
     --ok: #7fd37f;
@@ -93,6 +101,10 @@
   --safety-soft: #2a2548;
   --heat: #f0a06f;
   --heat-soft: #3a2518;
+  --flood: #8bbcf7;
+  --flood-soft: #12273f;
+  --air: #62d6bf;
+  --air-soft: #0e2e28;
   --danger: #f2877e;
   --danger-soft: #3a1f1c;
   --ok: #7fd37f;
@@ -483,7 +495,7 @@ table.t th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em
 .field label { font-weight: 600; }
 @media (max-width: 959.98px) { .map-top { right: 3.6rem; } }
 
-/* ── Explanations: "?" buttons, clickable figures, dialogs ── */
+/* ── Explanations: "!" buttons, clickable figures, dialogs ── */
 .info-btn { display: inline-grid; place-items: center; width: 22px; height: 22px; min-width: 22px; border-radius: 50%; border: 1.5px solid var(--ink-3); background: var(--surface); color: var(--ink-2); font: 700 .75rem/1 var(--font); cursor: pointer; padding: 0; vertical-align: middle; }
 .info-btn:hover { border-color: var(--accent); color: var(--accent); }
 .explainable { cursor: pointer; text-decoration: underline dotted var(--ink-3); text-underline-offset: 3px; }
@@ -570,3 +582,37 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .topbar .lang-select { max-width: none; }
 }
 @media (max-width: 400px) { .brand b { font-size: .92rem; } }
+
+/* ── Flood and air layers (same roles as heat and night safety) ── */
+.seg button[data-mode="flood"][aria-pressed="true"] { color: var(--flood); }
+.seg button[data-mode="air"][aria-pressed="true"] { color: var(--air); }
+.chip.flood { background: var(--flood-soft); color: var(--flood); }
+.chip.air { background: var(--air-soft); color: var(--air); }
+.dot-marker.flood { background: #0b5cad; }
+.dot-marker.air { background: #0f6b5c; }
+.near .ico.flood, .type-card .ico.flood { background: var(--flood-soft); color: var(--flood); }
+.near .ico.air, .type-card .ico.air { background: var(--air-soft); color: var(--air); }
+.hbar.flood .fill { background: var(--flood); }
+.hbar.air .fill { background: var(--air); }
+.poi.flood { background: #0b5cad; }
+.poi.air { background: #0f6b5c; }
+/* Four tabs fit a phone: the mode switch takes its own row and shares the width between the tabs. */
+@media (max-width: 575.98px) {
+  .res-bar { flex-wrap: wrap; overflow-x: visible; }
+  .res-bar .seg, .pl-tools .seg { flex: 1 1 100%; }
+  .res-bar .seg button, .pl-tools .seg button { flex: 1 1 0; justify-content: center; padding-left: .3rem; padding-right: .3rem; }
+}
+/* Long chip labels (for example a factor name in the priority list) wrap instead of widening the page. */
+.chip { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.prio .meta { display: flex; flex-wrap: wrap; gap: .3rem; }
+
+/* ── Planner: factor weights ── */
+.wt-row { padding: .7rem 0; border-top: 1px solid var(--line); }
+.wt-row:first-child { border-top: 0; }
+.wt-controls { gap: .75rem; align-items: center; }
+.wt-controls input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.wt-num { width: 5rem; flex: none; }
+
+/* ── City-staff marking: the planner dashboard is not for everyone ── */
+.topbar.staff { border-bottom-color: #f59e0b; background-color: #070a0f; background-image: linear-gradient(90deg, #070a0f 0%, #1c1405 100%); }
+.chip.staff { background: #fbbf24; color: #1f1300; font-weight: 700; }

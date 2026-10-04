@@ -7,9 +7,12 @@ import { P, pOn, loadGridFor, loadReports, loadAlerts, openCellDrawer, openAlert
 import { createMap, GridLayer, PlacesLayer, iconMarker, watchResize, mapInfo, KRAKOW } from './map.js';
 import { legendBody, loadMethod, openMethod, openScoreExplainer } from './explain.js';
 import { cachedGet, getFeatures } from './api.js';
-import { BAND_FILL, PRIORITY_RAMP, COL, RELIEF, cellId } from './model.js';
+import { BAND_FILL, PRIORITY_RAMP, COL, RELIEF, cellId, LAYERS, modeOfEvent, REPORT_LAYER } from './model.js';
 
-const TYPE_ICON = { LightOut: 'lamp', UnsafeAtNight: 'moon', PathHazard: 'alert', WaterNotWorking: 'water', NoShade: 'sun', HeatSpot: 'thermo' };
+const TYPE_ICON = {
+  LightOut: 'lamp', UnsafeAtNight: 'moon', PathHazard: 'alert', WaterNotWorking: 'water', NoShade: 'sun', HeatSpot: 'thermo',
+  FloodedStreet: 'wave', BlockedDrain: 'wave', RisingWater: 'wave', SmokeOrBurning: 'wind', StrongFumes: 'wind', DustCloud: 'wind'
+};
 const SEV_COLOR = { Info: '#2a78d6', Warning: '#eda100', Critical: '#d03b3b' };
 
 export function mount(host) {
@@ -31,7 +34,7 @@ export function mount(host) {
   const map = createMap(mapEl, { center: KRAKOW, zoom: 12 });
   cleanups.push(watchResize(map, wrap), () => map.remove());
   const overlay = L.layerGroup().addTo(map);
-  const places = new PlacesLayer(map, { getFeatures: () => features, getKeys: () => (P.event === 'night' ? RELIEF.safety : RELIEF[P.event]) });
+  const places = new PlacesLayer(map, { getFeatures: () => features, getKeys: () => RELIEF[modeOfEvent(P.event)] });
   places.setEnabled(false);
   cleanups.push(() => places.destroy());
   cachedGet('features', getFeatures).then((r) => { features = r.data; places.draw(); }).catch(() => {});
@@ -66,7 +69,7 @@ export function mount(host) {
       legend.append(h('div', { class: 'small', style: { fontWeight: 700 } }, t('pm.priorityLegend', { event: t(`event.${P.event}`) })),
         h('div', { class: 'items' }, h('span', null, t('pm.lower')), PRIORITY_RAMP.map((c) => h('i', { style: { background: c, width: '1.1rem' } })), h('span', null, t('pm.higher'))));
     } else {
-      const mode = P.event === 'night' ? 'safety' : P.event === 'heat' ? 'heat' : 'both';
+      const mode = modeOfEvent(P.event);
       legend.append(...legendBody(mode, gridRes?.data.grid, { compact: true, onExplain: (layer) => openScoreExplainer({ layer, meta: gridRes?.data.grid }) }),
         h('button', { class: 'btn sm quiet', type: 'button', style: { marginTop: '.3rem' }, onclick: () => openMethod(gridRes?.data.grid) }, icon('list', 'sm'), t('explain.fullMethod')));
     }
@@ -74,7 +77,7 @@ export function mount(host) {
 
   function draw() {
     if (!gridRes) return;
-    const mode = P.event === 'night' ? 'safety' : P.event === 'heat' ? 'heat' : 'both';
+    const mode = modeOfEvent(P.event);
     grid.draw(gridRes.data, { mode, style: metric === 'priority' ? 'priority' : 'score' });
     paintLegend();
   }
@@ -83,10 +86,10 @@ export function mount(host) {
   function drawOverlay() {
     overlay.clearLayers();
     if (showReports) {
-      // Only the reports of the planning event: Heat shows heat reports, Night safety shows night reports.
-      const wanted = P.event === 'heat' ? 'Heat' : P.event === 'night' ? 'Safety' : null;
-      for (const r of reports.filter((x) => x.status === 'Open' && (!wanted || x.layer === wanted))) {
-        const m = iconMarker([r.latitude, r.longitude], TYPE_ICON[r.type] || 'flag', r.layer === 'Heat' ? 'heat' : 'safety', { small: true, title: t(`rtype.${r.type}`) });
+      // Only the reports of the planning event: Heat shows heat reports, Night safety shows night reports, and so on.
+      const wanted = LAYERS[modeOfEvent(P.event)].api;
+      for (const r of reports.filter((x) => x.status === 'Open' && x.layer === wanted)) {
+        const m = iconMarker([r.latitude, r.longitude], TYPE_ICON[r.type] || 'flag', REPORT_LAYER[r.type] || 'safety', { small: true, title: t(`rtype.${r.type}`) });
         m.bindTooltip(`${t(`rtype.${r.type}`)} · ${t('report.supporters', { n: r.supporters })}`);
         m.on('click', () => openCellDrawer(r.cellId, { meta: gridRes?.data.grid }));
         m.addTo(overlay);

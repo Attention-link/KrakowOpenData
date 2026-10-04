@@ -7,17 +7,22 @@
 <div class="toolbar">
     <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
         <input placeholder="@T["nfz.placeholder"]" aria-label="@T["common.search"]" @bind="_benefit" />
-        <label class="check"><input type="checkbox" @bind="_urgent" /> @T["nfz.urgent"]</label>
+        <label class="check"><input type="checkbox" @bind="_urgent" @bind:after="UrgentChangedAsync" /> @T["nfz.urgent"]</label>
         <button class="btn btn-primary" type="submit">@T["common.search"]</button>
     </form>
 </div>
 
 <div class="chips">
-    @foreach (var example in Examples)
+    @foreach (var (label, query) in Examples)
     {
-        <button class="btn btn-outline-secondary btn-sm" @onclick="() => SearchForAsync(example)">@example</button>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="() => SearchForAsync(query)">@label</button>
     }
 </div>
+
+@if (_tooShort)
+{
+    <div class="alert alert-warning">@T["nfz.tooShort"]</div>
+}
 
 @if (!_searched)
 {
@@ -62,16 +67,18 @@ else
 }
 
 @code {
-    // NFZ benefit names are Polish; the API matches on part of the name.
-    private static readonly string[] Examples =
+    // NFZ benefit names are Polish and change over time (the whole name "PORADNIA ORTOPEDYCZNA" no longer exists), but the NFZ API
+    // matches on PART of a name, so the examples search a stem. Each was checked against the live API and returns results.
+    private static readonly (string Label, string Query)[] Examples =
     [
-        "PORADNIA ORTOPEDYCZNA", "PORADNIA KARDIOLOGICZNA", "PORADNIA ENDOKRYNOLOGICZNA",
-        "PORADNIA NEUROLOGICZNA", "PORADNIA OKULISTYCZNA", "REZONANS MAGNETYCZNY", "TOMOGRAFIA KOMPUTEROWA"
+        ("Ortopedia", "ortoped"), ("Kardiologia", "kardiolog"), ("Endokrynologia", "endokryn"),
+        ("Neurologia", "neurolog"), ("Okulistyka", "okulist"), ("Rezonans magnetyczny", "rezonans"), ("Tomografia", "tomograf")
     ];
 
     private string? _benefit;
     private bool _urgent;
     private bool _searched;
+    private bool _tooShort;
     private List<WaitingListDto> _items = [];
     private bool _loading;
     private string? _error;
@@ -82,15 +89,19 @@ else
         return LoadAsync();
     }
 
+    /// <summary>Switching "urgent" only means something once a search exists: then it re-runs it, so the list always matches the box.</summary>
+    private Task UrgentChangedAsync() => _searched ? LoadAsync() : Task.CompletedTask;
+
     private async Task LoadAsync()
     {
-        if (string.IsNullOrWhiteSpace(_benefit) || _benefit.Trim().Length < 3) return;
+        _tooShort = string.IsNullOrWhiteSpace(_benefit) || _benefit.Trim().Length < 3;
+        if (_tooShort) return;
 
         _searched = true;
         _loading = true;
         _error = null;
-        try { _items = (await Api.Services.SearchWaitingListsAsync(_benefit.Trim(), _urgent)).ToList(); }
-        catch (Exception ex) { _error = ex.Message; }
+        try { _items = (await Api.Services.SearchWaitingListsAsync(_benefit!.Trim(), _urgent)).ToList(); }
+        catch (Exception ex) { _items = []; _error = ex.Message; }
         finally { _loading = false; }
     }
 

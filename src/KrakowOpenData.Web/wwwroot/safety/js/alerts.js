@@ -7,6 +7,9 @@ import { state, set, isOffline } from './state.js';
 import { t, getLang } from './i18n.js';
 import { getAlerts } from './api.js';
 import { kvGet, kvSet } from './db.js';
+import { layerOfApi } from './model.js';
+
+const ALERT_ICON = { Heat: 'thermo', Safety: 'moon', Flood: 'wave', Air: 'wind' };
 
 const POLL_MS = 60000;
 
@@ -52,14 +55,14 @@ export function startAlerts(ctx, host, onChange) {
 
   function paint() {
     clear(host);
-    // General alerts always show; heat and night-safety alerts show in their own view (and in Both).
-    const mode = state.mode || 'both';
-    const relevant = (a) => !a.layer || mode === 'both' || (a.layer === 'Heat' && mode === 'heat') || (a.layer === 'Safety' && mode === 'safety');
+    // General alerts always show; heat, night-safety, flood and air alerts show in their own view.
+    const mode = state.mode || 'safety';
+    const relevant = (a) => !a.layer || layerOfApi(a.layer) === mode;
     const visible = alerts.filter((a) => relevant(a) && !state.dismissedAlerts.includes(a.id)).slice(0, 3);
     for (const a of visible) {
       const kind = a.severity === 'Critical' ? 'critical' : a.severity === 'Info' ? 'info' : '';
       host.append(h('div', { class: `banner ${kind}`, role: a.severity === 'Critical' ? 'alert' : 'status' },
-        icon(a.layer === 'Heat' ? 'thermo' : a.layer === 'Safety' ? 'moon' : 'bell'),
+        icon(ALERT_ICON[a.layer] || 'bell'),
         h('div', { class: 'grow' }, h('b', null, a.title), h('span', { class: 'small' }, textOf(a)),
           h('span', { class: 'tiny', style: { opacity: 0.85, display: 'block', marginTop: '.2rem' } }, `${t('alerts.from')} · ${timeLeft(a.expiresAt, t)}${isOffline() ? ' · ' + t('alerts.offline') : ''}`)),
         h('button', { class: 'btn icon quiet', type: 'button', style: { color: 'inherit', minHeight: '36px', width: '36px' }, 'aria-label': t('common.dismiss'),

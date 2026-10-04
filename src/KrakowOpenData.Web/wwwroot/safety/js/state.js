@@ -21,7 +21,7 @@ function deviceId() {
 
 export const state = {
   lang: ls.get('lang') ?? detectLang(),
-  mode: ['safety', 'heat'].includes(ls.get('mode')) ? ls.get('mode') : null,   // 'safety' | 'heat' (null until the user or the conditions choose)
+  mode: ['safety', 'heat', 'flood', 'air'].includes(ls.get('mode')) ? ls.get('mode') : null,   // 'safety' | 'heat' | 'flood' | 'air' (null until the user or the conditions choose)
   deviceId: deviceId(),                 // random, anonymous; only used to count supporters and presence
   online: navigator.onLine,
   apiOk: true,                          // false after a failed request; back to true when the API answers again
@@ -30,7 +30,7 @@ export const state = {
   welcomed: ls.get('welcomed') === true,
   notify: ls.get('notify') === true,
   dismissedAlerts: ls.get('dismissedAlerts') ?? [],
-  event: ls.get('plannerEvent') === 'night' ? 'night' : 'heat',
+  event: ['heat', 'night', 'flood', 'air'].includes(ls.get('plannerEvent')) ? ls.get('plannerEvent') : 'heat',
   theme: ls.get('theme') ?? 'auto'
 };
 
@@ -68,4 +68,4 @@ export function emit(key, value) {
 /** True when live data cannot be fetched: no network, or the API does not answer. */
 export const isOffline = () => !state.online || !state.apiOk;
 
-export const eventForMode = (mode) => (mode === 'safety' ? 'night' : mode === 'heat' ? 'heat' : 'both');
+export { eventOfMode as eventForMode } from './model.js';

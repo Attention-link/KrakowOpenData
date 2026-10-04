@@ -63,17 +63,34 @@ public sealed class TransitQueryService(
             .ToList();
     }
 
+    /// <summary>
+    /// Vehicles, optionally for one line. <paramref name="routeId"/> may be the feed's route id ("T:52") or what people say and see
+    /// on the vehicle: the line number ("52", "T52", "t 52"). Matching ignores case and spaces.
+    /// </summary>
     public async Task<IReadOnlyList<VehicleDto>> GetVehiclesAsync(string? routeId, CancellationToken ct = default)
     {
         var routeLookup = (await routes.ListAsync(cancellationToken: ct)).ToDictionary(r => r.Id);
-        var spec = string.IsNullOrWhiteSpace(routeId)
+        var wanted = routeId is null ? null : new string(routeId.Where(c => !char.IsWhiteSpace(c)).ToArray());
+        var spec = string.IsNullOrEmpty(wanted)
             ? null
-            : new Specification<VehiclePosition>(v => string.Equals(v.RouteId, routeId, StringComparison.OrdinalIgnoreCase));
+            : new Specification<VehiclePosition>(v => v.RouteId is not null && (
+                string.Equals(v.RouteId, wanted, StringComparison.OrdinalIgnoreCase) ||
+                (routeLookup.TryGetValue(v.RouteId, out var r) && IsLine(r, wanted))));
 
         return (await vehicles.ListAsync(spec, ct))
             .Where(v => v.Location.IsValid)
             .Select(v => v.ToDto(v.RouteId is not null && routeLookup.TryGetValue(v.RouteId, out var r) ? r : null))
             .ToList();
+    }
+
+    /// <summary>True when <paramref name="wanted"/> is the route's line number, with or without its mode letter or feed prefix ("52", "T52", "T:52").</summary>
+    private static bool IsLine(TransitRoute route, string wanted)
+    {
+        var withoutPrefix = wanted.Contains(':') ? wanted[(wanted.IndexOf(':') + 1)..] : wanted;
+        if (string.Equals(route.ShortName, withoutPrefix, StringComparison.OrdinalIgnoreCase)) return true;
+        var letter = route.Mode switch { TransportMode.Tram => 'T', TransportMode.Bus => 'A', _ => (char?)null };
+        return letter is { } l && withoutPrefix.Length > 1 && char.ToUpperInvariant(withoutPrefix[0]) == l &&
+               string.Equals(route.ShortName, withoutPrefix[1..], StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<IReadOnlyList<TripUpdateDto>> GetTripUpdatesAsync(int? minDelaySeconds, CancellationToken ct = default)

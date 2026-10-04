@@ -63,7 +63,11 @@ export const isUnavailable = (e) => e instanceof NetworkError || (e instanceof A
  * Returns {data, savedAt, stale}. Network first; on failure the last saved copy (stale: true).
  * Throws when there is neither.
  */
+/** Saved copies are keyed with a schema version: bump it when the meaning of saved data changes (v2: heat became a cooling score, higher = better). */
+const CACHE_V = "v2:";
+
 export async function cachedGet(key, fetcher) {
+  key = CACHE_V + key;
   // The browser says there is no network at all: answer from the saved copy at once.
   if (!state.online) {
     const saved = await kvGet(key);
@@ -83,7 +87,7 @@ export async function cachedGet(key, fetcher) {
   }
 }
 
-export const peek = (key) => kvGet(key);
+export const peek = (key) => kvGet(CACHE_V + key);
 
 const q = (obj) => Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && v !== '')
   .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
@@ -117,6 +121,9 @@ export const getAgencies = () => P('/agencies');
 export const createDispatch = (body) => P('/dispatches', { method: 'POST', body });
 export const getDispatches = () => P('/dispatches');
 export const seedDemo = () => P('/demo-data', { method: 'POST' });
+export const getWeights = () => P('/weights');
+export const setWeights = (weights) => P('/weights', { method: 'PUT', body: { weights } });
+export const resetWeights = () => P('/weights', { method: 'DELETE' });
 
 /** A readable message for an error, using the API's validation text when there is one. */
 export function errorText(e, t) {

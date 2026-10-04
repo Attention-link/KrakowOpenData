@@ -42,15 +42,12 @@ export const residentStringsV3 = {
   'explain.reportsTitle': ['Resident reports', 'Zgłoszenia mieszkańców', 'Звіти мешканців'],
   'explain.fullMethod': ['Weights and sources', 'Wagi i źródła', 'Ваги та джерела'],
   'explain.liveHeat': ['Right now it is {c} °C in Kraków ({p}). The temperature is shown next to the heat score; it is not part of it.', 'Teraz w Krakowie jest {c} °C ({p}). Temperatura jest pokazana obok wskaźnika upału, ale nie jest jego częścią.', 'Зараз у Кракові {c} °C ({p}). Температура показана поруч з індексом спеки, але не входить до нього.'],
-  'explain.addsHeat': ['adds {n} points of heat', 'dodaje {n} pkt upału', 'додає {n} балів спеки'],
-  'explain.addsNoHeat': ['adds no heat (relief is close)', 'nie dodaje upału (ulga jest blisko)', 'не додає спеки (полегшення поруч)'],
   'explain.addsSafety': ['{n} of {max} possible safety points', '{n} z {max} możliwych pkt bezpieczeństwa', '{n} з {max} можливих балів безпеки'],
   'explain.heatBiggest': ['Biggest contributors to the heat: {list}.', 'Największy wpływ na upał: {list}.', 'Найбільший внесок у спеку: {list}.'],
   'explain.heatNone': ['Every kind of relief is close, so almost no heat is added.', 'Każdy rodzaj ulgi jest blisko, więc prawie nie ma dodatkowego upału.', 'Усі види полегшення поруч, тож спеки майже не додається.'],
   'explain.colHeat': ['Adds heat', 'Dodaje upał', 'Додає спеку'],
   'explain.colSafety': ['Adds safety', 'Dodaje bezpieczeństwo', 'Додає безпеку'],
   'explain.colMapped': ['Mapped in Kraków', 'Zmapowane w Krakowie', 'Нанесено в Кракові'],
-  'explain.reportsAddHeat': ['Open resident reports (raise the heat)', 'Otwarte zgłoszenia mieszkańców (podnoszą upał)', 'Відкриті звіти мешканців (підвищують спеку)'],
   'explain.reportsSubtract': ['Open resident reports (lower the score)', 'Otwarte zgłoszenia mieszkańców (obniżają wynik)', 'Відкриті звіти мешканців (знижують оцінку)'],
   'explain.total': ['Score', 'Wynik', 'Оцінка'],
   'explain.heatTableNote': ['For each kind of relief: the further it is, the more of its weight is added to the heat score. Nothing close = the full weight. The heat score is the total.', 'Dla każdego rodzaju ulgi: im dalej, tym większa część jego wagi trafia do wskaźnika upału. Brak w pobliżu = pełna waga. Wskaźnik upału to suma.', 'Для кожного виду полегшення: чим далі, тим більша частка його ваги додається до індексу спеки. Немає поруч = повна вага. Індекс спеки – це сума.'],
@@ -111,7 +108,7 @@ export const residentStringsV3 = {
   // ── Overrides of older wording ──
   'how.intro': ['Each 250 m square of the city gets two scores from 0 to 100: a heat score (higher = hotter) and a night safety score (higher = safer).', 'Każdy kwadrat miasta o boku 250 m dostaje dwa wyniki od 0 do 100: wskaźnik upału (wyżej = goręcej) i wskaźnik bezpieczeństwa nocą (wyżej = bezpieczniej).', 'Кожен квадрат міста 250 м отримує дві оцінки від 0 до 100: індекс спеки (вище = спекотніше) та індекс безпеки вночі (вище = безпечніше).'],
   'cov.walk': ['Scored every 50 m along the route; help searched within {r} of each point.', 'Ocena co 50 m wzdłuż trasy; pomoc szukana w promieniu {r} od każdego punktu.', 'Оцінка кожні 50 м уздовж маршруту; допомога шукається в радіусі {r} від кожної точки.'],
-  'legend.note': ['Grey = no mapped streets here. Click the ? for what the numbers mean and why.', 'Szare = brak zmapowanych ulic. Kliknij ?, aby zobaczyć, co oznaczają liczby i dlaczego.', 'Сірий = немає нанесених вулиць. Натисніть ?, щоб побачити, що означають числа і чому.'],
+  'legend.note': ['Grey = no mapped streets here. Click the ! for what the numbers mean and why.', 'Szare = brak zmapowanych ulic. Kliknij !, aby zobaczyć, co oznaczają liczby i dlaczego.', 'Сірий = немає нанесених вулиць. Натисніть !, щоб побачити, що означають числа і чому.'],
 
   // ── Places layer ──
   'map.places': ['Places on the map', 'Miejsca na mapie', 'Місця на мапі'],

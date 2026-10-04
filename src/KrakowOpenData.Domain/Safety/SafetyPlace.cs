@@ -29,5 +29,9 @@ public enum SafetyPlaceKind
     Hospital,
     Pharmacy,
     Library,
-    Park
+    Park,
+    /// <summary>A point sampled along a river, stream or canal (about every 120 m).</summary>
+    Waterway,
+    /// <summary>A point sampled along a motorway, trunk or primary road (about every 120 m).</summary>
+    MajorRoad
 }

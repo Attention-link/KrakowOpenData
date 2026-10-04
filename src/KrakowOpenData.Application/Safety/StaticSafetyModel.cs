@@ -19,6 +19,8 @@ public sealed class PlaceMeasure
     public required double Exposure { get; init; }
     public required IReadOnlyList<FactorResult> Heat { get; init; }
     public required IReadOnlyList<FactorResult> Safety { get; init; }
+    public required IReadOnlyList<FactorResult> Flood { get; init; }
+    public required IReadOnlyList<FactorResult> Air { get; init; }
 
     public string CellId => GridSpec.IdOf(Row, Col);
 
@@ -26,7 +28,11 @@ public sealed class PlaceMeasure
 
     public double SafetyBase => SafetyModel.BaseScore(Safety);
 
-    public IReadOnlyList<FactorResult> Factors(Layer layer) => layer == Layer.Heat ? Heat : Safety;
+    public double FloodBase => SafetyModel.BaseScore(Flood);
+
+    public double AirBase => SafetyModel.BaseScore(Air);
+
+    public IReadOnlyList<FactorResult> Factors(Layer layer) => layer switch { Layer.Heat => Heat, Layer.Safety => Safety, Layer.Flood => Flood, _ => Air };
 }
 
 /// <summary>
@@ -43,14 +49,22 @@ public sealed class StaticSafetyModel
     private readonly IReadOnlyDictionary<(int Row, int Col), int> _lamps;
     private readonly IReadOnlyDictionary<(int Row, int Col), int> _stops;
     private readonly Dictionary<string, PlaceMeasure> _cellsById;
+    private readonly IReadOnlyDictionary<Layer, IReadOnlyList<FactorDefinition>> _definitions;
+
+    private static readonly Layer[] Layers = [Layer.Heat, Layer.Safety, Layer.Flood, Layer.Air];
+
+    /// <summary>The factors of a layer with the weights this model was built with (the defaults, or what a planner set).</summary>
+    public IReadOnlyList<FactorDefinition> Definitions(Layer layer) => _definitions[layer];
 
     public StaticSafetyModel(
         IReadOnlyDictionary<string, IReadOnlyList<Feature>> featuresByFactor,
         IReadOnlyDictionary<(int Row, int Col), int> lampsPerCell,
         IReadOnlyDictionary<(int Row, int Col), int> stopsPerCell,
         IReadOnlyList<string> dataGaps,
-        DateTimeOffset builtAt)
+        DateTimeOffset builtAt,
+        IReadOnlyDictionary<Layer, IReadOnlyList<FactorDefinition>>? definitions = null)
     {
+        _definitions = definitions ?? Layers.ToDictionary(l => l, SafetyModel.FactorsOf);
         _features = featuresByFactor;
         _lamps = lampsPerCell;
         _stops = stopsPerCell;
@@ -108,6 +122,10 @@ public sealed class StaticSafetyModel
             if (def.Kind == FactorKind.Density)
                 return new FactorResult(def, Math.Round(lampsPerKm2, 1), SafetyModel.FactorScore(def, lampsPerKm2), null);
 
+            // A "far is good" factor with no mapped line at all (dataset missing) must not read as perfect: it is unknown, scored 50.
+            if (def.Kind == FactorKind.DistanceAway && !(_features.TryGetValue(def.Key, out var any) && any.Count > 0))
+                return new FactorResult(def, null, 50, null);
+
             var (distance, nearest) = Nearest(def.Key, point);
             return new FactorResult(def, distance is null ? null : Math.Round(distance.Value), SafetyModel.FactorScore(def, distance), nearest?.Name);
         }
@@ -120,8 +138,10 @@ public sealed class StaticSafetyModel
             Lamps3x3 = lamps,
             Stops3x3 = stops,
             Exposure = SafetyModel.Exposure(lamps, stops),
-            Heat = SafetyModel.HeatFactors.Select(Score).ToList(),
-            Safety = SafetyModel.SafetyFactors.Select(Score).ToList()
+            Heat = Definitions(Layer.Heat).Select(Score).ToList(),
+            Safety = Definitions(Layer.Safety).Select(Score).ToList(),
+            Flood = Definitions(Layer.Flood).Select(Score).ToList(),
+            Air = Definitions(Layer.Air).Select(Score).ToList()
         };
     }
 

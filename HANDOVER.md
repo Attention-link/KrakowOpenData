@@ -78,7 +78,7 @@ curl localhost:5090/safety/config.js           # new Web build running (shows wi
 
 Done in this session (all tests green: Domain 69, Application 145, Api 64, Web 767, Infrastructure 84):
 
-- **Heat score now means heat**: 0 = cool, 100 = very hot (`SafetyModel.HeatScore`). Internally the model still measures *cooling capacity* (higher = better); `ScoredCell.Cooling`/`Goodness(evt)` give the "higher = better" view used for bands, combined score and priority. Heat weights: green 35, water 25, refuge 20, toilets 10, transit 10. In JS, pass `kind = 'heat'` to `bandOf`/`histogram`/`gauge` (see `model.js`).
+- Heat is the heat-relief score: 100 = plenty of relief, 0 = very hot. Every score is higher = better.
 - **Street routes**: `GET /api/safety/route?from&to&mode` (`RouteService`, `IWalkingRouter` → `OsrmWalkingRouter`, default `routing.openstreetmap.de/routed-foot`). Fastest + a safer/cooler/best alternative (needs ≥ 3 points average gain, ≤ 30 % longer). Falls back to a straight line when routing is down. UI in `walk.js` (A/B markers, route coloured by band, fastest dashed grey).
 - **Explanations**: `GET /api/safety/method` (`MethodService`) + `js/explain.js` (score/factor/KPI dialogs, legend body). Weights, reasons, sources and mapped counts come from the API.
 - **Map**: grid is more transparent so street names show; `PlacesLayer` draws amenities from zoom 14 (button on the resident map, checkbox on the planner map).

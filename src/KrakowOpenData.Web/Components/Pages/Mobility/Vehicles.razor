@@ -6,11 +6,11 @@
             Description="@T["veh.lede"]" Source="@T["veh.source"]" />
 
 <div class="toolbar">
-    <div class="search">
+    <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
         <input class="narrow" placeholder="@T["veh.routePlaceholder"]" aria-label="@T["veh.routePlaceholder"]" @bind="_routeId" />
-        <button class="btn btn-primary" @onclick="LoadAsync">@T["veh.filter"]</button>
-        <button class="btn btn-outline-secondary" @onclick="ClearAsync">@T["veh.all"]</button>
-    </div>
+        <button class="btn btn-primary" type="submit">@T["veh.filter"]</button>
+        <button class="btn btn-outline-secondary" type="button" @onclick="ClearAsync">@T["veh.all"]</button>
+    </form>
     <span class="muted small">@T.F("veh.count", _vehicles.Count, Format.Time(_updated))</span>
 </div>
 
@@ -107,7 +107,7 @@
         _error = null;
         try
         {
-            _vehicles = (await Api.Mobility.GetVehiclesAsync(_routeId)).ToList();
+            _vehicles = (await Api.Mobility.GetVehiclesAsync(string.IsNullOrWhiteSpace(_routeId) ? null : _routeId.Trim())).ToList();
             _updated = DateTimeOffset.Now;
         }
         catch (Exception ex)

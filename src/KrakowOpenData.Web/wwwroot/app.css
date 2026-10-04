@@ -150,3 +150,19 @@ img, svg { max-width: 100%; }
 @media (max-width: 374.98px) {
   .sb-topnav .navbar-brand span:not(.brand-mark) { display: none; }
 }
+
+/* ── Sidebar "Features": stand out from the ordinary menu; the staff-only dashboard stands out differently (amber, locked) ── */
+.sb-sidenav-dark .sb-sidenav-menu .feature-heading { color: var(--cyan); }
+.sb-sidenav-dark .sb-sidenav-menu .feature-link {
+  display: flex; align-items: center; gap: .6rem; margin: .2rem .6rem; padding: .65rem .75rem; border-radius: .6rem; font-weight: 600; color: #fff;
+  background: rgba(34, 211, 238, .12); border: 1px solid rgba(34, 211, 238, .45); flex-wrap: wrap;
+}
+.sb-sidenav-dark .sb-sidenav-menu .feature-link:hover { background: rgba(34, 211, 238, .22); color: #fff; }
+.feature-icon { font-size: 1.1rem; line-height: 1; }
+.sb-sidenav-dark .sb-sidenav-menu .feature-staff { background: rgba(251, 191, 36, .1); border-color: rgba(251, 191, 36, .6); border-left: 4px solid #fbbf24; }
+.sb-sidenav-dark .sb-sidenav-menu .feature-staff:hover { background: rgba(251, 191, 36, .2); }
+.staff-badge { display: inline-block; background: #fbbf24; color: #1f1300; font-size: .68rem; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; padding: .1rem .5rem; border-radius: 999px; }
+.feature-link .staff-badge { margin-left: auto; }
+.start-staff { border: 2px solid #fbbf24; background: linear-gradient(180deg, #fffbeb, #fff 60%); position: relative; }
+.start-staff:hover { border-color: #d97706; }
+.staff-badge-corner { position: absolute; top: .8rem; right: .8rem; }

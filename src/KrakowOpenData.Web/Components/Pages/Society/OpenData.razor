@@ -57,6 +57,10 @@
                     · <a href="@_rows.ApiUrl" target="_blank" rel="noopener">@T["odp.api"]</a>
                     · @_rows.Source
                 </p>
+                @if (visible.Count == 0)
+                {
+                    <div class="alert alert-secondary">@T["odp.noMatch"]</div>
+                }
                 <div class="table-scroll">
                     <table class="table table-striped table-hover align-middle">
                         <thead><tr>@foreach (var c in _rows.Columns) { <th>@c</th> }</tr></thead>

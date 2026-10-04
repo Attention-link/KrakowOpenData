@@ -10,7 +10,9 @@ public enum PlanningEvent
 {
     Heat,
     Night,
-    Both
+    Both,
+    Flood,
+    Air
 }
 
 /// <summary>One grid cell with live scores (reports and live pressure applied).</summary>
@@ -22,14 +24,23 @@ public sealed record ScoredCell(
     double HeatPenalty,
     double SafetyPenalty,
     double Priority,
-    int OpenReports)
+    int OpenReports,
+    double Flood = 100,
+    double Air = 100,
+    double FloodPenalty = 0,
+    double AirPenalty = 0,
+    double FloodLive = 0,
+    double AirLive = 0)
 {
-    /// <summary>How well the place can cool down (100 − heat score); points the same way as the safety score.</summary>
-    public double Cooling => 100 - Heat;
+    /// <summary>How well the place can cool down. The heat score is this number; it points the same way as every other score (higher = better).</summary>
+    public double Cooling => Heat;
 
     /// <summary>The event's score expressed so that higher = better (heat is turned around), used for bands and ordering.</summary>
-    public double Goodness(PlanningEvent evt) => evt switch { PlanningEvent.Heat => Cooling, PlanningEvent.Night => Safety, _ => Combined };
+    public double Goodness(PlanningEvent evt) => evt switch { PlanningEvent.Heat => Cooling, PlanningEvent.Night => Safety, PlanningEvent.Flood => Flood, PlanningEvent.Air => Air, _ => Combined };
 }
+
+/// <summary>Live inputs to the scores: heat pressure (IMGW), river level 0–1 (IMGW gauges) and air pollution 0–1 (GIOŚ PM2.5).</summary>
+public sealed record LiveConditions(HeatPressure Heat, double FloodLevel, double AirLevel);
 
 /// <summary>The whole city scored for one event, with the conditions it was scored under.</summary>
 public sealed record ScoredGrid(PlanningEvent Event, IReadOnlyList<ScoredCell> Cells, ConditionsDto Conditions, StaticSafetyModel Model, DateTimeOffset GeneratedAt);
@@ -51,6 +62,8 @@ public sealed class ScoreService(
     {
         "heat" => PlanningEvent.Heat,
         "night" or "safety" => PlanningEvent.Night,
+        "flood" => PlanningEvent.Flood,
+        "air" => PlanningEvent.Air,
         _ => PlanningEvent.Both
     };
 
@@ -58,6 +71,8 @@ public sealed class ScoreService(
     {
         PlanningEvent.Heat => "heat",
         PlanningEvent.Night => "night",
+        PlanningEvent.Flood => "flood",
+        PlanningEvent.Air => "air",
         _ => "both"
     };
 
@@ -71,7 +86,7 @@ public sealed class ScoreService(
         // Datasets still loading are reported next to the live-source gaps, so the UI can warn that scores are incomplete.
         current = current with { DataGaps = [.. current.DataGaps, .. model.DataGaps.Where(g => !current.DataGaps.Contains(g))] };
         var reports = await OpenReportsByCellAsync(ct);
-        var pressure = PressureOf(current);
+        var pressure = LiveOf(current);
 
         var cells = model.Cells.Select(m => Score(m, reports.GetValueOrDefault(m.CellId), evt, pressure)).ToList();
         return new ScoredGrid(evt, cells, current, model, clock.UtcNow);
@@ -84,14 +99,14 @@ public sealed class ScoreService(
         var rows = scored.Cells
             .Select(c => new[]
             {
-                c.Measure.Row, c.Measure.Col, R(c.Heat), R(c.Safety), R(c.Combined), R(c.Measure.Exposure * 100), c.OpenReports, R(c.Priority)
+                c.Measure.Row, c.Measure.Col, R(c.Heat), R(c.Safety), R(c.Combined), R(c.Measure.Exposure * 100), c.OpenReports, R(c.Priority), R(c.Flood), R(c.Air)
             })
             .ToList();
 
         return new GridDto(
             new GridMetaDto(GridSpec.OriginLatitude, GridSpec.OriginLongitude, GridSpec.CellLatitudeDegrees, GridSpec.CellLongitudeDegrees, GridSpec.CellSizeMeters, SafetyModel.GoodFrom, SafetyModel.FairFrom, SafetyModel.WeakFrom, SafetyModel.SearchRadiusMeters),
             EventName(evt),
-            ["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority"],
+            ["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority", "flood", "air"],
             rows,
             scored.GeneratedAt,
             scored.Conditions);
@@ -104,7 +119,7 @@ public sealed class ScoreService(
         var current = await conditions.GetAsync(ct);
         var reports = await OpenReportsByCellAsync(ct);
         var measure = model.Measure(point);
-        var scored = Score(measure, reports.GetValueOrDefault(measure.CellId), evt, PressureOf(current));
+        var scored = Score(measure, reports.GetValueOrDefault(measure.CellId), evt, LiveOf(current));
 
         var nearby = reports.Values.SelectMany(r => r)
             .Where(r => GridSpec.Distance(point, r.Location) <= 400)
@@ -124,7 +139,7 @@ public sealed class ScoreService(
         var reports = await OpenReportsByCellAsync(ct);
         var measure = model.FindCell(GridSpec.IdOf(row, col)) ?? model.Measure(GridSpec.CenterOf(row, col));
         var cellReports = reports.GetValueOrDefault(measure.CellId) ?? [];
-        var scored = Score(measure, cellReports, evt, PressureOf(current));
+        var scored = Score(measure, cellReports, evt, LiveOf(current));
 
         var dtos = cellReports.OrderByDescending(r => r.LastActivityAt).Select(r => r.ToDto(includeNotes)).ToList();
         return BuildPlace(measure, scored, evt, model, dtos, clock.UtcNow);
@@ -150,7 +165,7 @@ public sealed class ScoreService(
             samples,
             samples.Min(s => s.Safety),
             Math.Round(samples.Average(s => s.Safety), 1),
-            samples.Max(s => s.Heat),
+            samples.Min(s => s.Heat),
             Math.Round(samples.Average(s => s.Heat), 1),
             weakest,
             reportsNearby,
@@ -166,6 +181,7 @@ public sealed class ScoreService(
         var model = await models.GetAsync(ct);
         var reports = await OpenReportsByCellAsync(ct);
         var now = clock.UtcNow;
+        var live = LiveOf(await conditions.GetAsync(ct));
 
         var samples = new List<CorridorSampleDto>();
         foreach (var p in PathSampler.Sample(path, CorridorStepMeters))
@@ -174,7 +190,9 @@ public sealed class ScoreService(
             var cellReports = reports.GetValueOrDefault(m.CellId) ?? [];
             var cooling = SafetyModel.LayerScore(m.HeatBase, ReportRules.CellPenalty(ScoreLayer.Heat, cellReports, now));
             var safety = SafetyModel.LayerScore(m.SafetyBase, ReportRules.CellPenalty(ScoreLayer.Safety, cellReports, now));
-            samples.Add(new CorridorSampleDto(Math.Round(p.Latitude, 6), Math.Round(p.Longitude, 6), R(SafetyModel.HeatScore(cooling)), R(safety), R(SafetyModel.Combine(cooling, safety))));
+            var flood = SafetyModel.LayerScore(m.FloodBase, ReportRules.CellPenalty(ScoreLayer.Flood, cellReports, now) + SafetyModel.FloodLivePenalty(live.FloodLevel, m.Flood.First(x => x.Definition.Key == "river").Score));
+            var air = SafetyModel.LayerScore(m.AirBase, ReportRules.CellPenalty(ScoreLayer.Air, cellReports, now) + SafetyModel.AirLivePenalty(live.AirLevel, m.AirBase));
+            samples.Add(new CorridorSampleDto(Math.Round(p.Latitude, 6), Math.Round(p.Longitude, 6), R(SafetyModel.HeatScore(cooling)), R(safety), R(SafetyModel.Combine(cooling, safety)), R(flood), R(air)));
         }
 
         var points = samples.Select(s => new GeoPoint(s.Latitude, s.Longitude)).ToList();
@@ -189,7 +207,7 @@ public sealed class ScoreService(
     public async Task<IReadOnlyList<FeatureDto>> GetFeaturesAsync(CancellationToken ct = default)
     {
         var model = await models.GetAsync(ct);
-        return new[] { "water", "toilets", "green", "refuge", "openPlaces", "aed" }
+        return new[] { "water", "toilets", "green", "refuge", "openPlaces", "aed", "emergency" }
             .SelectMany(key => model.FeaturesOf(key).Select(f => new FeatureDto(
                 key, f.Kind, f.Name, Math.Round(f.Location.Latitude, 6), Math.Round(f.Location.Longitude, 6), f.RadiusMeters, f.OpeningHours)))
             .ToList();
@@ -202,37 +220,68 @@ public sealed class ScoreService(
     /// cooling capacity = base − report penalty (clamped), heat score = 100 − that, combined = <see cref="SafetyModel.Combine"/>,
     /// priority = <see cref="SafetyModel.Priority"/> of the event's score.
     /// </summary>
-    public ScoredCell Score(PlaceMeasure m, IReadOnlyList<CitizenReport>? cellReports, PlanningEvent evt, HeatPressure pressure)
+    public ScoredCell Score(PlaceMeasure m, IReadOnlyList<CitizenReport>? cellReports, PlanningEvent evt, HeatPressure pressure) =>
+        Score(m, cellReports, evt, new LiveConditions(pressure, 0, 0));
+
+    public ScoredCell Score(PlaceMeasure m, IReadOnlyList<CitizenReport>? cellReports, PlanningEvent evt, LiveConditions live)
     {
         var now = clock.UtcNow;
         var reports = cellReports ?? [];
         var heatPenalty = ReportRules.CellPenalty(ScoreLayer.Heat, reports, now);
         var safetyPenalty = ReportRules.CellPenalty(ScoreLayer.Safety, reports, now);
+        var floodPenalty = ReportRules.CellPenalty(ScoreLayer.Flood, reports, now);
+        var airPenalty = ReportRules.CellPenalty(ScoreLayer.Air, reports, now);
         var cooling = SafetyModel.LayerScore(m.HeatBase, heatPenalty);
         var safety = SafetyModel.LayerScore(m.SafetyBase, safetyPenalty);
         var combined = SafetyModel.Combine(cooling, safety);
 
+        // Flood and air: base score − citizen reports − what the live river levels or air readings take off (see SafetyModel).
+        var riverScore = m.Flood.First(f => f.Definition.Key == "river").Score;
+        var floodLive = SafetyModel.FloodLivePenalty(live.FloodLevel, riverScore);
+        var airLive = SafetyModel.AirLivePenalty(live.AirLevel, m.AirBase);
+        var flood = SafetyModel.LayerScore(m.FloodBase, floodPenalty + floodLive);
+        var air = SafetyModel.LayerScore(m.AirBase, airPenalty + airLive);
+
         var priority = evt switch
         {
-            PlanningEvent.Heat => SafetyModel.Priority(cooling, m.Exposure, SafetyModel.HeatPressureFactor(pressure)),
+            PlanningEvent.Heat => SafetyModel.Priority(cooling, m.Exposure, SafetyModel.HeatPressureFactor(live.Heat)),
             PlanningEvent.Night => SafetyModel.Priority(safety, m.Exposure, SafetyModel.NightPressure),
-            _ => SafetyModel.Priority(combined, m.Exposure, Math.Max(SafetyModel.HeatPressureFactor(pressure), SafetyModel.NightPressure))
+            PlanningEvent.Flood => SafetyModel.Priority(flood, m.Exposure, SafetyModel.FloodPressureFactor(live.FloodLevel)),
+            PlanningEvent.Air => SafetyModel.Priority(air, m.Exposure, SafetyModel.AirPressureFactor(live.AirLevel)),
+            _ => SafetyModel.Priority(combined, m.Exposure, Math.Max(SafetyModel.HeatPressureFactor(live.Heat), SafetyModel.NightPressure))
         };
 
-        // Only the reports of the layers being planned for: Heat counts heat reports, Night safety counts night reports.
+        // Only the reports of the layers being planned for: Heat counts heat reports, Night safety counts night reports, and so on.
         var openReports = reports.Count(r => r.Status == ReportStatus.Open && InEvent(r.Type, evt));
-        return new ScoredCell(m, SafetyModel.HeatScore(cooling), safety, combined, heatPenalty, safetyPenalty, priority, openReports);
+        return new ScoredCell(m, SafetyModel.HeatScore(cooling), safety, combined, heatPenalty, safetyPenalty, priority, openReports,
+            flood, air, floodPenalty, airPenalty, floodLive, airLive);
     }
+
+    /// <summary>The score layers an event plans for (Both = heat and night safety).</summary>
+    public static Layer[] LayersOf(PlanningEvent evt) => evt switch
+    {
+        PlanningEvent.Heat => [Layer.Heat],
+        PlanningEvent.Night => [Layer.Safety],
+        PlanningEvent.Flood => [Layer.Flood],
+        PlanningEvent.Air => [Layer.Air],
+        _ => [Layer.Heat, Layer.Safety]
+    };
 
     /// <summary>True when a report type belongs to a layer the event plans for (Both = every type).</summary>
     public static bool InEvent(ReportType type, PlanningEvent evt) => evt switch
     {
         PlanningEvent.Heat => ReportRules.For(type).Layer == ScoreLayer.Heat,
         PlanningEvent.Night => ReportRules.For(type).Layer == ScoreLayer.Safety,
+        PlanningEvent.Flood => ReportRules.For(type).Layer == ScoreLayer.Flood,
+        PlanningEvent.Air => ReportRules.For(type).Layer == ScoreLayer.Air,
         _ => true
     };
 
     public static HeatPressure PressureOf(ConditionsDto c) => Enum.TryParse<HeatPressure>(c.Heat.Pressure, out var p) ? p : HeatPressure.None;
+
+    /// <summary>The live inputs of all four layers: heat pressure, river level 0–1 and air pollution 0–1.</summary>
+    public static LiveConditions LiveOf(ConditionsDto c) =>
+        new(PressureOf(c), SafetyModel.FloodLevel(c.Hydro.WorstState), SafetyModel.AirLevel(c.Air.Pm25Average ?? c.Air.Pm25));
 
     public async Task<Dictionary<string, List<CitizenReport>>> OpenReportsByCellAsync(CancellationToken ct)
     {
@@ -251,10 +300,10 @@ public sealed class ScoreService(
         {
             var factors = measure.Factors(layer).Select(f => f.ToDto()).ToList();
             var basePoints = measure.Factors(layer).Sum(f => f.Points);
-            // Heat: the score is hot-ness (100 − cooling capacity), so the base is what the missing relief adds, and reports add to it.
-            return layer == Layer.Heat
-                ? new LayerScoreDto(R(score), SafetyModel.HeatBand(score).ToString(), R(100 - basePoints), Math.Round(penalty, 1), factors)
-                : new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
+            // Flood and air: the penalty shown is reports plus the live adjustment (river levels, PM2.5), all taken off the base.
+            if (layer is Layer.Flood or Layer.Air)
+                return new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
+            return new LayerScoreDto(R(score), SafetyModel.Band(score).ToString(), R(basePoints), Math.Round(penalty, 1), factors);
         }
 
         var nearest = NearestFeatures(measure.Point, model);
@@ -275,13 +324,15 @@ public sealed class ScoreService(
             reports,
             actions,
             now,
-            model.LabelFor(measure.Point));
+            model.LabelFor(measure.Point),
+            LayerDto(Layer.Flood, scored.Flood, scored.FloodPenalty + scored.FloodLive),
+            LayerDto(Layer.Air, scored.Air, scored.AirPenalty + scored.AirLive));
     }
 
     private static List<NearestFeatureDto> NearestFeatures(GeoPoint point, StaticSafetyModel model)
     {
         var list = new List<NearestFeatureDto>();
-        foreach (var key in new[] { "water", "green", "refuge", "toilets", "openPlaces", "nightTransit", "aed", "transit" })
+        foreach (var key in new[] { "water", "green", "refuge", "toilets", "openPlaces", "nightTransit", "aed", "transit", "river", "traffic", "emergency" })
         {
             var (distance, feature) = model.Nearest(key, point);
             if (distance is null || feature is null) continue;
@@ -315,7 +366,13 @@ public static class SafetyMapping
         ["lighting"] = "Street lighting",
         ["nightTransit"] = "Night transport",
         ["openPlaces"] = "Open and staffed places",
-        ["aed"] = "Defibrillator (AED)"
+        ["aed"] = "Defibrillator (AED)",
+        ["river"] = "Distance from rivers and streams",
+        ["emergency"] = "Hospital or police nearby",
+        ["evacuation"] = "Way out (public transport)",
+        ["traffic"] = "Distance from main roads",
+        ["trees"] = "Parks and trees",
+        ["cleanIndoor"] = "Indoor place to wait out bad air"
     };
 
     public static string LabelOf(string factorKey) => FactorLabels.GetValueOrDefault(factorKey, factorKey);
@@ -323,7 +380,7 @@ public static class SafetyMapping
     public static FactorDto ToDto(this FactorResult f) =>
         new(f.Definition.Key, LabelOf(f.Definition.Key), f.Definition.Layer.ToString(), f.Definition.Weight, f.Value,
             f.Definition.Kind == FactorKind.Density ? "lamps/km²" : "m", Math.Round(f.Score, 1), Math.Round(f.Points, 1), f.NearestName,
-            Math.Round(f.Definition.Layer == Layer.Heat ? f.Definition.Weight - f.Points : f.Points, 1));
+            Math.Round(f.Points, 1));
 
     public static ReportDto ToDto(this CitizenReport r, bool includeNote) =>
         new(r.Id, r.Type.ToString(), ReportRules.For(r.Type).Layer.ToString(), Math.Round(r.Location.Latitude, 6), Math.Round(r.Location.Longitude, 6),
@@ -357,17 +414,18 @@ public static class SuggestedActions
         ["lighting"] = ("FIX_LIGHTING", "Inspect street lighting here; repair or add lamps (lighting work order)."),
         ["nightTransit"] = ("REVIEW_NIGHT_SERVICE", "Review night service at the nearest stops."),
         ["openPlaces"] = ("ADD_NIGHT_PRESENCE", "Consider a patrol route or a staffed point after dark."),
-        ["aed"] = ("ADD_AED", "Install a defibrillator that is reachable around the clock.")
+        ["aed"] = ("ADD_AED", "Install a defibrillator that is reachable around the clock."),
+        ["river"] = ("FLOOD_PROTECTION", "Check flood protection here: barriers, drainage, and an evacuation plan for the nearest river."),
+        ["emergency"] = ("REVIEW_EMERGENCY_ACCESS", "Review emergency access (fire, medical, police) for this area during high water."),
+        ["evacuation"] = ("REVIEW_EVACUATION_ROUTES", "Review stops and routes people would use to leave the area when water rises."),
+        ["traffic"] = ("REDUCE_TRAFFIC_EXPOSURE", "Consider traffic calming, a low-emission zone or a green barrier next to the main road."),
+        ["trees"] = ("ADD_TREES", "Plant trees or add green areas that filter and dilute polluted air."),
+        ["cleanIndoor"] = ("OPEN_CLEAN_AIR_SPACE", "Open a public indoor space with filtered air during smog episodes.")
     };
 
     public static IReadOnlyList<SuggestedActionDto> For(PlaceMeasure m, ScoredCell scored, PlanningEvent evt)
     {
-        var layers = evt switch
-        {
-            PlanningEvent.Heat => new[] { Layer.Heat },
-            PlanningEvent.Night => new[] { Layer.Safety },
-            _ => new[] { Layer.Heat, Layer.Safety }
-        };
+        var layers = ScoreService.LayersOf(evt);
 
         var actions = layers
             .SelectMany(m.Factors)

@@ -7,7 +7,7 @@ import { t, tIn, getLang } from './i18n.js';
 import { cachedGet, getSummary, getCell, getReports, getAgencies, getDispatches, getPlannerAlerts, getGrid, resolveReport, verifyReport, createDispatch, errorText } from './api.js';
 import { gauge } from './charts.js';
 import { addressLine } from './geo.js';
-import { bandOf, kindOf, FACTOR_ICON, FACTOR_LAYER, RELIEF } from './model.js';
+import { bandOf, kindOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, LAYERS, modeOfEvent } from './model.js';
 import { explainable, openFactorExplainer, openKpiExplainer, openScoreExplainer, bandText } from './explain.js';
 
 // ── Shared planner state and a tiny event bus ────────────────────────────────
@@ -109,9 +109,9 @@ export async function openCellDrawer(cellId, { meta } = {}) {
   clear(body);
 
   const stack = h('div', { class: 'stack' });
-  // The drawer follows the planning event: Heat shows heat only, Night safety shows night safety only, Both shows both.
-  const layers = P.event === 'heat' ? ['heat'] : P.event === 'night' ? ['safety'] : ['safety', 'heat'];
-  const wantedLayer = new Set(layers.map((k) => (k === 'heat' ? 'Heat' : 'Safety')));
+  // The drawer follows the planning event: it shows the one layer being planned for (heat, night safety, flood or air).
+  const layers = [modeOfEvent(P.event)];
+  const wantedLayer = new Set(layers.map((k) => LAYERS[k].api));
   const reportsHere = c.reports.filter((r) => wantedLayer.has(r.layer));
   if (res.stale) stack.append(staleBanner(res.savedAt));
   stack.append(
@@ -120,18 +120,15 @@ export async function openCellDrawer(cellId, { meta } = {}) {
         h('span', { class: 'small muted' }, icon('target', 'sm'), ' ', t('cov.square', { r: formatDistance(gm?.cellSizeMeters || 250) }))),
       explainable(h('span', { class: 'chip accent' }, `${t('cell.priority')} ${Math.round(c.priority)}`), () => openKpiExplainer('priority', { value: c.priority, extra: [[t('cell.exposureLabel'), `${Math.round(c.exposure * 100)} / 100`], [t('mode.heat.score'), Math.round(c.heat)], [t('mode.safety.score'), Math.round(c.safety)], [t('mode.both.score'), Math.round(c.combined)]] }), t('cell.priority'))),
     h('div', { class: 'row wrap', style: { justifyContent: 'space-around' } },
-      layers.map((k) => gaugeBox(c[k].score, gm, t(`mode.${k}.score`), kindOf(k), () => openScoreExplainer({ layer: k, place: c, meta: gm }))),
-      layers.length > 1 ? gaugeBox(c.combined, gm, t('mode.both.score'), 'good', () => openScoreExplainer({ layer: 'both', place: c, meta: gm })) : null));
+      layers.map((k) => gaugeBox(c[k].score, gm, t(`mode.${k}.score`), kindOf(k), () => openScoreExplainer({ layer: k, place: c, meta: gm })))));
 
   // Why: the full factor tables (transparency), only for the layers of the event
   stack.append(h('section', null, h('h3', null, t('cell.why')),
     layers.map((k) => [k, c[k]]).map(([k, l]) => h('div', { style: { marginTop: '.6rem' } },
-      explainable(h('p', { class: 'sect-title' }, k === 'heat'
-        ? `${t('mode.heat.score')} · ${t('cell.base')} ${Math.round(l.baseScore)}${l.reportPenalty ? ` + ${l.reportPenalty} ${t('place.fromReports')}` : ''} = ${Math.round(l.score)} (${t('explain.dir.heat')})`
-        : `${t('mode.safety.score')} · ${t('cell.base')} ${Math.round(l.baseScore)}${l.reportPenalty ? ` − ${l.reportPenalty} ${t('place.fromReports')}` : ''} = ${Math.round(l.score)} (${t('explain.dir.safety')})`),
+      explainable(h('p', { class: 'sect-title' }, `${t(`mode.${k}.score`)} · ${t('cell.base')} ${Math.round(l.baseScore)}${l.reportPenalty ? ` − ${l.reportPenalty} ${t(k === 'safety' || k === 'heat' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(l.score)} (${t(`explain.dir.${k}`)})`),
       () => openScoreExplainer({ layer: k, place: c, meta: gm }), t(`mode.${k}.score`)),
       h('div', { class: 'tbl-wrap' }, h('table', { class: 't' },
-        h('thead', null, h('tr', null, [t('cell.factor'), t('cell.weight'), t('cell.value'), t('cell.score'), k === 'heat' ? t('explain.colHeat') : t('explain.colSafety')].map((x) => h('th', { scope: 'col' }, x)))),
+        h('thead', null, h('tr', null, [t('cell.factor'), t('cell.weight'), t('cell.value'), t('cell.score'), k === 'heat' ? t('explain.colHeat') : k === 'safety' ? t('explain.colSafety') : t(`explain.col.${k}`)].map((x) => h('th', { scope: 'col' }, x)))),
         h('tbody', null, l.factors.map((f) => {
           const open = () => openFactorExplainer(f.key, { factor: f, layer: k, meta: gm });
           return h('tr', null,
@@ -139,7 +136,7 @@ export async function openCellDrawer(cellId, { meta } = {}) {
             h('td', { class: 'num' }, explainable(h('span', null, f.weight), open, t('cell.weight'))),
             h('td', { class: 'num' }, explainable(h('span', null, f.unit === 'm' ? (f.value === null ? t('factor.none', { r: formatDistance(gm?.searchRadiusMeters || 1500) }) : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`), open, t('cell.value'))),
             h('td', null, explainable(h('span', { class: 'band', 'data-band': bandOf(f.score, gm) }, Math.round(f.score)), open, t('cell.score'))),
-            h('td', { class: 'num' }, explainable(h('span', null, `+${f.contribution}`), open, k === 'heat' ? t('explain.colHeat') : t('explain.colSafety'))));
+            h('td', { class: 'num' }, explainable(h('span', null, `+${f.contribution}`), open, k === 'heat' ? t('explain.colHeat') : k === 'safety' ? t('explain.colSafety') : t(`explain.col.${k}`))));
         })))))),
     h('p', { class: 'tiny muted' }, t('cell.exposure', { n: Math.round(c.exposure * 100) }))));
 
@@ -161,7 +158,7 @@ export async function openCellDrawer(cellId, { meta } = {}) {
           h('button', { class: 'btn sm', type: 'button', onclick: () => openAlertDialog({ cell: c, action: a }) }, icon('bell', 'sm'), t('cell.alert'))))))) : h('p', { class: 'small muted' }, t('cell.noActions'))));
 
   // Nearest assets (of the event's layers)
-  const nearestShown = c.nearest.filter((n) => RELIEF[P.event === 'night' ? 'safety' : P.event].includes(n.key));
+  const nearestShown = c.nearest.filter((n) => RELIEF[modeOfEvent(P.event)].includes(n.key));
   if (nearestShown.length) {
     stack.append(h('section', null, h('h3', null, t('cell.nearest')),
       h('div', { class: 'tbl-wrap' }, h('table', { class: 't' }, h('tbody', null, nearestShown.map((n) => h('tr', null,
@@ -221,7 +218,7 @@ export function resolveDialog(r, onChange) {
 export function makeBrief(lang, { cell, action }) {
   const L = (k, p) => tIn(lang, k, p);
   const band = (s, kind = 'good') => L(kind === 'heat' ? `band.heat.${bandOf(s, P.grid?.grid, 'heat')}` : `band.${bandOf(s, P.grid?.grid)}`);
-  const weak = [...cell.safety.factors, ...cell.heat.factors].filter((f) => f.score < 35)
+  const weak = [...cell.safety.factors, ...cell.heat.factors, ...(cell.flood?.factors || []), ...(cell.air?.factors || [])].filter((f) => f.score < 35)
     .map((f) => `${L(`factor.${f.key}`)} (${f.unit === 'm' ? (f.value === null ? L('factor.none') : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${L('factor.lamps')}`})`);
   const reports = cell.reports.filter((r) => r.status === 'Open');
   const c = P.summary?.data?.conditions || null;
@@ -230,6 +227,7 @@ export function makeBrief(lang, { cell, action }) {
     geoLink(cell.latitude, cell.longitude),
     c ? L('brief.situation', { heat: L(`heat.${c.heat.pressure}`), dark: c.isDark ? L('brief.dark') : L('brief.daylight') }) : null,
     L('brief.scores', { safety: Math.round(cell.safety.score), sb: band(cell.safety.score), heat: Math.round(cell.heat.score), hb: band(cell.heat.score, 'heat'), priority: Math.round(cell.priority) }),
+    cell.flood && cell.air ? L('brief.floodAir', { flood: Math.round(cell.flood.score), fb: band(cell.flood.score), air: Math.round(cell.air.score), ab: band(cell.air.score) }) : null,
     weak.length ? L('brief.weak', { list: weak.join('; ') }) : null,
     reports.length ? L('brief.reports', { n: reports.length, types: [...new Set(reports.map((r) => L(`rtype.${r.type}`)))].join('; ') }) : null,
     action ? L('brief.request', { text: L(`action.${action.code}`) }) : null,

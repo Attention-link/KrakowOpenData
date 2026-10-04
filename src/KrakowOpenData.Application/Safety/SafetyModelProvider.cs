@@ -25,7 +25,8 @@ public sealed class SafetyModelProvider(
     IReadRepository<SafetyPlace> places,
     IReadRepository<TransitStop> stops,
     ITransitScheduleRepository schedule,
-    IClock clock)
+    IClock clock,
+    ISafetyStore? store = null)
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(30);
     public static readonly TimeSpan DegradedLifetime = TimeSpan.FromMinutes(1);
@@ -33,6 +34,9 @@ public sealed class SafetyModelProvider(
     private readonly SemaphoreSlim _gate = new(1, 1);
     private StaticSafetyModel? _model;
     private DateTimeOffset _expires;
+
+    /// <summary>Forget the cached model so the next request builds a new one (after a planner changed the factor weights).</summary>
+    public void Invalidate() => _expires = DateTimeOffset.MinValue;
 
     public async Task<StaticSafetyModel> GetAsync(CancellationToken ct = default)
     {
@@ -106,10 +110,23 @@ public sealed class SafetyModelProvider(
             ["openPlaces"] = PlaceFeatures(placeList, p =>
                 p.Kind is SafetyPlaceKind.Police or SafetyPlaceKind.Hospital || (p.Kind == SafetyPlaceKind.Pharmacy && p.IsOpenAllNight)),
             ["transit"] = stopList.Select(StopFeature).ToList(),
-            ["nightTransit"] = stopList.Where(s => nightIds.Contains(s.Id)).Select(StopFeature).ToList()
+            ["nightTransit"] = stopList.Where(s => nightIds.Contains(s.Id)).Select(StopFeature).ToList(),
+            ["river"] = PlaceFeatures(placeList, p => p.Kind == SafetyPlaceKind.Waterway),
+            ["traffic"] = PlaceFeatures(placeList, p => p.Kind == SafetyPlaceKind.MajorRoad),
+            ["emergency"] = PlaceFeatures(placeList, p => p.Kind is SafetyPlaceKind.Hospital or SafetyPlaceKind.Police),
+            ["evacuation"] = stopList.Select(StopFeature).ToList(),
+            ["trees"] = PlaceFeatures(placeList, p => p.Kind == SafetyPlaceKind.Park),
+            ["cleanIndoor"] = PlaceFeatures(placeList, p => p.Kind is SafetyPlaceKind.Library or SafetyPlaceKind.Pharmacy or SafetyPlaceKind.Hospital)
         };
 
-        return new StaticSafetyModel(features, CountPerCell(lampList.Select(l => l.Location)), CountPerCell(stopList.Select(s => s.Location)), gaps, clock.UtcNow);
+        // Rivers and main roads come with the places dataset; if it loaded without them (an old saved copy), say so.
+        if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.Waterway)) gaps.Add("rivers");
+        if (placeList.Count > 0 && !placeList.Any(p => p.Kind == SafetyPlaceKind.MajorRoad)) gaps.Add("mainRoads");
+
+        var overrides = store is null ? new Dictionary<string, double>() : await store.GetWeightOverridesAsync(ct);
+        var definitions = Enum.GetValues<Layer>().ToDictionary(l => l, l => FactorWeights.Apply(l, overrides));
+
+        return new StaticSafetyModel(features, CountPerCell(lampList.Select(l => l.Location)), CountPerCell(stopList.Select(s => s.Location)), gaps, clock.UtcNow, definitions);
     }
 
     private static IReadOnlyList<Feature> AmenityFeatures(IReadOnlyList<Amenity> all, AmenityKind kind) =>

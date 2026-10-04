@@ -156,6 +156,8 @@ export function openHowItWorks() {
       h('p', null, t('how.intro')),
       h('div', null, h('h3', null, h('span', { class: 'chip safety' }, icon('moon', 'sm'), t('mode.safety'))), h('p', { class: 'small' }, t('how.safety'))),
       h('div', null, h('h3', null, h('span', { class: 'chip heat' }, icon('sun', 'sm'), t('mode.heat'))), h('p', { class: 'small' }, t('how.heat'))),
+      h('div', null, h('h3', null, h('span', { class: 'chip flood' }, icon('wave', 'sm'), t('mode.flood'))), h('p', { class: 'small' }, t('how.flood'))),
+      h('div', null, h('h3', null, h('span', { class: 'chip air' }, icon('wind', 'sm'), t('mode.air'))), h('p', { class: 'small' }, t('how.air'))),
       h('p', { class: 'small' }, t('how.reports')),
       h('p', { class: 'banner info small' }, icon('info'), h('span', null, t('how.notCrime')))),
     footer: [h('button', { class: 'btn', type: 'button', onclick: () => { close('x'); openMethod(); } }, icon('list', 'sm'), t('explain.fullMethod')),

@@ -33,7 +33,7 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
 {
     if (allowedOrigins.Length == 0) p.AllowAnyOrigin();
     else p.WithOrigins(allowedOrigins);
-    p.AllowAnyHeader().WithMethods("GET", "POST", "DELETE");
+    p.AllowAnyHeader().WithMethods("GET", "POST", "PUT", "DELETE");
 }));
 
 var app = builder.Build();

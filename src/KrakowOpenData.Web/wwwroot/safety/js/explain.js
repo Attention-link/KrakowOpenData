@@ -5,13 +5,16 @@
 import { h, icon, clear, openDialog, formatDistance } from './util.js';
 import { t } from './i18n.js';
 import { cachedGet, getMethod, peek } from './api.js';
-import { BAND_FILL, kindOf, bandOf, bandRange, FACTOR_ICON } from './model.js';
+import { BAND_FILL, kindOf, bandOf, bandRange, FACTOR_ICON, LAYERS, layerOfApi } from './model.js';
 
 // ── Method data (loaded once, saved for offline) ─────────────────────────────
 let method = null;
 let pending = null;
 
 export const methodNow = () => method;
+
+/** Forget the loaded method so the next explanation shows new weights (after a planner changed them). */
+export function resetMethod() { method = null; pending = null; }
 
 export function loadMethod() {
   if (method) return Promise.resolve(method);
@@ -30,14 +33,14 @@ export const bandText = (band, kind = 'good') => t(kind === 'heat' ? `band.heat.
 /** One-line description of a score for a tooltip (the `title` attribute) and screen readers. */
 export function scoreSummary(layer, score, band) {
   const kind = kindOf(layer);
-  const dir = layer === 'heat' ? t('explain.dir.heat') : layer === 'safety' ? t('explain.dir.safety') : t('explain.dir.both');
+  const dir = t(`explain.dir.${LAYERS[layer] ? layer : 'both'}`);
   return `${Math.round(score)} / 100 · ${bandText(band, kind)} · ${dir}`;
 }
 
 // ── Small building blocks ────────────────────────────────────────────────────
-/** A round "?" button that opens an explanation. */
+/** A round "!" button that opens an explanation. */
 export function infoButton(onClick, label) {
-  return h('button', { class: 'info-btn', type: 'button', title: t('explain.click'), 'aria-label': label || t('explain.how'), onclick: (e) => { e.stopPropagation(); onClick(); } }, '?');
+  return h('button', { class: 'info-btn', type: 'button', title: t('explain.click'), 'aria-label': label || t('explain.how'), onclick: (e) => { e.stopPropagation(); onClick(); } }, '!');
 }
 
 /** Makes any element clickable (and keyboard operable) as an explanation trigger, with a hover hint. */
@@ -79,9 +82,11 @@ function valueText(f, radius) {
 /** What a measured factor did to the score, in words and numbers ("adds 25 points of heat"). */
 function effectText(layerKey, f) {
   const pts = Math.round(f.contribution * 10) / 10;
-  if (layerKey === 'heat') return pts > 0 ? t('explain.addsHeat', { n: pts }) : t('explain.addsNoHeat');
-  return t('explain.addsSafety', { n: pts, max: f.weight });
+  return t(layerKey === 'safety' ? 'explain.addsSafety' : `explain.adds.${layerKey}`, { n: pts, max: f.weight });
 }
+
+/** Name of a layer in words: "Night safety", "Heat", "Flood", "Air". */
+const layerName = (key) => t(`mode.${LAYERS[key] ? key : 'safety'}`);
 
 // ── The dialog ───────────────────────────────────────────────────────────────
 /** Opens a dialog from {title, value, valueNote, band, intro, sections:[Node], footerLink}. */
@@ -122,7 +127,7 @@ export function openScoreExplainer({ layer, place = null, meta = null }) {
     }
 
     for (const key of layers) {
-      const L = layerOf(key === 'heat' ? 'Heat' : 'Safety');
+      const L = layerOf(LAYERS[key].api);
       const data = place ? place[key] : null;
       const kind = kindOf(key);
       sections.push(section(L.title,
@@ -141,7 +146,7 @@ export function openScoreExplainer({ layer, place = null, meta = null }) {
     const first = layers[0];
     const d = place ? place[first] : null;
     openFacts({
-      title: layer === 'both' ? t('explain.titleBoth') : layerOf(first === 'heat' ? 'Heat' : 'Safety').title,
+      title: layer === 'both' ? t('explain.titleBoth') : layerOf(LAYERS[first].api).title,
       value: layer === 'both' ? (place ? Math.round(place.combined) : undefined) : (d ? Math.round(d.score) : undefined),
       valueNote: layer === 'both' || !d ? null : '/ 100',
       band: layer === 'both' ? place?.combinedBand : d?.band,
@@ -168,7 +173,7 @@ function whyPlace(layerKey, L, data, meta) {
       h('td', null, h('button', { class: 'linklike', type: 'button', onclick: () => openFactorExplainer(f.key, { factor: f, layer: layerKey, meta }) }, h('span', { class: 'row' }, icon(FACTOR_ICON[f.key] || 'info', 'sm'), t(`factor.${f.key}`)))),
       h('td', null, valueText(f, meta?.searchRadiusMeters), f.nearestName ? h('div', { class: 'tiny muted' }, f.nearestName) : null),
       h('td', { class: 'num' }, f.weight),
-      h('td', { class: 'num' }, layerKey === 'heat' ? `+${Math.round(f.contribution * 10) / 10}` : `+${Math.round(f.contribution * 10) / 10}`),
+      h('td', { class: 'num' }, `+${Math.round(f.contribution * 10) / 10}`),
       h('td', { class: 'num muted' }, info ? info.mappedCount.toLocaleString() : '–'));
   });
   const top = [...data.factors].sort((a, b) => b.contribution - a.contribution).filter((f) => layerKey === 'heat' ? f.contribution > 0 : false).slice(0, 2);
@@ -178,11 +183,11 @@ function whyPlace(layerKey, L, data, meta) {
       ? h('p', { class: 'small' }, top.length ? t('explain.heatBiggest', { list: top.map((f) => `${t(`factor.${f.key}`)} (+${Math.round(f.contribution)})`).join(', ') }) : t('explain.heatNone'))
       : null,
     h('div', { class: 'tbl-wrap' }, h('table', { class: 't' },
-      h('thead', null, h('tr', null, [t('cell.factor'), t('cell.value'), t('cell.weight'), layerKey === 'heat' ? t('explain.colHeat') : t('explain.colSafety'), t('explain.colMapped')].map((x) => h('th', { scope: 'col' }, x)))),
+      h('thead', null, h('tr', null, [t('cell.factor'), t('cell.value'), t('cell.weight'), layerKey === 'heat' ? t('explain.colHeat') : layerKey === 'safety' ? t('explain.colSafety') : t(`explain.col.${layerKey}`), t('explain.colMapped')].map((x) => h('th', { scope: 'col' }, x)))),
       h('tbody', null, rows,
-        reports ? h('tr', null, h('td', { colspan: 3 }, layerKey === 'heat' ? t('explain.reportsAddHeat') : t('explain.reportsSubtract')), h('td', { class: 'num' }, layerKey === 'heat' ? `+${reports}` : `−${reports}`), h('td')) : null,
+        reports ? h('tr', null, h('td', { colspan: 3 }, layerKey === 'heat' || layerKey === 'safety' ? t('explain.reportsSubtract') : t('explain.reportsAndLive')), h('td', { class: 'num' }, `−${reports}`), h('td')) : null,
         h('tr', null, h('td', { colspan: 3 }, h('b', null, t('explain.total'))), h('td', { class: 'num' }, h('b', null, total)), h('td'))))),
-    h('p', { class: 'tiny muted' }, layerKey === 'heat' ? t('explain.heatTableNote') : t('explain.safetyTableNote')));
+    h('p', { class: 'tiny muted' }, layerKey === 'heat' ? t('explain.heatTableNote') : layerKey === 'safety' ? t('explain.safetyTableNote') : t(`explain.tableNote.${layerKey}`)));
 }
 
 // ── One factor ───────────────────────────────────────────────────────────────
@@ -190,7 +195,7 @@ export function openFactorExplainer(key, { factor = null, layer = null, meta = n
   needMethod(() => {
     const info = factorInfo(key);
     if (!info) { openFacts({ title: t(`factor.${key}`), intro: t('explain.unavailable') }); return; }
-    const layerKey = layer || (info.layer === 'Heat' ? 'heat' : 'safety');
+    const layerKey = layer || layerOfApi(info.layer) || 'safety';
     const rows = [
       [t('explain.measures'), info.measures],
       [t('explain.weight'), h('span', { class: 'row' }, h('b', null, `${info.weight} / 100`), weightBar(info.weight))],
@@ -209,7 +214,7 @@ export function openFactorExplainer(key, { factor = null, layer = null, meta = n
     openFacts({
       title: t(`factor.${key}`),
       value: `${info.weight}%`,
-      valueNote: t('explain.ofScore', { layer: layerKey === 'heat' ? t('mode.heat') : t('mode.safety') }),
+      valueNote: t('explain.ofScore', { layer: layerName(layerKey) }),
       sections: [
         section(null, kv(rows)),
         info.dataCaveat ? h('div', { class: 'banner small' }, icon('info', 'sm'), h('span', null, info.dataCaveat)) : null,
@@ -253,7 +258,7 @@ export function openKpiExplainer(key, { value, unit, extra = [], links = [], tit
   needMethod(() => {
     const info = method.kpis.find((k) => k.key === key);
     const fi = factorKey ? factorInfo(factorKey) : null;
-    if (fi) extra = [...extra, [t('explain.weight'), `${fi.weight} / 100 (${fi.layer === 'Heat' ? t('mode.heat') : t('mode.safety')})`], [t('explain.mapped'), fi.mappedCount.toLocaleString()], [t('explain.why'), fi.whyWeighted]];
+    if (fi) extra = [...extra, [t('explain.weight'), `${fi.weight} / 100 (${layerName(layerOfApi(fi.layer) || 'safety')})`], [t('explain.mapped'), fi.mappedCount.toLocaleString()], [t('explain.why'), fi.whyWeighted]];
     const shown = value === undefined || value === null ? undefined : unit === '%' ? `${Math.round(value)}%` : unit === 'score' ? `${Math.round(value)} / 100` : String(value);
     openFacts({
       title: title || info?.title || t(`kpi.${key}`),
@@ -278,16 +283,16 @@ export function legendBody(mode, meta, { onExplain, compact = false } = {}) {
   const parts = [];
   const rows = (kind, title, sub) => {
     parts.push(h('div', { class: 'legend-block' },
-      h('div', { class: 'row between' }, h('b', { class: 'small' }, title), infoButton(() => onExplain?.(kind === 'heat' ? 'heat' : mode === 'both' ? 'both' : 'safety'), t('explain.how'))),
+      h('div', { class: 'row between' }, h('b', { class: 'small' }, title), infoButton(() => onExplain?.(LAYERS[mode] ? mode : 'both'), t('explain.how'))),
       h('div', { class: 'tiny muted' }, sub),
       h('ul', { class: 'legend-rows' }, ['Good', 'Fair', 'Weak', 'Critical'].map((b) => {
         const [from, to] = bandRange(b, meta, kind);
-        const meaning = layerMeaning(kind === 'heat' ? 'Heat' : mode === 'both' ? null : 'Safety', b) || t(kind === 'heat' ? `band.heat.${b}.desc` : `band.${b}.desc`);
+        const meaning = layerMeaning(LAYERS[mode] ? LAYERS[mode].api : null, b) || t(kind === 'heat' ? `band.heat.${b}.desc` : `band.${b}.desc`);
         return h('li', null, h('i', { style: { background: BAND_FILL[b] } }), h('span', { class: 'num' }, `${Math.round(from)}–${Math.round(to)}`), h('span', null, h('b', null, bandText(b, kind)), compact ? null : ' · ', compact ? null : meaning));
       }))));
   };
   if (mode === 'heat') rows('heat', t('legend.heatTitle'), t('explain.dir.heat'));
-  else if (mode === 'safety') rows('good', t('legend.safetyTitle'), t('explain.dir.safety'));
+  else if (LAYERS[mode]) rows('good', t(`legend.${mode}Title`), t(`explain.dir.${mode}`));
   else {
     rows('good', t('legend.bothTitle'), t('explain.dir.both'));
     parts.push(h('div', { class: 'tiny muted' }, t('legend.bothNote')));

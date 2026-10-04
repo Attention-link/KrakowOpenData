@@ -34,7 +34,7 @@ export function searchBox({ label, placeholder, near = null, onPick, filters = t
     clear(filterBar);
     filterBar.append(h('span', { class: 'tiny muted' }, t('search.show')),
       ...FILTERS.map(([k, key]) => h('button', { type: 'button', class: `chip-btn${filter === k ? ' on' : ''}`, 'aria-pressed': String(filter === k),
-        onclick: () => { filter = k; paintFilters(); paintList(); } }, t(key))));
+        onclick: () => { filter = k; paintFilters(); paintList(); if (results.length) status.textContent = visible().length ? '' : t('search.none'); } }, t(key))));
   }
   if (filters) paintFilters();
 

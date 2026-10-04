@@ -6,14 +6,14 @@
 
 <div class="toolbar">
     <form class="search" @onsubmit="LoadAsync" @onsubmit:preventDefault>
-        <select aria-label="@T["amen.title"]" @bind="_kind">
+        <select aria-label="@T["amen.title"]" @bind="_kind" @bind:after="LoadAsync">
             @foreach (var kind in Kinds)
             {
                 <option value="@kind">@T["kind." + kind]</option>
             }
         </select>
         <input class="narrow" placeholder="50.0617,19.9373" aria-label="@T["amen.near"]" title="@T["amen.near"]" @bind="_near" />
-        <input class="narrow" type="number" min="50" step="50" aria-label="@T["amen.radius"]" title="@T["amen.radius"]" @bind="_radius" />
+        <input class="narrow" type="number" min="@MinRadius" max="@MaxRadius" step="50" aria-label="@T["amen.radius"]" title="@T["amen.radius"]" @bind="_radius" />
         <button class="btn btn-primary" type="submit">@T["common.search"]</button>
     </form>
     <span class="muted small">@T.F("amen.count", _items.Count)</span>
@@ -39,6 +39,7 @@
 
 @code {
     private static readonly string[] Kinds = ["Defibrillator", "DrinkingWater", "Toilets", "EvCharger", "BikeParking"];
+    private const int MinRadius = 50, MaxRadius = 10_000;
 
     private string _kind = "Defibrillator";
     private string? _near = "50.0617,19.9373"; // Rynek Główny
@@ -57,10 +58,10 @@
             var parts = _near.Split(',', StringSplitOptions.TrimEntries);
             if (parts.Length != 2 ||
                 !double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var la) ||
-                !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lo))
+                !double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var lo) ||
+                la is < -90 or > 90 || lo is < -180 or > 180)
             {
-                _error = T["amen.badPoint"];
-                _loading = false;
+                Fail(T["amen.badPoint"]);
                 return;
             }
 
@@ -68,11 +69,26 @@
             lon = lo;
         }
 
+        // The radius only matters with a point; it must stay inside what the API accepts, otherwise the answer would silently differ from the box.
+        if (lat is not null && _radius is < MinRadius or > MaxRadius)
+        {
+            Fail(T.F("amen.badRadius", MinRadius, MaxRadius));
+            return;
+        }
+
         _loading = true;
         _error = null;
         try { _items = (await Api.Urban.GetAmenitiesAsync(_kind, lat, lon, _radius)).ToList(); }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
+    }
+
+    /// <summary>A bad filter must not leave the previous results on screen as if they matched.</summary>
+    private void Fail(string message)
+    {
+        _items = [];
+        _error = message;
+        _loading = false;
     }
 
     private static string MapUrl(AmenityDto a) =>

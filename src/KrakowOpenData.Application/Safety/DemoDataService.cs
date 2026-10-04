@@ -16,14 +16,14 @@ public sealed class DemoDataService(ScoreService scores, ISafetyStore store, ICl
     public async Task<int> SeedAsync(CancellationToken ct = default)
     {
         var existing = await store.ListReportsAsync(ct);
-        if (existing.Any(r => r.Note?.StartsWith(Marker, StringComparison.Ordinal) == true)) return 0;
+        var demo = existing.Where(r => r.Note?.StartsWith(Marker, StringComparison.Ordinal) == true).ToList();
+        var hasNightAndHeat = demo.Any(r => ReportRules.For(r.Type).Layer is ScoreLayer.Safety or ScoreLayer.Heat);
+        var hasFloodAndAir = demo.Any(r => ReportRules.For(r.Type).Layer is ScoreLayer.Flood or ScoreLayer.Air);
+        if (hasNightAndHeat && hasFloodAndAir) return 0;
 
         var grid = await scores.ScoreGridAsync(PlanningEvent.Both, ct);
         var busy = grid.Cells.Where(c => c.Measure.Exposure >= 0.6).ToList();
         if (busy.Count < 10) busy = grid.Cells.ToList();
-
-        var darkest = busy.OrderBy(c => c.Measure.SafetyBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(6).ToList();
-        var hottest = busy.OrderBy(c => c.Measure.HeatBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(5).ToList();
 
         var now = clock.UtcNow;
         var created = 0;
@@ -33,17 +33,37 @@ public sealed class DemoDataService(ScoreService scores, ISafetyStore store, ICl
             var devices = Enumerable.Range(1, supporters).Select(i => $"demo-device-{created:00}-{i:00}").ToList();
             var at = now.AddHours(-hoursAgo);
             await store.SaveReportAsync(new CitizenReport(
-                $"rep-demo{created:000}", type, cell.Measure.Point, $"{Marker}: {note}", at, at, devices, false, ReportStatus.Open, null, null), ct);
+                $"rep-demo{existing.Count + created:000}", type, cell.Measure.Point, $"{Marker}: {note}", at, at, devices, false, ReportStatus.Open, null, null), ct);
             created++;
         }
 
-        var lightTypes = new[] { ReportType.LightOut, ReportType.UnsafeAtNight, ReportType.LightOut, ReportType.PathHazard, ReportType.UnsafeAtNight, ReportType.LightOut };
-        for (var i = 0; i < darkest.Count; i++)
-            await Add(darkest[i], lightTypes[i], supporters: i % 3 == 0 ? 3 : i % 3 == 1 ? 2 : 1, hoursAgo: 3 + i * 9, "sample report for the demo");
+        if (!hasNightAndHeat)
+        {
+            var darkest = busy.OrderBy(c => c.Measure.SafetyBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(6).ToList();
+            var hottest = busy.OrderBy(c => c.Measure.HeatBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(5).ToList();
 
-        var heatTypes = new[] { ReportType.NoShade, ReportType.WaterNotWorking, ReportType.HeatSpot, ReportType.NoShade, ReportType.WaterNotWorking };
-        for (var i = 0; i < hottest.Count; i++)
-            await Add(hottest[i], heatTypes[i], supporters: i % 2 == 0 ? 2 : 1, hoursAgo: 1 + i * 5, "sample report for the demo");
+            var lightTypes = new[] { ReportType.LightOut, ReportType.UnsafeAtNight, ReportType.LightOut, ReportType.PathHazard, ReportType.UnsafeAtNight, ReportType.LightOut };
+            for (var i = 0; i < darkest.Count; i++)
+                await Add(darkest[i], lightTypes[i], supporters: i % 3 == 0 ? 3 : i % 3 == 1 ? 2 : 1, hoursAgo: 3 + i * 9, "sample report for the demo");
+
+            var heatTypes = new[] { ReportType.NoShade, ReportType.WaterNotWorking, ReportType.HeatSpot, ReportType.NoShade, ReportType.WaterNotWorking };
+            for (var i = 0; i < hottest.Count; i++)
+                await Add(hottest[i], heatTypes[i], supporters: i % 2 == 0 ? 2 : 1, hoursAgo: 1 + i * 5, "sample report for the demo");
+        }
+
+        if (!hasFloodAndAir)
+        {
+            var exposedToWater = busy.OrderBy(c => c.Measure.FloodBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(4).ToList();
+            var exposedToTraffic = busy.OrderBy(c => c.Measure.AirBase).ThenBy(c => c.Measure.CellId, StringComparer.Ordinal).Take(4).ToList();
+
+            var floodTypes = new[] { ReportType.FloodedStreet, ReportType.BlockedDrain, ReportType.RisingWater, ReportType.FloodedStreet };
+            for (var i = 0; i < exposedToWater.Count; i++)
+                await Add(exposedToWater[i], floodTypes[i], supporters: i % 2 == 0 ? 2 : 1, hoursAgo: 2 + i * 6, "sample report for the demo");
+
+            var airTypes = new[] { ReportType.StrongFumes, ReportType.SmokeOrBurning, ReportType.DustCloud, ReportType.StrongFumes };
+            for (var i = 0; i < exposedToTraffic.Count; i++)
+                await Add(exposedToTraffic[i], airTypes[i], supporters: i % 2 == 0 ? 3 : 1, hoursAgo: 1 + i * 4, "sample report for the demo");
+        }
 
         return created;
     }

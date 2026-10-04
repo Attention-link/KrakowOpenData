@@ -1,8 +1,8 @@
 namespace KrakowOpenData.Contracts;
 
 // ── Safety concerns (heat + night safety scores, citizen reports, planner tools) ───────────────
-// Enums are exposed as strings. Scores are 0–100. Heat score: HIGHER = HOTTER (worse). Safety score: HIGHER = SAFER (better).
-// The "combined" score and per-factor scores point the other way for heat: higher = better served.
+// Enums are exposed as strings. Scores are 0–100. Every score points the same way: HIGHER = BETTER (heat relief: more relief; safety: safer; flood: safer; air: cleaner).
+// Every score points the same way: higher = better (for heat, higher = better able to cool down).
 // How every number is computed is documented on KrakowOpenData.Application.Safety.SafetyModel.
 
 /// <summary>Where the score grid sits. A cell (row, col) covers latitude OriginLatitude + row × CellLatitudeDegrees (and likewise for longitude).</summary>
@@ -81,9 +81,11 @@ public sealed record PlaceScoreDto(
     IReadOnlyList<ReportDto> Reports,
     IReadOnlyList<SuggestedActionDto> Actions,
     DateTimeOffset GeneratedAt,
-    string? Label = null);
+    string? Label = null,
+    LayerScoreDto? Flood = null,
+    LayerScoreDto? Air = null);
 
-public sealed record CorridorSampleDto(double Latitude, double Longitude, double Heat, double Safety, double Combined);
+public sealed record CorridorSampleDto(double Latitude, double Longitude, double Heat, double Safety, double Combined, double Flood = 0, double Air = 0);
 
 /// <summary>Scores sampled every ~50 m along a straight line between two points (not a street route).</summary>
 public sealed record CorridorDto(
@@ -92,7 +94,7 @@ public sealed record CorridorDto(
     IReadOnlyList<CorridorSampleDto> Samples,
     double MinSafety,
     double AverageSafety,
-    double MaxHeat,
+    double MinHeat,
     double AverageHeat,
     int WeakestSampleIndex,
     int OpenReportsNearby,
@@ -101,7 +103,7 @@ public sealed record CorridorDto(
 // ── Live conditions ──────────────────────────────────────────────────────────
 public sealed record HeatConditionDto(string Pressure, int Level, string Label, double? TemperatureC, string? WarningTitle);
 
-public sealed record AirConditionDto(string Band, double? Pm25, string? Station);
+public sealed record AirConditionDto(string Band, double? Pm25, string? Station, double? Pm25Average = null);
 
 public sealed record HydroConditionDto(int ElevatedGauges, string WorstState);
 
@@ -207,7 +209,9 @@ public sealed record PriorityCellDto(
     int OpenReports,
     IReadOnlyList<string> WeakFactors,
     IReadOnlyList<SuggestedActionDto> Actions,
-    string? Label = null);
+    string? Label = null,
+    double Flood = 0,
+    double Air = 0);
 
 public sealed record ReportCountDto(string Type, int Open, int Last24Hours, int Verified);
 
@@ -248,7 +252,7 @@ public sealed record GeocodeResultDto(
 /// <summary>
 /// One walking route. <see cref="Path"/> follows the streets as [lat, lon] pairs. <see cref="Samples"/> are the scores every ~50 m along it.
 /// <see cref="Average"/> and <see cref="Worst"/> are in the scale of the requested mode: night = safety score (worst = lowest),
-/// heat = heat score (worst = highest), both = overall score (worst = lowest).
+/// every mode uses its own score, and for every score the worst value is the lowest.
 /// </summary>
 public sealed record RouteOptionDto(
     string Kind,
@@ -274,7 +278,9 @@ public sealed record RoutesDto(
     double ScoreGain,
     double ExtraMeters,
     int ExtraMinutes,
-    string Note);
+    string Note,
+    bool Widened = false,
+    bool FastestIsAcceptable = true);
 
 // ── How the scores are built (documentation served by the API, used for tooltips, legends and the planner) ──
 public sealed record BandInfoDto(string Band, double From, double To, string Meaning);
@@ -290,7 +296,21 @@ public sealed record FactorInfoDto(
     string WhyWeighted,
     string Source,
     int MappedCount,
-    string? DataCaveat);
+    string? DataCaveat,
+    double? DefaultWeight = null);
+
+// ── Factor weights (planner) ─────────────────────────────────────────────────
+/// <param name="Weight">The weight in use (points out of 100 in its layer).</param>
+/// <param name="DefaultWeight">The weight the model ships with.</param>
+/// <param name="Why">Why this factor carries weight at all, and why the default is what it is.</param>
+public sealed record FactorWeightDto(string Key, string Label, double Weight, double DefaultWeight, string Measures, string Why, string Source, string? Caveat);
+
+public sealed record LayerWeightsDto(string Layer, string Title, bool Customized, IReadOnlyList<FactorWeightDto> Factors);
+
+public sealed record WeightsDto(IReadOnlyList<LayerWeightsDto> Layers, bool Customized);
+
+/// <summary>Weights by factor key. Any non-negative numbers: each layer is scaled so its weights add up to 100.</summary>
+public sealed record SetWeightsRequest(IReadOnlyDictionary<string, double> Weights);
 
 public sealed record LayerMethodDto(
     string Layer,

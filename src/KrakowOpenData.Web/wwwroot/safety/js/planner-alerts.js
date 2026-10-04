@@ -10,7 +10,22 @@ import { searchBox } from './search.js';
 import { addressLine } from './geo.js';
 
 const SEV = { Info: 'accent', Warning: 'warn', Critical: 'danger' };
-const TEMPLATES = ['heat', 'night', 'custom'];
+const TEMPLATES = ['heat', 'night', 'flood', 'air', 'custom'];
+/** Template id -> API layer name, severity and icon. */
+const TPL = {
+  heat: { layer: 'Heat', severity: 'Warning', icon: 'thermo' },
+  night: { layer: 'Safety', severity: 'Info', icon: 'moon' },
+  flood: { layer: 'Flood', severity: 'Warning', icon: 'wave' },
+  air: { layer: 'Air', severity: 'Warning', icon: 'wind' }
+};
+const TPL_OF_LAYER = { Heat: 'heat', Safety: 'night', Flood: 'flood', Air: 'air' };
+const TPL_OF_EVENT = { heat: 'heat', night: 'night', flood: 'flood', air: 'air' };
+
+/** The weakest layer of an area, as a template id (heat is turned around: a hot place scores low). */
+function weakestTemplate(cell) {
+  const goodness = { heat: cell.heat.score, night: cell.safety.score, flood: cell.flood ? cell.flood.score : 100, air: cell.air ? cell.air.score : 100 };
+  return Object.entries(goodness).sort((a, b) => a[1] - b[1])[0][0];
+}
 
 /** The alert form. Used on the Alerts page and in the dialog opened from a map area or a report. */
 export function alertForm({ cell, action, point, onSent } = {}) {
@@ -19,9 +34,7 @@ export function alertForm({ cell, action, point, onSent } = {}) {
   const f = {
     center: start, radius: 800,
     // Start from the template that fits: the action's layer, else the weaker layer of the area, else the planning event.
-    template: action?.layer === 'Heat' ? 'heat' : action?.layer === 'Safety' ? 'night'
-      : cell ? (100 - cell.heat.score < cell.safety.score ? 'heat' : 'night')
-        : P.event === 'heat' ? 'heat' : P.event === 'night' ? 'night' : 'custom',
+    template: TPL_OF_LAYER[action?.layer] || (cell ? weakestTemplate(cell) : TPL_OF_EVENT[P.event] || 'custom'),
     severity: 'Warning', layer: '', duration: 180, title: '', message: '', pl: '', uk: '', armed: false
   };
 
@@ -42,11 +55,11 @@ export function alertForm({ cell, action, point, onSent } = {}) {
   const applyTemplate = (id) => {
     f.template = id;
     if (id === 'custom') return;
-    const key = id === 'heat' ? 'al.tpl.heat' : 'al.tpl.night';
+    const key = `al.tpl.${id}`;
     title.value = tIn('en', `${key}.title`); message.value = tIn('en', `${key}.body`);
     pl.value = tIn('pl', `${key}.body`); uk.value = tIn('uk', `${key}.body`);
-    f.severity = id === 'heat' ? 'Warning' : 'Info';
-    f.layer = id === 'heat' ? 'Heat' : 'Safety';
+    f.severity = TPL[id].severity;
+    f.layer = TPL[id].layer;
     sevSel.value = f.severity; layerSel.value = f.layer;
     // Title in the resident's language is the message's first words; the title stays English/Polish for planners.
     title.value = tIn(getLang() === 'pl' ? 'pl' : 'en', `${key}.title`);
@@ -56,7 +69,7 @@ export function alertForm({ cell, action, point, onSent } = {}) {
   const tplSel = h('select', { id: 'al-tpl' }, TEMPLATES.map((id) => h('option', { value: id, selected: f.template === id }, t(`al.tpl.${id}`))));
   tplSel.addEventListener('change', () => applyTemplate(tplSel.value));
   const sevSel = h('select', { id: 'al-sev' }, ['Info', 'Warning', 'Critical'].map((s) => h('option', { value: s, selected: f.severity === s }, t(`sev.${s}`))));
-  const layerSel = h('select', { id: 'al-layer' }, [['', t('al.layerAny')], ['Heat', t('mode.heat')], ['Safety', t('mode.safety')]].map(([v, l]) => h('option', { value: v, selected: f.layer === v }, l)));
+  const layerSel = h('select', { id: 'al-layer' }, [['', t('al.layerAny')], ['Heat', t('mode.heat')], ['Safety', t('mode.safety')], ['Flood', t('mode.flood')], ['Air', t('mode.air')]].map(([v, l]) => h('option', { value: v, selected: f.layer === v }, l)));
   const durSel = h('select', { id: 'al-dur' }, [[30, '30 min'], [60, '1 h'], [180, '3 h'], [360, '6 h'], [720, '12 h'], [1440, '24 h']].map(([v, l]) => h('option', { value: v, selected: f.duration === v }, l)));
 
   for (const [ctl, key] of [[sevSel, 'severity'], [layerSel, 'layer'], [durSel, 'duration']]) ctl.addEventListener('change', () => { f[key] = key === 'duration' ? Number(ctl.value) : ctl.value; paintPreview(); });
@@ -99,7 +112,7 @@ export function alertForm({ cell, action, point, onSent } = {}) {
     clear(preview);
     const sevClass = f.severity === 'Critical' ? 'critical' : f.severity === 'Info' ? 'info' : '';
     preview.append(h('p', { class: 'sect-title' }, t('al.preview')),
-      h('div', { class: `banner ${sevClass}` }, icon(f.layer === 'Heat' ? 'thermo' : f.layer === 'Safety' ? 'moon' : 'bell'),
+      h('div', { class: `banner ${sevClass}` }, icon((TPL[TPL_OF_LAYER[f.layer]] || {}).icon || 'bell'),
         h('div', { class: 'grow' }, h('b', null, title.value || t('al.titlePlaceholder')), h('span', { class: 'small' }, (getLang() === 'pl' && pl.value) || (getLang() === 'uk' && uk.value) || message.value || t('al.messagePlaceholder')))));
     armReset();
   }

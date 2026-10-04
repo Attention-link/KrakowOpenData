@@ -30,7 +30,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var c = await _client.GetFromJsonAsync<ConditionsDto>("/api/safety/conditions");
         Assert.NotNull(c);
         Assert.Equal("None", c.Heat.Pressure);
-        Assert.Contains(c.SuggestedMode, new[] { "safety", "heat", "both" });
+        Assert.Contains(c.SuggestedMode, new[] { "safety", "heat", "both", "flood", "air" });
         Assert.NotNull(c.SunsetLocal);
     }
 
@@ -106,9 +106,9 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var m = await _client.GetFromJsonAsync<MethodDto>("/api/safety/method");
         Assert.NotNull(m);
-        Assert.Equal(2, m.Layers.Count);
+        Assert.Equal(4, m.Layers.Count);
         Assert.All(m.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
-        Assert.StartsWith("Higher = hotter", m.Layers.Single(l => l.Layer == "Heat").Direction);
+        Assert.StartsWith("Higher = more heat relief", m.Layers.Single(l => l.Layer == "Heat").Direction);
         Assert.Contains(m.Kpis, k => k.Key == "noWater500");
     }
 
@@ -120,7 +120,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Contains(features!, f => f.Key == "green" && f.RadiusMeters == 200);
 
         var types = await _client.GetFromJsonAsync<List<ReportTypeDto>>("/api/safety/report-types");
-        Assert.Equal(6, types!.Count);
+        Assert.Equal(12, types!.Count);
         Assert.Contains(types, t => t.Type == "NoShade" && t.Layer == "Heat");
     }
 
@@ -178,6 +178,7 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     [InlineData("/api/safety/planner/alerts")]
     [InlineData("/api/safety/planner/agencies")]
     [InlineData("/api/safety/planner/dispatches")]
+    [InlineData("/api/safety/planner/weights")]
     public async Task Planner_endpoints_need_the_key(string url)
     {
         Assert.Equal(HttpStatusCode.Unauthorized, (await _client.GetAsync(url)).StatusCode);
@@ -189,6 +190,51 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(Planner(HttpMethod.Get, url))).StatusCode);
     }
 
+
+    [Fact]
+    public async Task A_planner_can_change_and_reset_factor_weights()
+    {
+        var unauthorised = await _client.PutAsJsonAsync("/api/safety/planner/weights", new SetWeightsRequest(new Dictionary<string, double> { ["lighting"] = 10 }));
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorised.StatusCode);
+
+        var set = await Send<WeightsDto>(Planner(HttpMethod.Put, "/api/safety/planner/weights",
+            new SetWeightsRequest(new Dictionary<string, double> { ["lighting"] = 1, ["nightTransit"] = 1, ["openPlaces"] = 1, ["aed"] = 1 })));
+        Assert.True(set!.Customized);
+        Assert.All(set.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
+        Assert.Equal(25, set.Layers.Single(l => l.Layer == "Safety").Factors.Single(f => f.Key == "aed").Weight);
+
+        var method = await _client.GetFromJsonAsync<MethodDto>("/api/safety/method");
+        Assert.Equal(25, method!.Layers.Single(l => l.Layer == "Safety").Factors.Single(f => f.Key == "lighting").Weight);
+
+        var bad = await _client.SendAsync(Planner(HttpMethod.Put, "/api/safety/planner/weights", new SetWeightsRequest(new Dictionary<string, double> { ["nope"] = 1 })));
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+
+        var reset = await Send<WeightsDto>(Planner(HttpMethod.Delete, "/api/safety/planner/weights"));
+        Assert.False(reset!.Customized);
+    }
+
+    [Fact]
+    public async Task Report_lists_can_be_filtered_and_bad_filters_are_rejected()
+    {
+        await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest("FloodedStreet", Lat, Lon, "secret flood note", "device-filter-001"));
+        await _client.PostAsJsonAsync("/api/safety/reports", new CreateReportRequest("NoShade", Lat + 0.01, Lon, null, "device-filter-002"));
+
+        var flood = await _client.GetFromJsonAsync<List<ReportDto>>("/api/safety/reports?layer=flood");
+        Assert.All(flood!, r => Assert.Equal("Flood", r.Layer));
+        Assert.Contains(flood!, r => r.Type == "FloodedStreet");
+        Assert.All(flood!, r => Assert.Null(r.Note));   // residents never get notes
+
+        var byType = await _client.GetFromJsonAsync<List<ReportDto>>("/api/safety/reports?type=noshade");
+        Assert.All(byType!, r => Assert.Equal("NoShade", r.Type));
+
+        // Free text only works for planners: a resident cannot search the notes.
+        Assert.Empty((await _client.GetFromJsonAsync<List<ReportDto>>("/api/safety/reports?q=secret"))!);
+        var planner = await Send<List<ReportDto>>(Planner(HttpMethod.Get, "/api/safety/reports?q=secret"));
+        Assert.Contains(planner!, r => r.Note == "secret flood note");
+
+        foreach (var bad in new[] { "layer=nope", "type=nope", "status=nope", "layer=99", "type=99", "status=99" })
+            Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync("/api/safety/reports?" + bad)).StatusCode);
+    }
     [Fact]
     public async Task Writes_are_protected_too()
     {

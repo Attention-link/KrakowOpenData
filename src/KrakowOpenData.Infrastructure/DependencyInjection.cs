@@ -135,6 +135,7 @@ public static class DependencyInjection
         services.AddSingleton<ScoreService>();
         services.AddSingleton<RouteService>();
         services.AddSingleton<MethodService>();
+        services.AddSingleton<WeightService>();
         services.AddSingleton<ReportService>();
         services.AddSingleton<AlertService>();
         services.AddSingleton<AgencyService>();

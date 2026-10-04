@@ -3,10 +3,18 @@
     <NavLink class="nav-link" href="" Match="NavLinkMatch.All">@T["nav.home"]</NavLink>
     <NavLink class="nav-link" href="catalog">@T["nav.catalog"]</NavLink>
 
-    <div class="sb-sidenav-menu-heading">@T["nav.safetyGroup"]</div>
+    <div class="sb-sidenav-menu-heading feature-heading">@T["nav.safetyGroup"]</div>
     @* The safety app is a separate page, not a Blazor route: target="_top" makes the browser load it instead of the router answering "Not found". *@
-    <a class="nav-link" href="/safety/index.html" target="_top">@T["nav.safetyApp"]</a>
-    <a class="nav-link" href="/safety/index.html#/planner" target="_top">@T["nav.safetyPlanner"]</a>
+    <a class="nav-link feature-link" href="/safety/index.html" target="_top">
+        <span class="feature-icon" aria-hidden="true">&#9728;</span>
+        <span>@T["nav.safetyApp"]</span>
+    </a>
+    @* Not for everyone: the dashboard is for city staff, so it is marked differently (amber, with a lock). *@
+    <a class="nav-link feature-link feature-staff" href="/safety/index.html#/planner" target="_top">
+        <span class="feature-icon" aria-hidden="true">&#128274;</span>
+        <span>@T["nav.safetyPlanner"]</span>
+        <span class="staff-badge">@T["nav.staff"]</span>
+    </a>
 
     <div class="sb-sidenav-menu-heading">@T["cat.Mobility"]</div>
     <NavLink class="nav-link" href="mobility/stops">@T["nav.stops"]</NavLink>

@@ -10,14 +10,19 @@ import { pinMarker } from './map.js';
 import { outboxAdd } from './chrome.js';
 import { searchBox } from './search.js';
 import { addressLine } from './geo.js';
-import { cellOf, cellBounds } from './model.js';
+import { cellOf, cellBounds, LAYERS, layerOfApi } from './model.js';
 
 const FALLBACK_TYPES = [
   { type: 'LightOut', layer: 'Safety' }, { type: 'UnsafeAtNight', layer: 'Safety' }, { type: 'PathHazard', layer: 'Safety' },
-  { type: 'WaterNotWorking', layer: 'Heat' }, { type: 'NoShade', layer: 'Heat' }, { type: 'HeatSpot', layer: 'Heat' }
+  { type: 'WaterNotWorking', layer: 'Heat' }, { type: 'NoShade', layer: 'Heat' }, { type: 'HeatSpot', layer: 'Heat' },
+  { type: 'FloodedStreet', layer: 'Flood' }, { type: 'BlockedDrain', layer: 'Flood' }, { type: 'RisingWater', layer: 'Flood' },
+  { type: 'SmokeOrBurning', layer: 'Air' }, { type: 'StrongFumes', layer: 'Air' }, { type: 'DustCloud', layer: 'Air' }
 ];
 
-const TYPE_ICON = { LightOut: 'lamp', UnsafeAtNight: 'moon', PathHazard: 'alert', WaterNotWorking: 'water', NoShade: 'sun', HeatSpot: 'thermo' };
+const TYPE_ICON = {
+  LightOut: 'lamp', UnsafeAtNight: 'moon', PathHazard: 'alert', WaterNotWorking: 'water', NoShade: 'sun', HeatSpot: 'thermo',
+  FloodedStreet: 'wave', BlockedDrain: 'wave', RisingWater: 'wave', SmokeOrBurning: 'wind', StrongFumes: 'wind', DustCloud: 'wind'
+};
 
 export function renderReportView(ctx, body) {
   const rs = ctx.report ||= {
@@ -65,10 +70,10 @@ export function renderReportView(ctx, body) {
     ctx.info.hide();
   };
 
-  // Only the types of the chosen view (Both offers everything).
+  // Only the types of the chosen view.
   const all = ctx.reportTypes?.length ? ctx.reportTypes : FALLBACK_TYPES;
-  const layer = ctx.mode() === 'heat' ? 'Heat' : ctx.mode() === 'safety' ? 'Safety' : null;
-  const types = layer ? all.filter((x) => x.layer === layer) : all;
+  const layer = LAYERS[ctx.mode()].api;
+  const types = all.filter((x) => x.layer === layer);
   if (rs.type && !types.some((x) => x.type === rs.type)) rs.type = null;
 
   const host = h('div', { class: 'stack' });
@@ -91,7 +96,7 @@ export function renderReportView(ctx, body) {
           types.map((ty) => h('button', { class: 'type-card', type: 'button', 'aria-pressed': String(rs.type === ty.type), onclick: () => { rs.type = ty.type; paint(); } },
             h('span', { class: `ico ${ty.layer.toLowerCase()}` }, icon(TYPE_ICON[ty.type] || 'flag')),
             h('b', null, t(`rtype.${ty.type}`)),
-            h('span', { class: 'tiny muted' }, t(ty.layer === 'Heat' ? 'mode.heat' : 'mode.safety'))))),
+            h('span', { class: 'tiny muted' }, t(`mode.${layerOfApi(ty.layer) || 'safety'}`))))),
         h('div', { class: 'banner small danger' }, icon('alert', 'sm'), h('span', null, t('report.emergency'))),
         h('div', { class: 'row' }, h('div', { class: 'grow' }),
           h('button', { class: 'btn primary', type: 'button', disabled: rs.type ? null : true, onclick: () => { rs.step = 2; paint(); } }, t('common.next'), icon('right', 'sm'))));

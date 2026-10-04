@@ -56,7 +56,8 @@ public sealed class ConditionsService(
             heatWarning?.EventName);
 
         var worstAir = air.Where(a => a.Pm25 is not null).OrderByDescending(a => a.Pm25).FirstOrDefault();
-        var airCondition = new AirConditionDto(worstAir?.Band ?? "Unknown", worstAir?.Pm25, worstAir?.StationName);
+        var pm25Values = air.Where(a => a.Pm25 is not null).Select(a => a.Pm25!.Value).ToList();
+        var airCondition = new AirConditionDto(worstAir?.Band ?? "Unknown", worstAir?.Pm25, worstAir?.StationName, pm25Values.Count == 0 ? null : Math.Round(pm25Values.Average(), 1));
         var hydro = new HydroConditionDto(
             gauges.Count,
             gauges.Any(g => g.State.Contains("Alarm", StringComparison.OrdinalIgnoreCase)) ? "AboveAlarm" : gauges.Count > 0 ? "AboveWarning" : "Normal");
@@ -71,6 +72,10 @@ public sealed class ConditionsService(
             (false, true) => "safety",
             _ => "both"
         };
+
+        // A river above its warning level or heavy smog is more urgent than the day/night default.
+        if (hydro.WorstState != "Normal") suggested = "flood";
+        else if (SafetyModel.AirLevel(airCondition.Pm25Average ?? airCondition.Pm25) >= 0.5) suggested = "air";
 
         if (gaps.Count > 0) notes.Add("Some live sources are unavailable; the rest is shown.");
 
