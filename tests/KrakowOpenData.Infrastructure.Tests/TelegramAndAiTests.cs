@@ -8,6 +8,7 @@ using KrakowOpenData.Infrastructure.Ai;
 using KrakowOpenData.Infrastructure.Options;
 using KrakowOpenData.Infrastructure.Safety;
 using KrakowOpenData.Infrastructure.Telegram;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -58,6 +59,21 @@ public sealed class CapturingSink : ISafetyEventSink
     public List<SafetyEvent> Events { get; } = [];
 
     public void Publish(SafetyEvent safetyEvent) => Events.Add(safetyEvent);
+}
+
+/// <summary>Keeps every formatted log line, to check what is logged and how often.</summary>
+public sealed class CapturingLogger<T> : ILogger<T>
+{
+    public List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+    public bool IsEnabled(LogLevel logLevel) => true;
+
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+    {
+        lock (Entries) Entries.Add((logLevel, formatter(state, exception)));
+    }
 }
 
 public class TelegramAndAiTests
@@ -145,6 +161,39 @@ public class TelegramAndAiTests
         Assert.DoesNotContain("AI:", text);
         Assert.DoesNotContain("Kowalski", text);
         Assert.EndsWith("Kompas Krakowa", text);
+    }
+
+    [Theory]
+    [InlineData("Ciemno, więcej na https://evil.tld/x?y=1 teraz", "Ciemno, więcej na teraz")]
+    [InlineData("Ciemno, zobacz www.evil.tld", "Ciemno, zobacz")]
+    [InlineData("Wejdź na evil.tld albo t.me/zly_kanal", "Wejdź na albo")]
+    [InlineData("Pisz do @zly_bot w sprawie lampy", "Pisz do w sprawie lampy")]
+    [InlineData("Dzwoń +48 600 700 800 lub 600-700-800", "Dzwoń lub")]
+    [InlineData("Kontakt: jan.kowalski@example.com, lampa", "Kontakt: , lampa")]
+    [InlineData("Nie świeci lampa przy ul. Długiej 5, ciemno od 3 dni", "Nie świeci lampa przy ul. Długiej 5, ciemno od 3 dni")]
+    [InlineData("  Nie świeci\n  lampa  ", "Nie świeci lampa")]
+    public void Ai_summaries_lose_everything_telegram_would_turn_into_a_link(string summary, string expected)
+    {
+        Assert.Equal(expected, AiSummarySanitiser.Clean(summary));
+    }
+
+    [Theory]
+    [InlineData("https://evil.tld")]
+    [InlineData("@handle 600 700 800")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void An_ai_summary_with_nothing_meaningful_left_is_dropped(string? summary)
+    {
+        Assert.Null(AiSummarySanitiser.Clean(summary));
+    }
+
+    [Fact]
+    public void The_staff_digest_omits_a_summary_that_was_only_a_link()
+    {
+        var text = TelegramMessages.StaffDigest(Report(triage: Triage(summary: "evil.tld @x")), null).Text;
+        Assert.Contains("AI: ważność 3/3 (sugestia AI)", text);
+        Assert.DoesNotContain("evil", text);
+        Assert.DoesNotContain("„", text);
     }
 
     // ── Sending: plain text, error classes, no token in logs ─────────────────
@@ -279,12 +328,12 @@ public class TelegramAndAiTests
     }
 
     // ── The bot ──────────────────────────────────────────────────────────────
-    private (TelegramBotService Bot, JsonFileSafetyStore Safety, CapturingSink Sink) Bot(Rig rig, VoiceTranscript? voice)
+    private (TelegramBotService Bot, JsonFileSafetyStore Safety, CapturingSink Sink) Bot(Rig rig, VoiceTranscript? voice, ILogger<TelegramBotService>? logger = null)
     {
         var safety = new JsonFileSafetyStore(Microsoft.Extensions.Options.Options.Create(new SafetyOptions { Persist = false }), NullLogger<JsonFileSafetyStore>.Instance);
         var sink = new CapturingSink();
         var bot = new TelegramBotService(rig.Client, rig.Store, rig.Outbox, new ReportService(safety, _clock), safety, sink,
-            new FakeTriage(null), new FakeTranscriber(voice), new VoiceQuota(_clock), _clock, rig.Options, NullLogger<TelegramBotService>.Instance);
+            new FakeTriage(null), new FakeTranscriber(voice), new VoiceQuota(_clock), _clock, rig.Options, logger ?? NullLogger<TelegramBotService>.Instance);
         return (bot, safety, sink);
     }
 
@@ -362,6 +411,98 @@ public class TelegramAndAiTests
     }
 
     [Fact]
+    public void The_daily_voice_budget_is_shared_by_every_device()
+    {
+        var quota = new VoiceQuota(_clock);
+        for (var i = 0; i < VoiceQuota.PerDay; i++) Assert.True(quota.TryTake($"device-{i % 20:D4}"));
+        Assert.False(quota.TryTake("device-fresh"));
+        _clock.Advance(TimeSpan.FromDays(1));
+        Assert.True(quota.TryTake("device-fresh"));
+    }
+
+    [Fact]
+    public async Task Drafts_older_than_30_minutes_are_pruned()
+    {
+        var rig = Build();
+        var (bot, _, _) = Bot(rig, null);
+        await bot.HandleUpdateAsync(Update("\"text\":\"Nie świeci lampa\""));
+        Assert.Equal(1, bot.DraftCount);
+
+        _clock.Advance(TimeSpan.FromMinutes(29));
+        bot.PruneDrafts();
+        Assert.Equal(1, bot.DraftCount);
+        _clock.Advance(TimeSpan.FromMinutes(2));
+        bot.PruneDrafts();
+        Assert.Equal(0, bot.DraftCount);
+    }
+
+    [Fact]
+    public async Task A_polling_conflict_backs_off_exponentially_and_logs_only_entering_and_leaving_it()
+    {
+        var rig = Build();
+        var log = new CapturingLogger<TelegramBotService>();
+        var (bot, _, _) = Bot(rig, null, log);
+        var polls = 0;
+        _http.Respond = (req, _) =>
+        {
+            if (!req.RequestUri!.AbsolutePath.EndsWith("/getUpdates")) return FakeHttp.Json(HttpStatusCode.OK, """{"ok":true,"result":true}""");
+            return ++polls switch
+            {
+                <= 8 => FakeHttp.Json(HttpStatusCode.Conflict, """{"ok":false,"error_code":409}"""),
+                9 => FakeHttp.Json(HttpStatusCode.OK, """{"ok":true,"result":[]}"""),
+                _ => FakeHttp.Json(HttpStatusCode.BadGateway, """{"ok":false}""")
+            };
+        };
+        var waits = new List<TimeSpan>();
+        var done = new TaskCompletionSource();
+        bot.Wait = (delay, ct) =>
+        {
+            waits.Add(delay);
+            if (waits.Count < 9) return Task.CompletedTask;
+            done.TrySetResult();
+            return Task.Delay(Timeout.Infinite, ct);
+        };
+
+        await bot.StartAsync(CancellationToken.None);
+        await done.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await bot.StopAsync(CancellationToken.None);
+
+        // 8 conflicts: 5 s doubling up to 5 min; then a success; then another error keeps the plain 5 s backoff.
+        Assert.Equal(new double[] { 5, 10, 20, 40, 80, 160, 300, 300, 5 }, waits.Select(w => w.TotalSeconds));
+        Assert.Single(log.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("409"));
+        Assert.Single(log.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("cleared"));
+        Assert.Single(log.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("http_502"));
+    }
+
+    // ── Store: unlinking and retention ───────────────────────────────────────
+    [Fact]
+    public void Stop_also_drops_messages_still_queued_for_the_chat()
+    {
+        var rig = Build();
+        rig.Store.UpsertLink(new TelegramLink("device-0001", 42, null, Now, LinkStatus.Connected, Now));
+        rig.Outbox.Enqueue(42, "alert", new TelegramMessages.Message("one"));
+        rig.Outbox.Enqueue(43, "alert", new TelegramMessages.Message("other chat"));
+
+        Assert.Equal(1, rig.Store.RemoveChat(42));
+        Assert.Equal("43", Assert.Single(rig.Store.Outbox()).ChatId);
+    }
+
+    [Fact]
+    public void Links_of_chats_not_receiving_for_30_days_are_purged()
+    {
+        var rig = Build();
+        rig.Store.UpsertLink(new TelegramLink("blocked-old", 1, null, Now, LinkStatus.NotReceiving, Now.AddDays(-31)));
+        rig.Store.UpsertLink(new TelegramLink("blocked-new", 2, null, Now, LinkStatus.NotReceiving, Now.AddDays(-29)));
+        rig.Store.UpsertLink(new TelegramLink("connected-1", 3, null, Now.AddDays(-90), LinkStatus.Connected, Now.AddDays(-90)));
+
+        rig.Store.Housekeeping(Now);
+
+        Assert.Null(rig.Store.LinkOf("blocked-old"));
+        Assert.NotNull(rig.Store.LinkOf("blocked-new"));
+        Assert.NotNull(rig.Store.LinkOf("connected-1"));
+    }
+
+    [Fact]
     public async Task Without_ai_a_voice_message_gets_a_polite_refusal()
     {
         var rig = Build();
@@ -378,7 +519,7 @@ public class TelegramAndAiTests
         var store = new JsonFileSafetyStore(Microsoft.Extensions.Options.Options.Create(new SafetyOptions { Persist = false }), NullLogger<JsonFileSafetyStore>.Instance);
         await store.SaveReportAsync(Report());
         var triage = new FakeTriage(Triage());
-        var pipeline = new SafetyEventPipeline(store, triage, rig.Notifier, _clock, NullLogger<SafetyEventPipeline>.Instance);
+        var pipeline = new SafetyEventPipeline(store, triage, new VoiceQuota(_clock), rig.Notifier, _clock, NullLogger<SafetyEventPipeline>.Instance);
 
         await pipeline.HandleAsync(new SafetyEvent(SafetyEventKind.ReportCreated, "rep-abc123def456"));
         await pipeline.HandleAsync(new SafetyEvent(SafetyEventKind.ReportCreated, "rep-abc123def456")); // already triaged: no second call
@@ -386,6 +527,48 @@ public class TelegramAndAiTests
         Assert.Equal(1, triage.Calls);
         Assert.Equal(3, (await store.GetReportAsync("rep-abc123def456"))!.Triage!.Severity);
         Assert.Contains(rig.Store.Outbox(), m => m.Kind == TelegramMessages.Kinds.Staff && m.Text.Contains("ważność 3/3"));
+    }
+
+    [Fact]
+    public async Task App_report_triage_stops_when_its_budget_is_used_up_and_the_report_is_still_notified()
+    {
+        var rig = Build();
+        var store = new JsonFileSafetyStore(Microsoft.Extensions.Options.Options.Create(new SafetyOptions { Persist = false }), NullLogger<JsonFileSafetyStore>.Instance);
+        await store.SaveReportAsync(Report());
+        var triage = new FakeTriage(Triage());
+        var quota = new VoiceQuota(_clock);
+        while (quota.TryTakeTriage(VoiceQuota.AppTriageKey)) { }
+        var log = new CapturingLogger<SafetyEventPipeline>();
+        var pipeline = new SafetyEventPipeline(store, triage, quota, rig.Notifier, _clock, log);
+
+        await pipeline.HandleAsync(new SafetyEvent(SafetyEventKind.ReportCreated, "rep-abc123def456"));
+        await pipeline.HandleAsync(new SafetyEvent(SafetyEventKind.ReportCreated, "rep-abc123def456"));
+
+        Assert.Equal(0, triage.Calls);
+        Assert.Null((await store.GetReportAsync("rep-abc123def456"))!.Triage);
+        Assert.Equal(2, rig.Store.Outbox().Count(m => m.Kind == TelegramMessages.Kinds.Staff));
+        Assert.Single(log.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("budget")); // once an hour, not per event
+
+        _clock.Advance(TimeSpan.FromMinutes(61)); // the hourly window has moved on
+        await pipeline.HandleAsync(new SafetyEvent(SafetyEventKind.ReportCreated, "rep-abc123def456"));
+        Assert.Equal(1, triage.Calls);
+    }
+
+    [Fact]
+    public void Events_dropped_from_a_full_queue_are_counted_and_logged_rate_limited()
+    {
+        var rig = Build();
+        var store = new JsonFileSafetyStore(Microsoft.Extensions.Options.Options.Create(new SafetyOptions { Persist = false }), NullLogger<JsonFileSafetyStore>.Instance);
+        var log = new CapturingLogger<SafetyEventPipeline>();
+        var pipeline = new SafetyEventPipeline(store, new FakeTriage(null), new VoiceQuota(_clock), rig.Notifier, _clock, log);
+
+        for (var i = 0; i < SafetyEventPipeline.Capacity + 5; i++) pipeline.Publish(new SafetyEvent(SafetyEventKind.ReportCreated, $"rep-{i}"));
+
+        Assert.Equal(5, pipeline.DroppedEvents);
+        Assert.Single(log.Entries, e => e.Level == LogLevel.Warning);
+        _clock.Advance(TimeSpan.FromMinutes(1));
+        pipeline.Publish(new SafetyEvent(SafetyEventKind.ReportCreated, "rep-late"));
+        Assert.Equal(2, log.Entries.Count(e => e.Level == LogLevel.Warning));
     }
 
     [Fact]
@@ -448,5 +631,18 @@ public class TelegramAndAiTests
 
         _http.Respond = (_, _) => FakeHttp.Json(HttpStatusCode.BadGateway, """{"error":"model failed"}""");
         Assert.Null(await ai.TriageAsync("LightOut", "ciemno", []));
+    }
+
+    [Fact]
+    public async Task Notes_sent_for_triage_are_cut_to_1000_characters()
+    {
+        var ai = new WorkersAiClient(_http, Microsoft.Extensions.Options.Options.Create(new AiOptions { BaseUrl = "https://krakow-ai.example.workers.dev", Key = "k" }),
+            _clock, NullLogger<WorkersAiClient>.Instance);
+        _http.Respond = (_, _) => FakeHttp.Json(HttpStatusCode.OK, """{"suggestedType":"LightOut"}""");
+        await ai.TriageAsync("Unknown", new string('a', 4000), [new NearbyReport("rep-1", "LightOut", new string('b', 1500))]);
+
+        var body = JsonDocument.Parse(_http.Requests.Single().Body).RootElement;
+        Assert.Equal(WorkersAiClient.MaxTriageNoteLength, body.GetProperty("note").GetString()!.Length);
+        Assert.Equal(WorkersAiClient.MaxTriageNoteLength, body.GetProperty("nearby")[0].GetProperty("note").GetString()!.Length);
     }
 }

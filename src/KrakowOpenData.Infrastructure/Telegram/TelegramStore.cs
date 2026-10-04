@@ -49,11 +49,12 @@ public sealed record OutboxMessage(
 /// <summary>
 /// Links, pending link codes, the outbox and the bot's update offset, kept in memory and saved to one JSON file after every change
 /// (the same pattern as <see cref="Safety.JsonFileSafetyStore"/>). Memory only when Safety:Persist is off (tests).
-/// Ended outbox rows go after 24 h and used or expired codes after 1 h.
+/// Ended outbox rows go after 24 h, used or expired codes after 1 h, and links of chats that stopped receiving after 30 days.
 /// </summary>
 public sealed class TelegramStore
 {
     private static readonly JsonSerializerOptions Json = new() { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
+    public static readonly TimeSpan NotReceivingRetention = TimeSpan.FromDays(30);
 
     private readonly object _lock = new();
     private readonly ILogger<TelegramStore> _logger;
@@ -152,7 +153,12 @@ public sealed class TelegramStore
         {
             var devices = _links.Values.Where(l => l.ChatId == chatId).Select(l => l.DeviceId).ToList();
             foreach (var d in devices) _links.Remove(d);
-            if (devices.Count > 0) Persist();
+            if (devices.Count > 0)
+            {
+                DropPending(chatId.ToString()); // nothing queued for this chat may still go out after /stop
+                Persist();
+            }
+
             return devices.Count;
         }
     }
@@ -233,7 +239,7 @@ public sealed class TelegramStore
         }
     }
 
-    /// <summary>Retention: ended messages after 24 h, used or expired codes after 1 h.</summary>
+    /// <summary>Retention: ended messages after 24 h, used or expired codes after 1 h, not-receiving links after 30 days.</summary>
     public void Housekeeping(DateTimeOffset now)
     {
         lock (_lock)
@@ -241,6 +247,11 @@ public sealed class TelegramStore
             var removed = _outbox.RemoveAll(m => m.State != OutboxState.Pending && (m.EndedAt ?? m.NextAt) < now.AddHours(-24));
             foreach (var (key, c) in _codes.ToList())
                 if (c.ExpiresAt < now.AddHours(-1) || (c.UsedAt is { } u && u < now.AddHours(-1))) { _codes.Remove(key); removed++; }
+            foreach (var l in _links.Values.Where(l => l.Status == LinkStatus.NotReceiving && l.StatusAt < now - NotReceivingRetention).ToList())
+            {
+                _links.Remove(l.DeviceId);
+                removed++;
+            }
             if (removed > 0) Persist();
         }
     }

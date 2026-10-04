@@ -22,7 +22,7 @@ function payload(layer, place, method, meta) {
       factors.push({
         label: `${t(`mode.${LAYERS[key] ? key : 'safety'}`)}: ${t(`factor.${f.key}`)}`,
         // A missing distance means "none found within the search radius" (a fact), not missing data.
-        value: f.unit === 'm' ? (f.value === null || f.value === undefined ? t('factor.none', { r: radius }) : Math.round(f.value)) : Math.round(f.value ?? 0),
+        value: f.unit === 'm' ? (f.value === null || f.value === undefined ? t('factor.none', { r: radius }) : Math.round(f.value)) : (f.value === null || f.value === undefined ? null : Math.round(f.value)), // missing = "brak danych", never 0
         unit: f.unit,
         source: info(f.key)?.source
       });

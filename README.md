@@ -411,6 +411,8 @@ Both are **optional**: with no configuration nothing is sent anywhere and the ap
 - Bot-filed reports use the device id `tg-` + the first 16 hex characters of sha256(chat id).
 - Links, codes and the outbox are in `telegram-store.json` next to the safety store. The outbox retries after 5, 10, 15 and 30 s,
   then gives up; a chat that blocked the bot is marked "not receiving".
+- Retention: a link is kept until `/stop` or unlinking in the app; a "not receiving" link is purged after 30 days; link codes
+  after 1 h; sent or failed outbox rows after 24 h.
 
 **Deploy the Worker** (manual, see `workers/ai/README.md` for costs):
 

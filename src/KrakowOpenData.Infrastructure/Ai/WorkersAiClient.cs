@@ -16,6 +16,7 @@ namespace KrakowOpenData.Infrastructure.Ai;
 /// When Ai:BaseUrl is empty, or the Worker fails or is slow, both return null and the app carries on without AI.
 /// Everything the model returns is checked here again: the type must be a <see cref="ReportType"/> NAME (numbers are rejected),
 /// severity is clamped to 1–3, the summary to 120 characters, and a duplicate must be one of the reports we sent.
+/// Notes sent for triage are cut to <see cref="MaxTriageNoteLength"/> characters (a bot text message can be up to 4096).
 /// </summary>
 public sealed class WorkersAiClient(IHttpClientFactory http, IOptions<AiOptions> options, IClock clock, ILogger<WorkersAiClient> logger)
     : IReportTriage, IVoiceTranscriber
@@ -23,6 +24,7 @@ public sealed class WorkersAiClient(IHttpClientFactory http, IOptions<AiOptions>
     public const string HttpClientName = "workers-ai";
     public const int MaxAudioBytes = 1024 * 1024;
     public const int MaxSummaryLength = 120;
+    public const int MaxTriageNoteLength = 1000;
 
     public bool IsAvailable => options.Value.IsConfigured;
 
@@ -32,9 +34,9 @@ public sealed class WorkersAiClient(IHttpClientFactory http, IOptions<AiOptions>
         var body = new
         {
             type,
-            note = note ?? string.Empty,
+            note = Truncate(note),
             lang = "pl",
-            nearby = nearby.Select(n => new { id = n.Id, type = n.Type, note = n.Note ?? string.Empty })
+            nearby = nearby.Select(n => new { id = n.Id, type = n.Type, note = Truncate(n.Note) })
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, Url("triage")) { Content = JsonContent.Create(body) };
         var json = await SendAsync(request, options.Value.TimeoutSeconds, "triage", ct);
@@ -102,6 +104,9 @@ public sealed class WorkersAiClient(IHttpClientFactory http, IOptions<AiOptions>
             return null;
         }
     }
+
+    private static string Truncate(string? note) =>
+        note is null ? string.Empty : note.Length > MaxTriageNoteLength ? note[..MaxTriageNoteLength] : note;
 
     private static string? Str(JsonElement j, string name) =>
         j.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
