@@ -6,9 +6,11 @@ using Microsoft.Extensions.Options;
 namespace KrakowOpenData.Api.Endpoints;
 
 /// <summary>
-/// Per-IP limit on everything that writes under <c>/api/safety</c> (reports, "still true" confirmations, planner actions):
+/// Per-IP limit on everything that writes under <c>/api/safety</c> (reports, "still true" confirmations, Telegram links, voice notes):
 /// <see cref="SafetyOptions.WriteRequestsPerMinute"/> requests per minute in a fixed window, then 429 in the same
-/// problem style as the per-device report limit. Reads are not limited.
+/// problem style as the per-device report limit. Reads are not limited, and neither are the read-only
+/// <c>POST /access/route</c> (a path assessment that stores nothing) and planner calls that carry the valid key (already
+/// protected by it), so a busy venue sharing one IP cannot lock the planner demo out.
 /// </summary>
 public static class SafetyRateLimit
 {
@@ -18,7 +20,7 @@ public static class SafetyRateLimit
             o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
             {
                 var limit = http.RequestServices.GetRequiredService<IOptions<SafetyOptions>>().Value.WriteRequestsPerMinute;
-                if (limit <= 0 || !IsSafetyWrite(http.Request)) return RateLimitPartition.GetNoLimiter(string.Empty);
+                if (limit <= 0 || !IsSafetyWrite(http.Request) || IsExempt(http)) return RateLimitPartition.GetNoLimiter(string.Empty);
                 return RateLimitPartition.GetFixedWindowLimiter(ClientIp(http), _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = limit,
@@ -40,6 +42,15 @@ public static class SafetyRateLimit
     private static bool IsSafetyWrite(HttpRequest request) =>
         (HttpMethods.IsPost(request.Method) || HttpMethods.IsPut(request.Method) || HttpMethods.IsDelete(request.Method) || HttpMethods.IsPatch(request.Method))
         && request.Path.StartsWithSegments("/api/safety", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsExempt(HttpContext http)
+    {
+        var path = http.Request.Path;
+        if (path.StartsWithSegments("/api/safety/access/route", StringComparison.OrdinalIgnoreCase)) return true;
+        // Only with the right key: a wrong key still counts, so the limit keeps slowing down guessing.
+        return path.StartsWithSegments("/api/safety/planner", StringComparison.OrdinalIgnoreCase)
+               && SafetyEndpoints.IsPlanner(http, http.RequestServices.GetRequiredService<IOptions<SafetyOptions>>().Value);
+    }
 
     /// <summary>
     /// The caller's address: Cloudflare's <c>CF-Connecting-IP</c>, else the first <c>X-Forwarded-For</c> entry, else the
