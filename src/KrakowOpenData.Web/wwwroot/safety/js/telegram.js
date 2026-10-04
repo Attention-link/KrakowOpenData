@@ -20,11 +20,15 @@ function cachedStatus(force) {
   return statusCache.promise;
 }
 
-/** A card for the resident home menu. Starts hidden and removes itself when the feature is off or the API cannot be reached. */
-export function telegramCard() {
-  const card = h('div', { class: 'card flat', hidden: true });
+/**
+ * A card for the resident home menu. Starts hidden and removes itself when the feature is off or the API cannot be reached.
+ * With <c>focus</c> (the #/notifications deep link) it scrolls into view and takes focus once it is shown.
+ */
+export function telegramCard({ focus = false } = {}) {
+  const card = h('div', { class: 'card flat', id: 'notifications', hidden: true });
   const body = h('div', { class: 'stack tight', 'aria-live': 'polite' });
-  card.append(h('h3', null, t('tg.title')), body);
+  const title = h('h3', { tabindex: '-1' }, t('tg.title'));
+  card.append(title, body);
 
   const paint = (...nodes) => body.replaceChildren(...nodes);
 
@@ -34,6 +38,11 @@ export function telegramCard() {
       if (!s?.available) { card.remove(); return; }
       card.hidden = false;
       s.linked ? showLinked() : showOff();
+      if (focus) {
+        focus = false;
+        card.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        title.focus({ preventScroll: true });
+      }
     } catch {
       card.remove();
     }

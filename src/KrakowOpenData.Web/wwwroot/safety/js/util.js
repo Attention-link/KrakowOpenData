@@ -130,8 +130,9 @@ export function setUiText(fn) { uiText = fn; }
 
 let dialogCount = 0;
 /** Opens a modal <dialog>. Returns {dialog, close}. `build(close)` returns {title, body, footer}. */
-export function openDialog(build, { onClose } = {}) {
+export function openDialog(build, { onClose, className } = {}) {
   const dialog = document.createElement('dialog');
+  if (className) dialog.className = className;   // 'sheet': slides in from the left (the site menu)
   const close = (value) => { dialog.close(value); };
   const { title, body, footer } = build(close);
   const titleId = `dlg-title-${++dialogCount}`;

@@ -1,4 +1,6 @@
 // Entry point: language, theme, routing between the resident view and the planner dashboard, service worker.
+// Routes: #/ (map and menu), #/access (Dostępność view), #/notifications (menu, at the Telegram card), #/accessibility
+// (accessibility statement), #/planner[/page]. The portal, the Telegram bot and printed QR codes link to the first three.
 
 import { state, on } from './state.js';
 import { applyDocumentLanguage, t } from './i18n.js';
@@ -27,7 +29,8 @@ async function route() {
       const { mountStatement } = await import('./accessibility.js');
       unmount = mountStatement(app);
     } else {
-      unmount = mountResident(app);
+      const start = /^#\/access(\/|$)/.test(hash) ? 'access' : /^#\/notifications(\/|$)/.test(hash) ? 'notifications' : null;
+      unmount = mountResident(app, { start });
     }
   });
   return mounting;

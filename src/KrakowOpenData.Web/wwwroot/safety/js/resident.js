@@ -23,12 +23,14 @@ import { wheelchairBadge } from './wheelchair.js';
 /** Which score layers a view shows: exactly one. Night safety, heat, flood and air never mix. */
 export const layersOf = (mode) => [asMode(mode)];
 
-export function mountResident(root) {
+/** <paramref name="start"/>: 'access' opens the Dostępność view, 'notifications' the menu at the Telegram card (deep links). */
+export function mountResident(root, { start = null } = {}) {
   const cleanups = [];
   const ctx = {
     root, map: null, gridLayer: null, grid: null, gridSavedAt: null, gridStale: false, features: null, conditions: null,
-    reportTypes: null, selected: null, view: 'home', cleanups
+    reportTypes: null, selected: null, view: start === 'access' ? 'access' : 'home', cleanups
   };
+  let focusTelegram = start === 'notifications';
 
   // ── Scaffold ───────────────────────────────────────────────────────────────
   const pill = statusPill();
@@ -461,7 +463,9 @@ export function mountResident(root) {
           h('div', { class: 'row wrap' }, h('button', { class: 'btn sm', type: 'button', 'data-fk': 'home-alerts-set', onclick: () => locateMe(true) }, icon('bell', 'sm'), t('home.alertsSet')),
             notificationToggle()))));
 
-    stack.append(telegramCard()); // "Powiadomienia w Telegramie" (telegram.js); hidden when the server has no bot
+    // "Powiadomienia w Telegramie" (telegram.js); hidden when the server has no bot. #/notifications scrolls to it once.
+    stack.append(telegramCard({ focus: focusTelegram }));
+    focusTelegram = false;
 
     // 4. How to read the colours
     stack.append(h('div', { class: 'card flat' }, h('h3', null, t('home.read')),
@@ -726,7 +730,7 @@ export function mountResident(root) {
     if (!state.mode) set({ mode: 'safety' });
     renderView();
     await Promise.all([loadConditions(), loadGrid(), loadFeatures(), loadTypes()]);
-    if (!state.welcomed) welcome();
+    if (!state.welcomed && !start) welcome();   // a deep link goes straight to what it promised
     flushOutbox();
   })();
 

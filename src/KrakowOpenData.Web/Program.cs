@@ -73,6 +73,8 @@ app.MapGet("/safety/config.js", () => Results.Text(
 // One route covers /safety and /safety/ (two would clash and answer 500).
 app.MapGet("/safety", () => Results.Redirect("/safety/index.html"));
 app.MapGet("/safety/planner", () => Results.Redirect("/safety/index.html#/planner"));
+// The site's one menu (Navigation/SiteMenu.cs) in every language, for the app's "Menu" button; the portal renders the same list.
+app.MapGet("/safety/site-menu.json", () => Results.Json(KrakowOpenData.Web.Navigation.SiteMenu.ForApp()));
 app.UseAntiforgery();
 
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
