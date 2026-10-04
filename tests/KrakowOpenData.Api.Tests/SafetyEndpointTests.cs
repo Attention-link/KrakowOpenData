@@ -1,7 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using KrakowOpenData.Api.Endpoints;
 using KrakowOpenData.Contracts;
+using KrakowOpenData.Infrastructure.Options;
 
 namespace KrakowOpenData.Api.Tests;
 
@@ -204,7 +208,29 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, (await client.SendAsync(Post("198.51.100.1"))).StatusCode);   // another address has its own window
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/safety/report-types")).StatusCode);
+
+        // Same (full) address, as at a venue behind one NAT: the planner with its key and the read-only path assessment still work.
+        HttpRequestMessage Planner(string key)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "/api/safety/planner/reports/rep-x/verify");
+            request.Headers.Add("CF-Connecting-IP", "203.0.113.7");
+            request.Headers.Add(SafetyEndpoints.PlannerKeyHeader, key);
+            return request;
+        }
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.SendAsync(Planner("demo-planner"))).StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await client.SendAsync(Planner("wrong-key"))).StatusCode);   // guessing keys stays limited
+        var assess = new HttpRequestMessage(HttpMethod.Post, "/api/safety/access/route")
+        {
+            Content = JsonContent.Create(new { profile = "wheelchair", path = new[] { new[] { Lat, Lon }, new[] { Lat + 0.001, Lon } } })
+        };
+        assess.Headers.Add("CF-Connecting-IP", "203.0.113.7");
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(assess)).StatusCode);
     }
+
+    [Fact]
+    public void The_default_write_limit_leaves_room_for_a_venue_behind_one_address() =>
+        Assert.True(new SafetyOptions().WriteRequestsPerMinute >= 120);
 
     [Fact]
     public async Task Every_answer_carries_the_security_headers()
@@ -417,5 +443,25 @@ public class GeoEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
         var found = await _client.GetFromJsonAsync<GeocodeResultDto>("/api/geo/reverse?lat=50.0616&lon=19.9372");
         Assert.Equal("Rynek Główny, Stare Miasto", found!.Label);
         Assert.Equal(HttpStatusCode.NotFound, (await _client.GetAsync("/api/geo/reverse?lat=50.12&lon=20.1")).StatusCode);
+    }
+
+    private sealed class PausedGeocoder : KrakowOpenData.Application.Abstractions.IGeocoder
+    {
+        public Task<IReadOnlyList<GeocodeResultDto>> SearchAsync(string query, KrakowOpenData.Domain.Common.GeoPoint? near, int limit, CancellationToken ct = default) =>
+            throw new KrakowOpenData.Infrastructure.Common.UpstreamBusyException("The address search", TimeSpan.FromSeconds(12.2));
+
+        public Task<GeocodeResultDto?> ReverseAsync(KrakowOpenData.Domain.Common.GeoPoint point, CancellationToken ct = default) =>
+            throw new KrakowOpenData.Infrastructure.Common.UpstreamBusyException("The address search", TimeSpan.FromSeconds(12.2));
+    }
+
+    [Fact]
+    public async Task A_paused_address_search_is_a_503_that_says_when_to_retry()
+    {
+        using var paused = factory.WithWebHostBuilder(b => b.ConfigureTestServices(s =>
+            s.AddSingleton<KrakowOpenData.Application.Abstractions.IGeocoder, PausedGeocoder>()));
+        var response = await paused.CreateClient().GetAsync("/api/geo/search?q=rynek");
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        Assert.Equal("13", response.Headers.GetValues("Retry-After").Single());
+        Assert.Contains("Try again", await response.Content.ReadAsStringAsync());
     }
 }
