@@ -72,8 +72,8 @@ export const isUnavailable = (e) => e instanceof NetworkError || (e instanceof A
  * Returns {data, savedAt, stale}. Network first; on failure the last saved copy (stale: true).
  * Throws when there is neither.
  */
-/** Saved copies are keyed with a schema version: bump it when the meaning of saved data changes (v2: heat became a cooling score, higher = better). */
-const CACHE_V = "v2:";
+/** Saved copies are keyed with a schema version: bump it when the meaning of saved data changes (v2: heat became a cooling score, higher = better; v3: the fifth layer, accessibility). */
+const CACHE_V = "v3:";   // v3: accessibility layer (grid columns access*, place.access*, route noDataShare)
 
 export async function cachedGet(key, fetcher) {
   key = CACHE_V + key;
@@ -103,9 +103,11 @@ const q = (obj) => Object.entries(obj).filter(([, v]) => v !== undefined && v !=
 
 // ── Public endpoints ─────────────────────────────────────────────────────────
 export const getConditions = () => request('/api/safety/conditions');
-export const getGrid = (event) => request(`/api/safety/grid?${q({ event })}`, { timeout: 60000 });
-export const getPlace = (lat, lon, event) => request(`/api/safety/place?${q({ lat, lon, event })}`);
-export const getCell = (id, event, planner = false) => request(`/api/safety/cells/${encodeURIComponent(id)}?${q({ event })}`, { planner });
+// profile (wheelchair | pram | mobility) only matters for event = access; it is left out for the other events so their URLs and saved copies do not change.
+const profileOf = (event, profile) => (event === 'access' ? profile || state.accessProfile : undefined);
+export const getGrid = (event, profile) => request(`/api/safety/grid?${q({ event, profile: profileOf(event, profile) })}`, { timeout: 60000 });
+export const getPlace = (lat, lon, event, profile) => request(`/api/safety/place?${q({ lat, lon, event, profile: profileOf(event, profile) })}`);
+export const getCell = (id, event, planner = false, profile) => request(`/api/safety/cells/${encodeURIComponent(id)}?${q({ event, profile: profileOf(event, profile) })}`, { planner });
 export const getCorridor = (from, to) => request(`/api/safety/corridor?${q({ from: `${from[0]},${from[1]}`, to: `${to[0]},${to[1]}` })}`);
 export const getFeatures = () => request('/api/safety/features', { timeout: 60000 });
 export const getReportTypes = () => request('/api/safety/report-types');
@@ -119,7 +121,7 @@ export const ping = () => fetch(`${API_BASE}/health`, { cache: 'no-store' }).the
 // ── Planner endpoints (X-Planner-Key) ────────────────────────────────────────
 const P = (path, opts = {}) => request(`/api/safety/planner${path}`, { planner: true, ...opts });
 export const plannerPing = () => P('/ping');
-export const getSummary = (event, top = 12) => P(`/summary?${q({ event, top })}`, { timeout: 60000 });
+export const getSummary = (event, top = 12, profile) => P(`/summary?${q({ event, top, profile: profileOf(event, profile) })}`, { timeout: 60000 });
 export const verifyReport = (id) => P(`/reports/${encodeURIComponent(id)}/verify`, { method: 'POST' });
 export const resolveReport = (id, note) => P(`/reports/${encodeURIComponent(id)}/resolve`, { method: 'POST', body: { note } });
 export const getPlannerAlerts = (includeInactive = true) => P(`/alerts?${q({ includeInactive })}`);
@@ -156,8 +158,8 @@ export const geoSearch = (text, near, signal) => request(`/api/geo/search?${q({ 
 export const geoReverse = (lat, lon) => request(`/api/geo/reverse?${q({ lat: lat.toFixed(5), lon: lon.toFixed(5) })}`, { timeout: 8000 });
 
 // ── Routes and method (documentation of the scores) ──────────────────────────
-/** mode: night | heat | both. Returns the fastest street route and, when clearly better, a safer / cooler one. */
-export const getRoutes = (from, to, mode) => request(`/api/safety/route?${q({ from: `${from[0]},${from[1]}`, to: `${to[0]},${to[1]}`, mode })}`, { timeout: 40000 });
+/** mode: night | heat | flood | air | access | both (access also takes profile). Returns the fastest street route and, when clearly better, a safer / cooler / more accessible one. */
+export const getRoutes = (from, to, mode, profile) => request(`/api/safety/route?${q({ from: `${from[0]},${from[1]}`, to: `${to[0]},${to[1]}`, mode, profile: profileOf(mode, profile) })}`, { timeout: 40000 });
 export const getMethod = () => request('/api/safety/method', { timeout: 30000 });
 
 // ── Optional server features: Telegram notifications, voice notes, AI explanations ──

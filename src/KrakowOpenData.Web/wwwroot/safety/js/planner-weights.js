@@ -6,7 +6,16 @@ import { t } from './i18n.js';
 import { requireOnline, dataChanged, P } from './planner-common.js';
 import { getWeights, setWeights, resetWeights, getRouteThresholds, setRouteThresholds, resetRouteThresholds, errorText } from './api.js';
 import { resetMethod } from './explain.js';
-import { FACTOR_ICON, LAYERS, layerOfApi, modeOfEvent } from './model.js';
+import { FACTOR_ICON, LAYERS, layerOfApi } from './model.js';
+import { layerMode, PROFILE_API, factorLabel, accessIcon } from './planner-access.js';
+
+/** The accessibility layers are three (one per profile): which profile an API layer name stands for, and how the layer is titled and drawn. */
+const profileOfLayer = (name) => Object.keys(PROFILE_API).find((p) => PROFILE_API[p] === name) || null;
+const layerTitle = (l) => (profileOfLayer(l.layer) ? `${t('mode.access.score')} · ${t(`accl.p.${profileOfLayer(l.layer)}`)}` : l.title);
+const thrTitle = (l) => (profileOfLayer(l.layer) ? t(`pa.thr.title.${profileOfLayer(l.layer)}`) : l.title);
+const layerIcon = (key) => (key === 'access' ? accessIcon() : LAYERS[key].icon);
+/** The card of the layer being planned opens; for accessibility only the card of the chosen profile. */
+const isCurrent = (l) => { const k = layerOfApi(l.layer); return k === layerMode(P.event) && (k !== 'access' || l.layer === PROFILE_API[P.profile]); };
 
 export function mount(host) {
   let data = null;               // the API's WeightsDto
@@ -35,8 +44,7 @@ export function mount(host) {
 
     if (data.customized) page.append(h('div', { class: 'banner small' }, icon('gear', 'sm'), h('span', null, t('wt.customized'))));
 
-    const current = modeOfEvent(P.event);
-    for (const layer of data.layers) page.append(layerCard(layer, layerOfApi(layer.layer) === current));
+    for (const layer of data.layers) page.append(layerCard(layer, isCurrent(layer)));
 
     page.append(h('div', { class: 'row wrap' },
       h('button', { class: 'btn primary', type: 'button', disabled: !anyDirty() || saving ? true : null, onclick: save }, icon('check', 'sm'), saving ? t('wt.saving') : t('wt.save')),
@@ -51,7 +59,7 @@ export function mount(host) {
     const out = shares(layer);
     const total = layer.factors.reduce((a, f) => a + valueOf(f), 0);
     return h('details', { class: 'card flat wt-layer', open: open ? true : null },
-      h('summary', { style: { cursor: 'pointer', fontWeight: 700 } }, icon(LAYERS[key].icon, 'sm'), ' ', layer.title,
+      h('summary', { style: { cursor: 'pointer', fontWeight: 700 } }, icon(layerIcon(key), 'sm'), ' ', layerTitle(layer),
         layer.customized ? h('span', { class: 'chip accent', style: { marginLeft: '.5rem' } }, t('wt.custom')) : null,
         dirtyLayer(layer) ? h('span', { class: 'chip warn', style: { marginLeft: '.5rem' } }, t('wt.unsaved')) : null),
       h('div', { class: 'stack', style: { marginTop: '.6rem' } },
@@ -61,9 +69,11 @@ export function mount(host) {
           h('button', { class: 'btn sm quiet', type: 'button', onclick: () => { layer.factors.forEach((f) => { typed[f.key] = f.defaultWeight; }); render(); } }, t('wt.layerDefaults')))));
   }
 
+  const labelOf = (f) => (f.key.startsWith('access.') ? factorLabel(f.key) : f.label);
+
   function factorRow(f, share, total) {
-    const slider = h('input', { type: 'range', min: '0', max: '100', step: '1', value: String(valueOf(f)), 'aria-label': `${f.label}: ${t('wt.weight')}` });
-    const number = h('input', { type: 'number', min: '0', max: '1000', step: '1', value: String(valueOf(f)), class: 'wt-num', 'aria-label': `${f.label}: ${t('wt.weight')}` });
+    const slider = h('input', { type: 'range', min: '0', max: '100', step: '1', value: String(valueOf(f)), 'aria-label': `${labelOf(f)}: ${t('wt.weight')}` });
+    const number = h('input', { type: 'number', min: '0', max: '1000', step: '1', value: String(valueOf(f)), class: 'wt-num', 'aria-label': `${labelOf(f)}: ${t('wt.weight')}` });
     const out = h('b', { class: 'num' }, `${share}`);
     const set = (v) => {
       const n = Math.max(0, Math.min(1000, Number.isFinite(v) ? v : 0));
@@ -75,7 +85,7 @@ export function mount(host) {
 
     return h('div', { class: 'wt-row' },
       h('div', { class: 'row between wrap' },
-        h('span', { class: 'row', style: { fontWeight: 600 } }, icon(FACTOR_ICON[f.key] || 'info', 'sm'), f.label),
+        h('span', { class: 'row', style: { fontWeight: 600 } }, icon(FACTOR_ICON[f.key] || 'info', 'sm'), labelOf(f)),
         h('span', { class: 'row small' }, t('wt.share'), ' ', out, ' / 100', share !== f.defaultWeight ? h('span', { class: 'tiny muted' }, ` (${t('wt.default', { n: f.defaultWeight })})`) : h('span', { class: 'tiny muted' }, ` (${t('wt.isDefault')})`))),
       h('div', { class: 'row wt-controls' }, slider, number),
       h('p', { class: 'small' }, h('b', null, t('wt.why')), ' ', f.why),
@@ -143,8 +153,7 @@ export function mount(host) {
     clear(thrHost);
     thrHost.append(h('h2', null, t('th.title')), h('div', { class: 'banner info small' }, icon('info', 'sm'), h('span', null, t('th.intro'))));
     if (!thr) { thrHost.append(h('div', { class: 'skeleton', style: { height: '160px' } })); return; }
-    const current = modeOfEvent(P.event);
-    for (const l of thr.layers) thrHost.append(thrCard(l, layerOfApi(l.layer) === current));
+    for (const l of thr.layers) thrHost.append(thrCard(l, isCurrent(l)));
     thrHost.append(h('div', { class: 'row wrap' },
       h('button', { class: 'btn primary', type: 'button', disabled: !thrAnyDirty() || thrAnyError() || thrSaving ? true : null, onclick: saveThresholds }, icon('check', 'sm'), thrSaving ? t('wt.saving') : t('th.save')),
       h('button', { class: 'btn', type: 'button', disabled: !thrAnyDirty() ? true : null, onclick: () => { Object.keys(tTyped).forEach((k) => delete tTyped[k]); renderThresholds(); } }, t('wt.discard')),
@@ -168,14 +177,14 @@ export function mount(host) {
       return h('label', { class: 'th-field', for: id }, h('span', { class: 'small' }, label), input);
     };
     return h('details', { class: 'card flat wt-layer', open: open ? true : null },
-      h('summary', { style: { cursor: 'pointer', fontWeight: 700 } }, icon(LAYERS[key].icon, 'sm'), ' ', l.title,
+      h('summary', { style: { cursor: 'pointer', fontWeight: 700 } }, icon(layerIcon(key), 'sm'), ' ', thrTitle(l),
         l.customized ? h('span', { class: 'chip accent', style: { marginLeft: '.5rem' } }, t('wt.custom')) : null,
         thrDirty(l) ? h('span', { class: 'chip warn', style: { marginLeft: '.5rem' } }, t('wt.unsaved')) : null),
       h('div', { class: 'stack', style: { marginTop: '.6rem' } },
         h('div', { class: 'row wrap th-fields' }, field('average', t('th.average')), field('worst', t('th.worst')),
           h('span', { class: 'tiny muted' }, t('th.defaultIs', { avg: l.defaultAverage, worst: l.defaultWorst }))),
         err ? h('p', { class: 'err', id: `th-${l.layer}-average-err`, role: 'alert' }, err) : null,
-        h('p', { class: 'small' }, h('b', null, t('th.why')), ' ', t(`th.why.${key}`)),
+        h('p', { class: 'small' }, h('b', null, t('th.why')), ' ', t(`th.why.${profileOfLayer(l.layer) ? `access.${profileOfLayer(l.layer)}` : key}`)),
         h('div', { class: 'row between wrap small muted' }, h('span', null),
           h('button', { class: 'btn sm quiet', type: 'button', onclick: () => { tTyped[l.layer] = { average: l.defaultAverage, worst: l.defaultWorst }; if (l.average === l.defaultAverage && l.worst === l.defaultWorst) delete tTyped[l.layer]; renderThresholds(); } }, t('th.layerDefaults')))));
   }

@@ -5,28 +5,19 @@
 // data, and is kept on this device only. Also exports the barrier summary block used on walk routes (walk.js).
 
 import { h, icon, clear, toast, openDialog, timeAgo, formatDistance, announce } from './util.js';
-import { state, isOffline } from './state.js';
-import { t, getLang } from './i18n.js';
+import { state, set, isOffline } from './state.js';
+import { t, getLang, hasKey } from './i18n.js';
 import { request, cachedGet, errorText, ApiError, NetworkError } from './api.js';
 import { outboxAdd } from './chrome.js';
 import { addressLine } from './geo.js';
 
-// ── Profile (stored on this device; storage may be blocked, then it lasts for this visit) ──────────────
-const PROFILE_KEY = 'kk.access.profile';
+// ── Profile: shared with the Accessibility tab (state.accessProfile, kept on this device; storage may be blocked, then it lasts for this visit) ──
 export const PROFILES = ['wheelchair', 'pram', 'mobility'];
-let memoryProfile = null;
 
-export function getProfile() {
-  try {
-    const v = localStorage.getItem(PROFILE_KEY);
-    if (PROFILES.includes(v)) return v;
-  } catch { /* storage blocked */ }
-  return memoryProfile || 'wheelchair';
-}
+export const getProfile = () => (PROFILES.includes(state.accessProfile) ? state.accessProfile : 'wheelchair');
 
 export function setProfile(p) {
-  memoryProfile = p;
-  try { localStorage.setItem(PROFILE_KEY, p); } catch { /* storage blocked: kept in memory for this visit */ }
+  if (PROFILES.includes(p)) set({ accessProfile: p });
 }
 
 // ── API ──────────────────────────────────────────────────────────────────────
@@ -76,13 +67,12 @@ const YESNO_KEYS = new Set(['wheelchair', 'handrail', 'tactile', 'changing_table
 
 export function factLabel(f) {
   const k = `acc.fact.${f.key}`;
-  const s = t(k);
-  return s === k ? f.label : s;
+  return hasKey(k) ? t(k) : f.label;
 }
 
 export function factText(f) {
   if (f.value === 'unknown') return t('acc.status.unknown');
-  const tr = (key) => { const s = t(key); return s === key ? null : s; };
+  const tr = (key) => (hasKey(key) ? t(key) : null);
   if (f.key === 'category') return tr(`acc.cat.${f.value}`) || String(f.value).replace(/_/g, ' ');
   if (getLang() === 'pl') return f.text;
   if (YESNO_KEYS.has(f.key)) return tr(`acc.yn.${f.value}`) || f.value;

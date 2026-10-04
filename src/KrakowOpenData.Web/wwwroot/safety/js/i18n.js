@@ -12,10 +12,12 @@ import { themeStrings } from './strings-theme.js';
 import { thresholdStrings } from './strings-thresholds.js';
 import { a11yStrings } from './strings-a11y.js';
 import { accessStrings } from './strings-access.js';
+import { accessLayerStrings } from './strings-accesslayer.js';
+import { plannerAccessStrings } from './strings-planner-access.js';
 
 export const LANGS = [['en', 'English'], ['pl', 'Polski'], ['uk', 'Українська']];
 const INDEX = { en: 0, pl: 1, uk: 2 };
-const dict = { ...residentStrings, ...residentStringsV2, ...residentStringsV3, ...plannerStrings, ...plannerStringsV2, ...layerStrings, ...themeStrings, ...thresholdStrings, ...a11yStrings, ...accessStrings };
+const dict = { ...residentStrings, ...residentStringsV2, ...residentStringsV3, ...plannerStrings, ...plannerStringsV2, ...layerStrings, ...themeStrings, ...thresholdStrings, ...a11yStrings, ...accessStrings, ...accessLayerStrings, ...plannerAccessStrings };
 const warned = new Set();
 
 export function t(key, params) {
@@ -30,6 +32,8 @@ export function t(key, params) {
 }
 
 export const getLang = () => state.lang;
+/** True when a string exists (lets callers fall back to the API's own wording without a console warning). */
+export const hasKey = (key) => key in dict;
 
 export function setLang(lang) {
   set({ lang });

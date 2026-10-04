@@ -1,3 +1,4 @@
+using KrakowOpenData.Application.Accessibility;
 using KrakowOpenData.Contracts;
 using KrakowOpenData.Domain.Safety;
 
@@ -19,7 +20,10 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
     public async Task<PlannerSummaryDto> GetSummaryAsync(PlanningEvent evt, int top, CancellationToken ct = default)
     {
         var grid = await scores.ScoreGridAsync(evt, ct);
-        var cells = grid.Cells;
+        var isAccess = ScoreService.IsAccess(evt);
+        // Accessibility: squares with no accessibility data are LEFT OUT of every average, share, gap and ranking (they are counted separately),
+        // so missing data can never look like good or bad accessibility.
+        IReadOnlyList<ScoredCell> cells = isAccess ? grid.Cells.Where(c => c.HasAccessData).ToList() : grid.Cells;
         var now = grid.GeneratedAt;
 
         // The score shown for the event: the cooling score for Heat, safety score for Night, flood safety, clean air; every score is higher = better.
@@ -29,6 +33,9 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
             PlanningEvent.Night => c.Safety,
             PlanningEvent.Flood => c.Flood,
             PlanningEvent.Air => c.Air,
+            PlanningEvent.Access => c.Access ?? 0,
+            PlanningEvent.AccessPram => c.AccessPram ?? 0,
+            PlanningEvent.AccessMobility => c.AccessMobility ?? 0,
             _ => c.Combined
         };
 
@@ -46,8 +53,7 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         // Shares are exposure-weighted: a thinly built fringe cell counts less than a busy street grid (see SafetyModel.Exposure).
         var totalExposure = cells.Sum(c => c.Measure.Exposure);
         double Share(Func<ScoredCell, bool> predicate) => totalExposure == 0 ? 0 : Math.Round(100.0 * cells.Where(predicate).Sum(c => c.Measure.Exposure) / totalExposure, 1);
-        double? Value(ScoredCell c, string key) => c.Measure.Factors(key is "lighting" or "nightTransit" or "openPlaces" or "aed" ? Layer.Safety : key is "river" or "emergency" or "evacuation" ? Layer.Flood : key is "traffic" or "trees" or "cleanIndoor" ? Layer.Air : Layer.Heat)
-            .First(f => f.Definition.Key == key).Value;
+        double? Value(ScoredCell c, string key) => c.Measure.Find(key)?.Value;
 
         if (layers.Contains(Layer.Heat))
         {
@@ -75,6 +81,20 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
             kpis.Add(new KpiDto("airLevel", Math.Round(100 * SafetyModel.AirLevel(grid.Conditions.Air.Pm25Average ?? grid.Conditions.Air.Pm25)), "%"));
         }
 
+        if (isAccess)
+        {
+            var p = ScoreService.AccessProfileOf(evt)!;
+            string K(string b) => AccessKeys.Make(p, b);
+            kpis.Add(new KpiDto("accessCoverage", grid.Cells.Count == 0 ? 0 : Math.Round(100.0 * cells.Count / grid.Cells.Count, 1), "%"));
+            kpis.Add(new KpiDto("cellsNoData", grid.Cells.Count - cells.Count, "cells"));
+            kpis.Add(new KpiDto("stepsBarriers", Share(c => c.Measure.Find(K("steps"))!.IsWeak || c.Measure.Find(K("kerbs"))!.IsWeak), "%"));
+            // Left out while no ZTP stop is flagged wheelchair-accessible: "100% have none" would only reflect missing data (see StaticSafetyModel.AccessStopsAvailable).
+            if (grid.Model.AccessStopsAvailable)
+                kpis.Add(new KpiDto("noAccessibleStop400", Share(c => Value(c, K("accessStops")) is null or > 400), "%"));
+            kpis.Add(new KpiDto("noAccessibleToilet800", Share(c => Value(c, K("accessToilets")) is null or > 800), "%"));
+            kpis.Add(new KpiDto("noRest300", Share(c => Value(c, K("rest")) is null or > 300), "%"));
+        }
+
         var openReports = cells.Sum(c => c.OpenReports);
         kpis.Add(new KpiDto("openReports", openReports, "reports"));
 
@@ -86,6 +106,8 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
         // Which factors leave the most gaps.
         var gaps = layers
             .SelectMany(SafetyModel.FactorsOf)
+            .Where(def => def.Weight > 0)
+            .Where(def => grid.Model.AccessStopsAvailable || AccessKeys.Base(def.Key) != "accessStops" || !AccessKeys.IsAccessKey(def.Key))   // not available: no gap from it
             .Select(def =>
             {
                 var results = cells.Select(c => (Cell: c, Factor: c.Measure.Factors(def.Layer).First(f => f.Definition.Key == def.Key))).ToList();
@@ -114,12 +136,13 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
                 Math.Round(c.Combined),
                 Math.Round(c.Measure.Exposure * 100),
                 c.OpenReports,
-                layers.SelectMany(c.Measure.Factors).Where(f => f.IsWeak).OrderByDescending(f => f.Definition.Weight * (100 - f.Score))
+                layers.SelectMany(c.Measure.Factors).Where(f => f.IsWeak && f.Definition.Weight > 0).OrderByDescending(f => f.Definition.Weight * (100 - f.Score))
                     .Select(f => f.Definition.Key).ToList(),
                 SuggestedActions.For(c.Measure, c, evt),
                 grid.Model.LabelFor(c.Measure.Point),
                 Math.Round(c.Flood),
-                Math.Round(c.Air)))
+                Math.Round(c.Air),
+                isAccess ? Math.Round(EventScore(c)) : null))
             .ToList();
 
         // Reports and alerts.
@@ -142,6 +165,14 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
             notes.Add($"Only {waterPoints} drinking fountains and taps are mapped in OpenStreetMap for a city of about 800,000 people, so many areas score low for water partly because points are missing from the map, not only because water is absent. Adding them in OpenStreetMap, or a list from the water utility or the city, would improve the heat-relief score.");
         if (evt == PlanningEvent.Flood) notes.Add("Flood scores use distance from mapped rivers and streams, emergency services and exits, plus live IMGW river levels. There is no elevation or official flood-hazard map in this model yet, so low-lying areas away from a river are not flagged.");
         if (evt == PlanningEvent.Air) notes.Add("Air scores use distance from mapped main roads, trees and parks, indoor places, plus live GIOŚ PM2.5 readings. Traffic volume and industrial sources are not known.");
+        if (isAccess)
+        {
+            var profile = ScoreService.AccessProfileOf(evt)!;
+            notes.Add($"Accessibility ({profile.Key} profile): scores come from OpenStreetMap and ZTP data for the downloaded area only. {grid.Cells.Count - cells.Count} of {grid.Cells.Count} built-up squares have no accessibility data; they are left out of every number here and are never counted as accessible. Choose another profile with the profile parameter.");
+            if (!grid.Model.AccessStopsAvailable)
+                notes.Add("No stop in the ZTP open data is flagged wheelchair-accessible (wheelchair_boarding), so the accessible-stops factor is not available: it is left out and the other factors' weights are rescaled to 100. It counts again as soon as any stop is flagged.");
+        }
+
         if (grid.Model.DataGaps.Count > 0) notes.Add("Some datasets are still loading, so scores may be incomplete: " + string.Join(", ", grid.Model.DataGaps) + ".");
 
         return new PlannerSummaryDto(
@@ -156,6 +187,8 @@ public sealed class PlannerService(ScoreService scores, ISafetyStore store, Pres
             reportCounts,
             alerts.Count(a => a.IsActiveAt(now)),
             presence.CountActive(),
-            notes);
+            notes,
+            isAccess ? ScoreService.AccessProfileOf(evt)!.Key : null,
+            isAccess ? ScoreService.AccessInfo(grid, evt) : null);
     }
 }

@@ -111,10 +111,65 @@ public class SafetyEndpointTests(ApiFactory factory) : IClassFixture<ApiFactory>
     {
         var m = await _client.GetFromJsonAsync<MethodDto>("/api/safety/method");
         Assert.NotNull(m);
-        Assert.Equal(4, m.Layers.Count);
+        Assert.Equal(7, m.Layers.Count);
         Assert.All(m.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
         Assert.StartsWith("Higher = more heat relief", m.Layers.Single(l => l.Layer == "Heat").Direction);
         Assert.Contains(m.Kpis, k => k.Key == "noWater500");
+    }
+
+    [Fact]
+    public async Task The_grid_carries_the_access_columns_and_marks_no_data()
+    {
+        var grid = await _client.GetFromJsonAsync<GridDto>("/api/safety/grid?event=access&profile=pram");
+        Assert.NotNull(grid);
+        Assert.Equal("access", grid.Event);
+        Assert.Equal(["access", "accessPram", "accessMobility", "accessData"], grid.Columns.Skip(10).ToArray());
+        Assert.Equal("pram", grid.Access!.Profile);
+        Assert.True(grid.Access.HasData);
+        var cols = grid.Columns.ToList();
+        Assert.All(grid.Cells, c => Assert.Equal(c[cols.IndexOf("accessData")] == 1, c[cols.IndexOf("access")] >= 0));
+        Assert.Equal(HttpStatusCode.BadRequest, (await _client.GetAsync("/api/safety/grid?event=access&profile=nobody")).StatusCode);
+    }
+
+    [Fact]
+    public async Task The_place_card_has_the_access_layer_per_profile()
+    {
+        var place = await _client.GetFromJsonAsync<PlaceScoreDto>($"/api/safety/place?lat={Lat}&lon={Lon}&event=access&profile=mobility");
+        Assert.NotNull(place);
+        Assert.Equal("mobility", place.AccessProfile);
+        Assert.Equal(9, place.Access!.Factors.Count);
+        Assert.All(place.Access.Factors, f => Assert.StartsWith("access.mobility.", f.Key));
+        Assert.Equal(3, place.AccessByProfile!.Count);
+        Assert.True(place.Access.HasData);   // the fixture maps barriers and amenities next to the Rynek
+        Assert.InRange(place.Access.Score!.Value, 0, 100);
+
+        // Far from the downloaded area: no score, flagged.
+        var far = await _client.GetFromJsonAsync<PlaceScoreDto>("/api/safety/place?lat=50.12&lon=20.05&event=access");
+        Assert.Null(far!.Access!.Score);
+        Assert.False(far.Access.HasData);
+        Assert.Equal("outside_area", far.Access.DataNoteCode);
+    }
+
+    [Fact]
+    public async Task The_access_route_mode_and_planner_summary_take_a_profile()
+    {
+        var r = await _client.GetFromJsonAsync<RoutesDto>("/api/safety/route?from=50.0617,19.9373&to=50.0647,19.9450&mode=access&profile=pram");
+        Assert.Equal("access", r!.Mode);
+        Assert.Equal("pram", r.Profile);
+
+        var s = await Send<PlannerSummaryDto>(Planner(HttpMethod.Get, "/api/safety/planner/summary?event=access&profile=mobility"));
+        Assert.Equal("mobility", s.Profile);
+        Assert.All(s.FactorGaps, g => Assert.Equal("AccessMobility", g.Layer));
+        Assert.Contains(s.Kpis, k => k.Key == "accessCoverage");
+    }
+
+    [Fact]
+    public async Task Weights_and_thresholds_list_the_three_access_profiles()
+    {
+        var w = await Send<WeightsDto>(Planner(HttpMethod.Get, "/api/safety/planner/weights"));
+        Assert.Equal(new[] { "Access", "AccessPram", "AccessMobility" }, w.Layers.Skip(4).Select(l => l.Layer).ToArray());
+        var t = await Send<RouteThresholdsDto>(Planner(HttpMethod.Get, "/api/safety/planner/route-thresholds"));
+        Assert.Equal(7, t.Layers.Count);
     }
 
     [Fact]

@@ -10,11 +10,13 @@ import { addressLine } from './geo.js';
 import { bandOf, kindOf, FACTOR_ICON, FACTOR_LAYER, RELIEF, LAYERS, modeOfEvent } from './model.js';
 import { explainable, openFactorExplainer, openKpiExplainer, openScoreExplainer, bandText } from './explain.js';
 import { aiSuggestion } from './planner-ai.js';
+import { getProfile, evKey, layerMode, apiLayerOf, accessCellSections, layerNameOfApi, isAccessKey } from './planner-access.js';
 
 // ── Shared planner state and a tiny event bus ────────────────────────────────
 export const P = {
   root: null,          // the .pl-col element (drawers attach here)
-  event: state.event,  // 'heat' | 'night' | 'both'
+  event: state.event,  // 'heat' | 'night' | 'flood' | 'air' | 'access'
+  profile: getProfile(),  // accessibility profile 'wheelchair' | 'pram' | 'mobility'; only used while the event is 'access'
   summary: null,
   grid: null,
   focus: null,         // {lat, lon, cellId} the map should open on
@@ -29,8 +31,9 @@ export const pOn = (name, fn) => {
 export const pEmit = (name, v) => P.listeners.get(name)?.forEach((fn) => { try { fn(v); } catch (e) { console.error(e); } });
 
 // ── Loaders (network first, saved copy when offline) ─────────────────────────
-export const loadSummary = () => cachedGet(`p:summary:${P.event}`, () => getSummary(P.event, 50));
-export const loadGridFor = (event = P.event) => cachedGet(`p:grid:${event}`, () => getGrid(event));
+// The profile only matters for the access event (the API client leaves it out for the others); saved copies are kept per profile.
+export const loadSummary = () => cachedGet(`p:summary:${evKey(P.event, P.profile)}`, () => getSummary(P.event, 50, P.profile));
+export const loadGridFor = (event = P.event) => cachedGet(`p:grid:${evKey(event, P.profile)}`, () => getGrid(event, P.profile));
 export const loadReports = () => cachedGet('p:reports', () => getReports({ includeResolved: true, limit: 500 }, true));
 export const loadAlerts = () => cachedGet('p:alerts', () => getPlannerAlerts(true));
 export const loadAgencies = () => cachedGet('p:agencies', getAgencies);
@@ -54,6 +57,7 @@ export function staleBanner(savedAt) {
 // ── Agency choice per suggested action ───────────────────────────────────────
 const AGENCY_FOR_ACTION = {
   ADD_WATER_POINT: 'crisis', ADD_SHADE: 'zzm', OPEN_COOL_SPACE: 'crisis', ADD_TOILET: 'portal', REVIEW_STOPS: 'ztp',
+  ADD_RAMP: 'zdmk', LOWER_KERBS: 'zdmk', REPAIR_FOOTWAY: 'zdmk', REVIEW_SLOPES: 'zdmk', ADD_STEP_FREE_ACCESS: 'portal', REVIEW_ACCESSIBLE_STOPS: 'ztp', ADD_ACCESSIBLE_TOILET: 'portal', ADD_BENCHES: 'zzm', ADD_TACTILE_PAVING: 'zdmk',
   FIX_LIGHTING: 'zdmk', REVIEW_NIGHT_SERVICE: 'ztp', ADD_NIGHT_PRESENCE: 'straz', ADD_AED: 'portal', REVIEW_REPORTS: 'portal'
 };
 export const agencyForAction = (code) => AGENCY_FOR_ACTION[code] || 'portal';
@@ -111,7 +115,7 @@ export async function openCellDrawer(cellId, { meta } = {}) {
 
   let res;
   try {
-    res = await cachedGet(`p:cell:${cellId}:${P.event}`, () => getCell(cellId, P.event, true));
+    res = await cachedGet(`p:cell:${cellId}:${evKey(P.event, P.profile)}`, () => getCell(cellId, P.event, true, P.profile));
   } catch (e) {
     clear(body);
     body.append(h('div', { class: 'banner danger' }, icon('alert'), h('span', null, errorText(e, t))));
@@ -125,20 +129,22 @@ export async function openCellDrawer(cellId, { meta } = {}) {
 
   const stack = h('div', { class: 'stack' });
   // The drawer follows the planning event: it shows the one layer being planned for (heat, night safety, flood or air).
-  const layers = [modeOfEvent(P.event)];
-  const wantedLayer = new Set(layers.map((k) => LAYERS[k].api));
+  const isAccess = P.event === 'access';
+  const layers = [layerMode(P.event)];
+  const wantedLayer = new Set([apiLayerOf(P.event)]);
   const reportsHere = c.reports.filter((r) => wantedLayer.has(r.layer));
   if (res.stale) stack.append(staleBanner(res.savedAt));
   stack.append(
     h('div', { class: 'row between wrap' },
       h('div', { class: 'stack tight' }, addressLine(c.latitude, c.longitude, { fallback: c.label ? t('cell.near', { name: c.label }) : null }),
         h('span', { class: 'small muted' }, icon('target', 'sm'), ' ', t('cov.square', { r: formatDistance(gm?.cellSizeMeters || 250) }))),
-      explainable(h('span', { class: 'chip accent' }, `${t('cell.priority')} ${Math.round(c.priority)}`), () => openKpiExplainer('priority', { value: c.priority, extra: [[t('cell.exposureLabel'), `${Math.round(c.exposure * 100)} / 100`], [t('mode.heat.score'), Math.round(c.heat)], [t('mode.safety.score'), Math.round(c.safety)], [t('mode.both.score'), Math.round(c.combined)]] }), t('cell.priority'))),
-    h('div', { class: 'row wrap', style: { justifyContent: 'space-around' } },
+      (isAccess && c.access?.score == null) ? null : explainable(h('span', { class: 'chip accent' }, `${t('cell.priority')} ${Math.round(c.priority)}`), () => openKpiExplainer('priority', { value: c.priority, extra: [[t('cell.exposureLabel'), `${Math.round(c.exposure * 100)} / 100`], ...(isAccess ? [[t('mode.access.score'), c.access?.score != null ? Math.round(c.access.score) : t('accl.noData')]] : [[t('mode.heat.score'), Math.round(c.heat)], [t('mode.safety.score'), Math.round(c.safety)], [t('mode.both.score'), Math.round(c.combined)]])] }), t('cell.priority'))),
+    isAccess ? '' : h('div', { class: 'row wrap', style: { justifyContent: 'space-around' } },
       layers.map((k) => gaugeBox(c[k].score, gm, t(`mode.${k}.score`), kindOf(k), () => openScoreExplainer({ layer: k, place: c, meta: gm })))));
+  if (isAccess) stack.append(...accessCellSections(c, gm));
 
   // Why: the full factor tables (transparency), only for the layers of the event
-  stack.append(h('section', null, h('h3', null, t('cell.why')),
+  if (!isAccess) stack.append(h('section', null, h('h3', null, t('cell.why')),
     layers.map((k) => [k, c[k]]).map(([k, l]) => h('div', { style: { marginTop: '.6rem' } },
       explainable(h('p', { class: 'sect-title' }, `${t(`mode.${k}.score`)} · ${t('cell.base')} ${Math.round(l.baseScore)}${l.reportPenalty ? ` − ${l.reportPenalty} ${t(k === 'safety' || k === 'heat' ? 'place.fromReports' : 'place.fromReportsLive')}` : ''} = ${Math.round(l.score)} (${t(`explain.dir.${k}`)})`),
       () => openScoreExplainer({ layer: k, place: c, meta: gm }), t(`mode.${k}.score`)),
@@ -167,13 +173,13 @@ export async function openCellDrawer(cellId, { meta } = {}) {
     c.actions.length ? h('ul', { class: 'list' }, c.actions.map((a) => h('li', null,
       h('div', { class: 'row between wrap' },
         h('div', { class: 'grow' }, h('b', null, t(`action.${a.code}`)),
-          h('div', { class: 'small muted' }, h('span', { class: `chip ${a.severity === 'high' ? 'danger' : 'warn'}` }, t(`sev.${a.severity}`)), ' ', a.layer === 'Both' ? '' : t(`mode.${a.layer.toLowerCase()}`))),
+          h('div', { class: 'small muted' }, h('span', { class: `chip ${a.severity === 'high' ? 'danger' : 'warn'}` }, t(`sev.${a.severity}`)), ' ', layerNameOfApi(a.layer))),
         h('div', { class: 'row wrap' },
           h('button', { class: 'btn sm', type: 'button', onclick: () => openDispatchComposer({ cell: c, action: a }) }, icon('send', 'sm'), t('cell.contact')),
-          h('button', { class: 'btn sm', type: 'button', onclick: () => openAlertDialog({ cell: c, action: a }) }, icon('bell', 'sm'), t('cell.alert'))))))) : h('p', { class: 'small muted' }, t('cell.noActions'))));
+          h('button', { class: 'btn sm', type: 'button', onclick: () => openAlertDialog({ cell: c, action: a }) }, icon('bell', 'sm'), t('cell.alert'))))))) : (isAccess && c.access?.score == null) ? h('p', { class: 'small muted' }, t('pa.nodata.never')) : h('p', { class: 'small muted' }, t('cell.noActions'))));
 
   // Nearest assets (of the event's layers)
-  const nearestShown = c.nearest.filter((n) => RELIEF[modeOfEvent(P.event)].includes(n.key));
+  const nearestShown = c.nearest.filter((n) => (RELIEF[layerMode(P.event)] || []).includes(n.key));
   if (nearestShown.length) {
     stack.append(h('section', null, h('h3', null, t('cell.nearest')),
       h('div', { class: 'tbl-wrap' }, h('table', { class: 't' }, h('tbody', null, nearestShown.map((n) => h('tr', null,
@@ -234,8 +240,9 @@ export function resolveDialog(r, onChange) {
 export function makeBrief(lang, { cell, action }) {
   const L = (k, p) => tIn(lang, k, p);
   const band = (s, kind = 'good') => L(kind === 'heat' ? `band.heat.${bandOf(s, P.grid?.grid, 'heat')}` : `band.${bandOf(s, P.grid?.grid)}`);
-  const weak = [...cell.safety.factors, ...cell.heat.factors, ...(cell.flood?.factors || []), ...(cell.air?.factors || [])].filter((f) => f.score < 35)
-    .map((f) => `${L(`factor.${f.key}`)} (${f.unit === 'm' ? (f.value === null ? L('factor.none') : formatDistance(f.value)) : `${Math.round(f.value ?? 0)} ${L('factor.lamps')}`})`);
+  const accessOk = P.event === 'access' && cell.access && cell.access.hasData !== false && cell.access.score != null;
+  const weak = [...cell.safety.factors, ...cell.heat.factors, ...(cell.flood?.factors || []), ...(cell.air?.factors || []), ...(accessOk ? cell.access.factors.filter((f) => f.weight > 0) : [])].filter((f) => f.score < 35)
+    .map((f) => `${isAccessKey(f.key) ? L(`pa.factor.${f.key.split('.').pop()}`) : L(`factor.${f.key}`)} (${f.unit === 'm' ? (f.value === null ? L('factor.none') : formatDistance(f.value)) : f.unit === 'barriers' ? L('factor.barriers', { n: Math.round((f.value ?? 0) * 10) / 10 }) : f.unit === '%' ? (f.value === null ? L('factor.notMapped') : L('factor.pctSmooth', { n: Math.round(f.value) })) : `${Math.round(f.value ?? 0)} ${L('factor.lamps')}`})`);
   const reports = cell.reports.filter((r) => r.status === 'Open');
   const c = P.summary?.data?.conditions || null;
   const lines = [
@@ -244,6 +251,7 @@ export function makeBrief(lang, { cell, action }) {
     c ? L('brief.situation', { heat: L(`heat.${c.heat.pressure}`), dark: c.isDark ? L('brief.dark') : L('brief.daylight') }) : null,
     L('brief.scores', { safety: Math.round(cell.safety.score), sb: band(cell.safety.score), heat: Math.round(cell.heat.score), hb: band(cell.heat.score, 'heat'), priority: Math.round(cell.priority) }),
     cell.flood && cell.air ? L('brief.floodAir', { flood: Math.round(cell.flood.score), fb: band(cell.flood.score), air: Math.round(cell.air.score), ab: band(cell.air.score) }) : null,
+    accessOk ? L('pa.brief.access', { score: Math.round(cell.access.score), band: band(cell.access.score), profile: L(`accl.p.${cell.accessProfile || cell.access.profile || 'wheelchair'}`) }) : (P.event === 'access' && cell.access ? L('pa.brief.noData') : null),
     weak.length ? L('brief.weak', { list: weak.join('; ') }) : null,
     reports.length ? L('brief.reports', { n: reports.length, types: [...new Set(reports.map((r) => L(`rtype.${r.type}`)))].join('; ') }) : null,
     action ? L('brief.request', { text: L(`action.${action.code}`) }) : null,

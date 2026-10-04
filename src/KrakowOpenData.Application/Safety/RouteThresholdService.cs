@@ -22,7 +22,10 @@ public static class RouteThresholds
         Layer.Safety => "Night safety",
         Layer.Heat => "Heat relief",
         Layer.Flood => "Flood",
-        _ => "Air quality"
+        Layer.Air => "Air quality",
+        Layer.Access => "Accessibility: wheelchair",
+        Layer.AccessPram => "Accessibility: pram",
+        _ => "Accessibility: limited mobility"
     };
 
     /// <summary>Why the default is what it is, in one or two sentences, for the planner.</summary>
@@ -34,6 +37,12 @@ public static class RouteThresholds
             "Heat relief adds up over the whole walk (shade, water, places to sit and cool down), so the average carries the decision. 65 on average means most of the walk is covered; 45 for the worst stretch tolerates one short exposed section, which a walker can cross quickly.",
         Layer.Flood =>
             "Flood risk is local: one low stretch beside a river or an underpass can stop a walk entirely, so the worst stretch is as important as the average. The default is deliberately not relaxed; raise the worst-stretch limit if the city wants flood-prone stretches avoided more strictly.",
+        Layer.Access =>
+            "For a wheelchair one barrier can stop the walk (a flight of steps, a high kerb, a blocked path), so the weakest stretch counts as much as the average. The default is not relaxed: 65 on average means most of the route is step-free and smooth; below 45 anywhere is a stretch with a barrier that a wheelchair cannot pass.",
+        Layer.AccessPram =>
+            "A pram copes with some kerbs and a ramp tagged for strollers, but rough surface and steps hurt over the whole walk, so the average carries the decision. 65 on average is a mostly smooth, ramped route; 45 for the worst stretch tolerates one awkward spot that can be crossed with a lift of the pram.",
+        Layer.AccessMobility =>
+            "For people who walk with difficulty the length of the walk and the lack of places to rest matter more than a single step, so the average decides. 65 on average means gentle slopes and benches along the way; 45 for the worst stretch tolerates a short steep or rough section.",
         _ =>
             "Air quality is mostly felt as exposure over the whole walk, with main roads adding to it, so the average decides. 65 on average keeps a walker mostly away from traffic; 45 for the worst stretch tolerates crossing or walking a short way along a busy road."
     };
@@ -43,7 +52,10 @@ public static class RouteThresholds
         Layer.Safety => "night",
         Layer.Heat => "heat",
         Layer.Flood => "flood",
-        _ => "air"
+        Layer.Air => "air",
+        Layer.Access => "access",
+        Layer.AccessPram => "accessPram",
+        _ => "accessMobility"
     };
 
     /// <summary>The layer a planning mode is judged on; "both" has no layer of its own.</summary>
@@ -53,6 +65,9 @@ public static class RouteThresholds
         PlanningEvent.Heat => Layer.Heat,
         PlanningEvent.Flood => Layer.Flood,
         PlanningEvent.Air => Layer.Air,
+        PlanningEvent.Access => Layer.Access,
+        PlanningEvent.AccessPram => Layer.AccessPram,
+        PlanningEvent.AccessMobility => Layer.AccessMobility,
         _ => null
     };
 
@@ -119,7 +134,7 @@ public sealed class RouteThresholdService(ISafetyStore store)
 
     private static RouteThresholdsDto Describe(IReadOnlyDictionary<string, double> overrides)
     {
-        var layers = new[] { Layer.Safety, Layer.Heat, Layer.Flood, Layer.Air }.Select(layer =>
+        var layers = new[] { Layer.Safety, Layer.Heat, Layer.Flood, Layer.Air, Layer.Access, Layer.AccessPram, Layer.AccessMobility }.Select(layer =>
         {
             var t = Resolve(layer, overrides);
             var customized = overrides.ContainsKey(RouteThresholds.StoreKey(layer, true)) || overrides.ContainsKey(RouteThresholds.StoreKey(layer, false));

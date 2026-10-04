@@ -1,0 +1,30 @@
+/* Planner side of the fifth layer, Accessibility (js/planner-access.js and the planner pages).
+   The layer's colour tokens (--access, --access-soft) and the tab, chip, bar and legend rules are in app.css; this file holds only what the
+   planner adds: the profile switch under the event tabs, and the neutral "no data" look. Colours come from tokens, so light and dark both pass:
+   ink on --surface-2 is 11:1 or more, and --access on --surface is 8.2:1 (light) and 9.7:1 (dark). */
+
+/* The event tabs may be wider than a phone: they scroll inside their own row instead of widening the page. */
+.pl-events { max-width: 100%; min-width: 0; overflow-x: auto; padding: 2px; scrollbar-width: thin; }
+.pl-events .seg { flex-wrap: nowrap; }
+
+/* Profile switch: shown only while the Accessibility tab is open. */
+.pl-profile { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; padding-top: .2rem; border-top: 1px dashed var(--line); }
+.pl-profile[hidden] { display: none; }
+.pl-profile .seg { max-width: 100%; }
+.pl-profile .seg button { min-height: 44px; padding: 0 .9rem; border: 2px solid transparent; }
+.pl-profile .seg button[aria-pressed="true"] { background: var(--access-soft); color: var(--ink); border-color: var(--access); box-shadow: none; }
+.pl-profile-line { flex: 1 1 14rem; margin: 0; }
+@media (max-width: 519.98px) {
+  .pl-profile { flex-direction: column; align-items: stretch; }
+  .pl-profile-line { flex: 0 0 auto; }
+  .pl-profile .seg { display: flex; width: 100%; }
+  .pl-profile .seg button { flex: 1 1 0; min-width: 0; padding: 0 .3rem; font-size: .85rem; line-height: 1.15; text-align: center; }
+}
+
+/* No data is neither good nor critical: neutral surface, dashed outline and words, never a band colour. */
+.chip.nodata { background: var(--surface-2); color: var(--ink); border: 1.5px dashed var(--ink-3); }
+.banner.nodata-banner { background: var(--surface-2); color: var(--ink); border: 1.5px dashed var(--ink-3); }
+button.banner.nodata-banner { width: 100%; font: inherit; }
+.kpi.nodata { border: 1.5px dashed var(--ink-3); }
+.kpi.nodata .v { color: var(--ink); }
+.map-note .banner.nodata-banner { margin: .4rem .6rem 0; width: auto; max-width: min(92vw, 34rem); }

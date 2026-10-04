@@ -8,6 +8,7 @@ import { plannerPing, errorText, ApiError } from './api.js';
 import { topbar, statusPill } from './chrome.js';
 import { P, pOn, pEmit, loadSummary, closeDrawer } from './planner-common.js';
 import { explainable, openKpiExplainer } from './explain.js';
+import { profileBar, saveProfile, getProfile, accessIcon, openNoDataExplainer } from './planner-access.js';
 
 const PAGES = [
   ['overview', 'dash', 'pl.nav.overview'],
@@ -18,7 +19,7 @@ const PAGES = [
   ['contacts', 'phone', 'pl.nav.contacts']
 ];
 
-const EVENTS = [['heat', 'sun'], ['night', 'moon'], ['flood', 'wave'], ['air', 'wind']];
+const EVENTS = [['heat', 'sun'], ['night', 'moon'], ['flood', 'wave'], ['air', 'wind'], ['access', 'access']];
 let autoKeyRejected = false;   // the configured demo key was refused by the API: show the sign-in form instead of looping
 
 export function mountPlanner(root, page) {
@@ -54,7 +55,7 @@ export function mountPlanner(root, page) {
   const paintEvents = () => {
     clear(eventSeg);
     for (const [ev, ic] of EVENTS) {
-      eventSeg.append(h('button', { type: 'button', 'data-mode': ev === 'night' ? 'safety' : ev, 'aria-pressed': String(P.event === ev), 'aria-label': t(`event.${ev}`), title: t(`event.${ev}`), onclick: () => changeEvent(ev) }, icon(ic, 'sm'), h('span', { class: 'seg-lbl' }, t(`event.${ev}`))));
+      eventSeg.append(h('button', { type: 'button', 'data-mode': ev === 'night' ? 'safety' : ev, 'aria-pressed': String(P.event === ev), 'aria-label': t(`event.${ev}`), title: t(`event.${ev}`), onclick: () => changeEvent(ev) }, icon(ic === 'access' ? accessIcon() : ic, 'sm'), h('span', { class: 'seg-lbl' }, t(`event.${ev}`))));
     }
   };
   const conds = h('div', { class: 'row wrap grow' });
@@ -63,12 +64,16 @@ export function mountPlanner(root, page) {
   // Every page except the dashboard gets a clear way back.
   const backBtn = pageName === 'overview' ? null : h('a', { class: 'btn sm', href: '#/planner/overview' }, icon('left', 'sm'), t('nav.backDashboard'));
   const demoChip = demoAccess ? h('span', { class: 'chip', title: t('pl.demoAccess') }, icon('info', 'sm'), t('pl.demoChip')) : null;
-  const tools = h('div', { class: 'pl-tools' }, backBtn, h('span', { class: 'small muted hide-sm' }, t('pl.planningFor')), eventSeg, conds, demoChip, updated, refreshBtn);
+  // Accessibility has one score per profile: the profile switch is shown only while that tab is active.
+  const profBar = profileBar(getProfile(), (p) => changeProfile(p));
+  profBar.el.hidden = state.event !== 'access';
+  const tools = h('div', { class: 'pl-tools' }, backBtn, h('span', { class: 'small muted hide-sm' }, t('pl.planningFor')), h('div', { class: 'pl-events' }, eventSeg), conds, demoChip, updated, refreshBtn, profBar.el);
 
   const body = h('main', { class: 'pl-body', id: 'main', tabindex: '-1' }, h('h1', { class: 'sr-only' }, `${t('app.title')} · ${t('a11y.planner')}`));
   const col = h('div', { class: 'pl-col' }, tools, body);
   P.root = col;
   P.event = state.event;
+  P.profile = getProfile();
   const shell = h('div', { class: 'pl' }, nav, col);
   root.append(bar, shell);
   paintEvents();
@@ -103,6 +108,12 @@ export function mountPlanner(root, page) {
       const chip = h('span', { class: `chip ${bad ? 'danger' : 'air'}` }, icon('wind', 'sm'), c.air.pm25 !== null && c.air.pm25 !== undefined ? `${t(`air.${c.air.band}`)} · PM2.5 ${Math.round(c.air.pm25)}` : t('air.Unknown'));
       conds.append(explainable(chip, () => openKpiExplainer('airLevel', { value: c.air.pm25Average != null ? `${c.air.pm25Average} µg/m³` : '–', extra: [[t('cond.airTitle'), c.air.pm25 !== null && c.air.pm25 !== undefined ? `${t(`air.${c.air.band}`)} · PM2.5 ${c.air.pm25} µg/m³` : t('air.Unknown')], c.air.station ? [t('cond.station'), c.air.station] : null].filter(Boolean) }), t('cond.air.title')));
     }
+    if (P.event === 'access' && s.access) {
+      // No data is stated up front: how many squares have no accessibility data (they are not scored and not in any average).
+      const a = s.access;
+      const chip = a.hasData ? h('span', { class: 'chip nodata' }, icon('info', 'sm'), t('pa.nodata.chip', { n: a.cellsWithoutData.toLocaleString() })) : h('span', { class: 'chip warn' }, icon('alert', 'sm'), t('pa.nodata.none'));
+      conds.append(explainable(chip, () => openNoDataExplainer(a), t('pa.nodata.title')));
+    }
     if (c.dataGaps?.length) conds.append(h('span', { class: 'chip warn', title: c.dataGaps.join(', ') }, icon('alert', 'sm'), t('pl.incomplete')));
     updated.textContent = P.summary.stale ? t('pl.savedAt', { when: timeAgo(P.summary.savedAt, t, getLang()) }) : t('pl.updated', { when: timeAgo(P.summary.savedAt, t, getLang()) });
     if (badges.alerts) { badges.alerts.hidden = !s.activeAlerts; badges.alerts.textContent = s.activeAlerts; }
@@ -116,7 +127,14 @@ export function mountPlanner(root, page) {
     loading = true;
     refreshBtn.disabled = true;
     try {
-      P.summary = await loadSummary();
+      // The event or the profile may change while a request is running: ask again for the new choice, never show the old one's numbers.
+      for (;;) {
+        const ev = P.event, pr = P.profile;
+        const res = await loadSummary();
+        if (ev !== P.event || (ev === 'access' && pr !== P.profile)) continue;
+        P.summary = res;
+        break;
+      }
       paintConditions();
       pEmit('summary');
       if (announceDone) toast(t('pl.refreshed'));
@@ -134,9 +152,20 @@ export function mountPlanner(root, page) {
     if (ev === P.event) return;
     P.event = ev;
     set({ event: ev });
+    profBar.el.hidden = ev !== 'access';
     paintEvents();
     paintConditions();
     pEmit('event', ev);
+    refresh();
+  }
+
+  /** The profile belongs to the accessibility tab: every page and the open area drawer follow it, the chosen square stays. */
+  function changeProfile(p) {
+    if (p === P.profile) return;
+    P.profile = p;
+    saveProfile(p);
+    profBar.update(p);
+    pEmit('profile', p);
     refresh();
   }
 

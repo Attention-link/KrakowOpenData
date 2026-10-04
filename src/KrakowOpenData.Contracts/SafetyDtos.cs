@@ -19,7 +19,10 @@ public sealed record GridMetaDto(
 
 /// <summary>
 /// The whole score grid in a compact form (one row per inhabited cell) so a phone can download and cache it.
-/// Columns: row, col, heat, safety, combined, exposure (0–100), openReports, priority (0–100, for <see cref="Event"/>).
+/// Columns: row, col, heat, safety, combined, exposure (0–100), openReports, priority (0–100, for <see cref="Event"/>), flood, air,
+/// access (wheelchair), accessPram, accessMobility, accessData. The three access columns are -1 where the square has no accessibility data
+/// (outside the downloaded area, or nothing mapped nearby): that is "no data", never a good or a bad score. accessData is 1 when there is data, 0 when not.
+/// <see cref="Access"/> says which profile the priority column is for when the event is "access".
 /// </summary>
 public sealed record GridDto(
     GridMetaDto Grid,
@@ -27,8 +30,27 @@ public sealed record GridDto(
     IReadOnlyList<string> Columns,
     IReadOnlyList<int[]> Cells,
     DateTimeOffset GeneratedAt,
-    ConditionsDto Conditions);
+    ConditionsDto Conditions,
+    AccessLayerInfoDto? Access = null);
 
+/// <summary>
+/// The accessibility layer in one place: the profile (wheelchair | pram | mobility; the default is wheelchair), all profile keys, whether any data
+/// is loaded, how many squares have data, the downloaded area and a note. Squares without data have no accessibility score (-1 in the grid, null elsewhere).
+/// </summary>
+public sealed record AccessLayerInfoDto(
+    string Profile,
+    IReadOnlyList<string> Profiles,
+    bool HasData,
+    int CellsWithData,
+    int CellsWithoutData,
+    AccessAreaDto? DataArea,
+    string Note);
+
+/// <summary>
+/// One factor of a layer for one place. <see cref="HasData"/> is false when the factor is NOT AVAILABLE for scoring (e.g. <c>access.{profile}.accessStops</c> while no
+/// stop in the ZTP open data is flagged wheelchair-accessible): <see cref="Score"/> and <see cref="Points"/> are 0 and mean nothing, <see cref="DataNote"/> says why, and
+/// show it as "no data", not as "0 of N points". Then the other factors of the layer carry rescaled <see cref="Weight"/>s that add up to 100 again.
+/// </summary>
 public sealed record FactorDto(
     string Key,
     string Label,
@@ -39,14 +61,27 @@ public sealed record FactorDto(
     double Score,
     double Points,
     string? NearestName,
-    double Contribution);
+    double Contribution,
+    bool HasData = true,
+    string? DataNote = null);
 
+/// <summary>
+/// One layer's score for one place. For the accessibility layers <see cref="Score"/> is null (and <see cref="HasData"/> false, <see cref="Band"/> "NoData")
+/// when the place has no accessibility data; <see cref="DataNoteCode"/> is outside_area | no_data | unavailable (no data) or thin_coverage (a score, but few mapped items nearby).
+/// <see cref="ReportPenalty"/> is the total taken off the base score; for flood and air it includes the live adjustment, of which <see cref="LivePenalty"/> is the part
+/// (so citizen reports took off <c>ReportPenalty - LivePenalty</c>).
+/// </summary>
 public sealed record LayerScoreDto(
-    double Score,
+    double? Score,
     string Band,
     double BaseScore,
     double ReportPenalty,
-    IReadOnlyList<FactorDto> Factors);
+    IReadOnlyList<FactorDto> Factors,
+    bool HasData = true,
+    string? DataNoteCode = null,
+    string? DataNote = null,
+    string? Profile = null,
+    double LivePenalty = 0);
 
 public sealed record NearestFeatureDto(
     string Key,
@@ -84,9 +119,14 @@ public sealed record PlaceScoreDto(
     DateTimeOffset GeneratedAt,
     string? Label = null,
     LayerScoreDto? Flood = null,
-    LayerScoreDto? Air = null);
+    LayerScoreDto? Air = null,
+    LayerScoreDto? Access = null,
+    string? AccessProfile = null,
+    IReadOnlyDictionary<string, LayerScoreDto>? AccessByProfile = null);
 
-public sealed record CorridorSampleDto(double Latitude, double Longitude, double Heat, double Safety, double Combined, double Flood = 0, double Air = 0);
+/// <summary>Scores of one sample. Access, AccessPram and AccessMobility are null where there is no accessibility data.</summary>
+public sealed record CorridorSampleDto(double Latitude, double Longitude, double Heat, double Safety, double Combined, double Flood = 0, double Air = 0,
+    double? Access = null, double? AccessPram = null, double? AccessMobility = null);
 
 /// <summary>Scores sampled every ~50 m along a straight line between two points (not a street route).</summary>
 public sealed record CorridorDto(
@@ -204,6 +244,7 @@ public sealed record DispatchDto(
     string Reference,
     DateTimeOffset CreatedAt);
 
+/// <summary>A headline number. A KPI that cannot be computed from the data at hand is left out of the list (e.g. <c>noAccessibleStop400</c> while no ZTP stop is flagged accessible).</summary>
 public sealed record KpiDto(string Key, double Value, string Unit);
 
 public sealed record FactorGapDto(string Key, string Label, string Layer, double WeakShare, double AverageScore);
@@ -224,7 +265,8 @@ public sealed record PriorityCellDto(
     IReadOnlyList<SuggestedActionDto> Actions,
     string? Label = null,
     double Flood = 0,
-    double Air = 0);
+    double Air = 0,
+    double? Access = null);
 
 public sealed record ReportCountDto(string Type, int Open, int Last24Hours, int Verified);
 
@@ -240,7 +282,9 @@ public sealed record PlannerSummaryDto(
     IReadOnlyList<ReportCountDto> Reports,
     int ActiveAlerts,
     int DevicesActive,
-    IReadOnlyList<string> Notes);
+    IReadOnlyList<string> Notes,
+    string? Profile = null,
+    AccessLayerInfoDto? Access = null);
 
 // ── Offline support and planner reach ────────────────────────────────────────
 /// <summary>A mapped feature that feeds a score factor (water point, park, pharmacy, …), so apps can find "nearest relief" offline.</summary>
@@ -277,7 +321,8 @@ public sealed record RouteOptionDto(
     double Average,
     double Worst,
     int WeakestSampleIndex,
-    int OpenReportsNearby);
+    int OpenReportsNearby,
+    double NoDataShare = 0);
 
 /// <summary>
 /// The fastest route and, when it is meaningfully better for the chosen mode, a safer / cooler one to compare it with.
@@ -296,7 +341,8 @@ public sealed record RoutesDto(
     bool Widened = false,
     bool FastestIsAcceptable = true,
     double? ThresholdAverage = null,
-    double? ThresholdWorst = null);
+    double? ThresholdWorst = null,
+    string? Profile = null);
 
 // ── How the scores are built (documentation served by the API, used for tooltips, legends and the planner) ──
 public sealed record BandInfoDto(string Band, double From, double To, string Meaning);
@@ -340,7 +386,7 @@ public sealed record RouteThresholdsDto(IReadOnlyList<LayerRouteThresholdDto> La
 
 public sealed record RouteThresholdValue(double Average, double Worst);
 
-/// <summary>Layer name (Safety, Heat, Flood, Air) to its two limits. Layers not listed keep what they have.</summary>
+/// <summary>Layer name (Safety, Heat, Flood, Air, Access, AccessPram, AccessMobility) to its two limits. Layers not listed keep what they have.</summary>
 public sealed record SetRouteThresholdsRequest(IReadOnlyDictionary<string, RouteThresholdValue> Thresholds);
 
 public sealed record LayerMethodDto(

@@ -9,7 +9,7 @@ import { getAlerts } from './api.js';
 import { kvGet, kvSet } from './db.js';
 import { layerOfApi } from './model.js';
 
-const ALERT_ICON = { Heat: 'thermo', Safety: 'moon', Flood: 'wave', Air: 'wind' };
+const ALERT_ICON = { Heat: 'thermo', Safety: 'moon', Flood: 'wave', Air: 'wind', Access: 'access', AccessPram: 'access', AccessMobility: 'access' };
 
 const POLL_MS = 60000;
 
@@ -56,7 +56,7 @@ export function startAlerts(ctx, host, onChange) {
 
   function paint() {
     clear(host);
-    // General alerts always show; heat, night-safety, flood and air alerts show in their own view.
+    // General alerts always show; heat, night-safety, flood, air and accessibility alerts show in their own view.
     const mode = state.mode || 'safety';
     const relevant = (a) => !a.layer || layerOfApi(a.layer) === mode;
     const visible = alerts.filter((a) => relevant(a) && !state.dismissedAlerts.includes(a.id)).slice(0, 3);

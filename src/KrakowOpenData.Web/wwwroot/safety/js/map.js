@@ -1,7 +1,7 @@
 // Leaflet wrapper: base map, the score grid drawn on a canvas, and small marker helpers.
 // The grid is drawn from cached data, so the map still works with no tiles and no connection (grey background).
 
-import { cellBounds, cellOf, bandOf, kindOf, BAND_FILL, priorityColor, scoreOf, COL, indexGrid, FACTOR_ICON, FACTOR_LAYER } from './model.js';
+import { cellBounds, cellOf, bandOf, kindOf, BAND_FILL, priorityColor, scoreOf, noDataRow, COL, indexGrid, applyColumns, FACTOR_ICON, FACTOR_LAYER } from './model.js';
 import { h, icon, clear, formatDistance, reducedMotion } from './util.js';
 import { addressLine } from './geo.js';
 import { t } from './i18n.js';
@@ -76,6 +76,10 @@ export function keyboardPick(map, hint) {
  * Draws the score grid: one canvas rectangle per cell. `style` is 'score' (blue-red bands by mode) or 'priority' (red ramp).
  * Clicks and hover are resolved from the cell math, not per-rectangle events, so thousands of cells stay fast.
  */
+/** Squares with no accessibility data: a neutral grey at low opacity (neither a good nor a critical colour). */
+export const NO_DATA_FILL = '#6b6a65';
+const NO_DATA_OPACITY = 0.3;
+
 export class GridLayer {
   constructor(map, { onSelect, onHover } = {}) {
     this.map = map;
@@ -99,17 +103,23 @@ export class GridLayer {
     }
   }
 
-  /** grid: the API's GridDto. opts: {mode: 'safety'|'heat'|'both', style: 'score'|'priority', opacity} */
-  draw(grid, { mode = 'both', style = 'score', opacity = 0.62 } = {}) {
+  /**
+   * grid: the API's GridDto. opts: {mode: 'safety'|'heat'|'both'|'access', style: 'score'|'priority', opacity, profile}.
+   * A square with no accessibility data (mode access) is never given a band colour: it is drawn as a faint neutral grey.
+   */
+  draw(grid, { mode = 'both', style = 'score', opacity = 0.62, profile } = {}) {
+    applyColumns(grid.columns);
     this.grid = grid;
     this.index = indexGrid(grid);
     this.group.clearLayers();
     this.rects = new Map();
     for (const r of grid.cells) {
-      const score = style === 'priority' ? r[COL.priority] : scoreOf(r, mode);
-      const fill = style === 'priority' ? priorityColor(score) : BAND_FILL[bandOf(score, grid.grid, kindOf(mode))];
+      const noData = noDataRow(r, mode, profile);
+      const score = style === 'priority' ? r[COL.priority] : scoreOf(r, mode, profile);
+      const fill = noData ? NO_DATA_FILL : style === 'priority' ? priorityColor(score) : BAND_FILL[bandOf(score, grid.grid, kindOf(mode))];
       const rect = L.rectangle(cellBounds(grid.grid, r[COL.row], r[COL.col]), {
-        renderer: this.renderer, stroke: false, fillColor: fill, fillOpacity: style === 'priority' ? Math.min(0.75, 0.25 + score / 160) : opacity, interactive: false
+        renderer: this.renderer, stroke: false, fillColor: fill, interactive: false,
+        fillOpacity: noData ? NO_DATA_OPACITY : style === 'priority' ? Math.min(0.75, 0.25 + score / 160) : opacity
       });
       rect.addTo(this.group);
       this.rects.set(`${r[COL.row]}-${r[COL.col]}`, rect);

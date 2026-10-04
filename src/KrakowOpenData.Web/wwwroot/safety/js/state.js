@@ -10,6 +10,14 @@ function detectLang() {
   return l.startsWith('pl') ? 'pl' : l.startsWith('uk') ? 'uk' : 'en';
 }
 
+/** The accessibility profile (wheelchair | pram | mobility). A preference about barriers, kept on this device only. Older builds kept it under another key. */
+function savedAccessProfile() {
+  const ok = (v) => (['wheelchair', 'pram', 'mobility'].includes(v) ? v : null);
+  let legacy = null;
+  try { legacy = localStorage.getItem('kk.access.profile'); } catch { /* storage blocked */ }
+  return ok(ls.get('accessProfile')) || ok(legacy) || 'wheelchair';
+}
+
 function deviceId() {
   let id = ls.get('deviceId');
   if (!id) {
@@ -21,7 +29,8 @@ function deviceId() {
 
 export const state = {
   lang: ls.get('lang') ?? detectLang(),
-  mode: ['safety', 'heat', 'flood', 'air'].includes(ls.get('mode')) ? ls.get('mode') : null,   // 'safety' | 'heat' | 'flood' | 'air' (null until the user or the conditions choose)
+  mode: ['safety', 'heat', 'flood', 'air', 'access'].includes(ls.get('mode')) ? ls.get('mode') : null,   // 'safety' | 'heat' | 'flood' | 'air' | 'access' (null until the user or the conditions choose)
+  accessProfile: savedAccessProfile(),  // 'wheelchair' | 'pram' | 'mobility': which accessibility score to show and route for
   deviceId: deviceId(),                 // random, anonymous; only used to count supporters and presence
   online: navigator.onLine,
   apiOk: true,                          // false after a failed request; back to true when the API answers again
@@ -30,13 +39,14 @@ export const state = {
   welcomed: ls.get('welcomed') === true,
   notify: ls.get('notify') === true,
   dismissedAlerts: ls.get('dismissedAlerts') ?? [],
-  event: ['heat', 'night', 'flood', 'air'].includes(ls.get('plannerEvent')) ? ls.get('plannerEvent') : 'heat',
+  event: ['heat', 'night', 'flood', 'air', 'access'].includes(ls.get('plannerEvent')) ? ls.get('plannerEvent') : 'heat',
   theme: ls.get('theme') === 'light' ? 'light' : 'dark'   // dark unless the user chose light
 };
 
 const persisted = {
   lang: (v) => ls.set('lang', v),
   mode: (v) => ls.set('mode', v),
+  accessProfile: (v) => ls.set('accessProfile', v),
   me: (v) => (v ? ls.set('me', v) : ls.del('me')),
   welcomed: (v) => ls.set('welcomed', v),
   notify: (v) => ls.set('notify', v),

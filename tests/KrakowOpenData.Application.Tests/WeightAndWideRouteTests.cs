@@ -46,7 +46,7 @@ public class WeightServiceTests
         var all = await weights.GetAsync();
 
         Assert.False(all.Customized);
-        Assert.Equal(4, all.Layers.Count);
+        Assert.Equal(7, all.Layers.Count);   // Safety, Heat, Flood, Air + the three accessibility profiles
         Assert.All(all.Layers, l => Assert.Equal(100, l.Factors.Sum(f => f.Weight)));
         Assert.All(all.Layers.SelectMany(l => l.Factors), f =>
         {
@@ -232,7 +232,7 @@ public class RouteThresholdTests
         var all = await svc.GetAsync();
 
         Assert.False(all.Customized);
-        Assert.Equal(4, all.Layers.Count);
+        Assert.Equal(7, all.Layers.Count);   // Safety, Heat, Flood, Air + the three accessibility profiles
         Assert.All(all.Layers, l =>
         {
             Assert.Equal(65, l.Average);

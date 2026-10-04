@@ -194,7 +194,7 @@ public class FloodAirScoreTests
         var grid = await WorldWithRiverAndRoad().Scores().GetGridAsync(PlanningEvent.Flood);
 
         Assert.Equal("flood", grid.Event);
-        Assert.Equal(["flood", "air"], grid.Columns.Skip(8).ToArray());
+        Assert.Equal(["flood", "air", "access", "accessPram", "accessMobility", "accessData"], grid.Columns.Skip(8).ToArray());
         Assert.All(grid.Cells, c => Assert.Equal(grid.Columns.Count, c.Length));
     }
 

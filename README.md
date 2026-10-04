@@ -18,11 +18,11 @@ Become Kraków's shared, open data layer for everyday conditions and for crises:
 
 ## MVP (what works now)
 
-The MVP proves the model on **night safety, heat, flood and air**:
+The MVP proves the model on **night safety, heat, flood, air and accessibility**:
 
 - **Open API** with Swagger docs: data per topic, plus scores for any point, the whole city grid, nearby places, street routes, how every score is built, reports, alerts, planner summary and address search.
 - **Resident app** (installable, offline, English/Polish/Ukrainian): map with streets and places, a heat-relief score (0 very hot – 100 plenty of relief) and a night-safety score (0 unsafe – 100 safe), plus flood and clean-air scores with explanations of weights and sources, fastest versus safer/cooler street routes, address search, reporting with neighbour confirmation, alerts for "my area".
-- **Planner dashboard**: ranked areas to act on, gap charts, clickable figures with their data sources, reports to verify or resolve, alerts to a map area, simulated agency contact.
+- **Planner dashboard**: five layer tabs (night safety, heat relief, flood, air, accessibility with a wheelchair / pram / limited-mobility profile switch): ranked areas to act on, gap charts, clickable figures with their data sources, reports to verify or resolve, alerts to a map area, simulated agency contact. Squares with no accessibility data are shown grey and counted apart, never as good or critical.
 - Scores are **environmental (mapped infrastructure plus resident reports), not crime statistics.**
 - **Dostępność (Kraków bez barier)**: steps, kerbs, ramps, lifts, entrances, surfaces, accessible toilets and benches for wheelchair users, prams and limited mobility, each with source, last OSM edit and reliability; see [Dostępność](#dostępność-kraków-bez-barier).
 
@@ -54,7 +54,7 @@ For Visual Studio, Docker and tests see [How to run](#how-to-run). Demo planner 
 - **Web** (`KrakowOpenData.Web`) – Blazor pages for each dataset, built on the client like any other consumer. Every page is in
   **Polish, English and Ukrainian** (switcher in the sidebar). City data itself (stop names, alert text, table columns) is shown as published.
 - **Kompas Krakowa app** (API under `/api/safety`, app in `KrakowOpenData.Web/wwwroot/safety`) – the installable, offline-capable web app
-  described above. See [Kompas Krakowa app](#kompas-krakowa-app-heat-and-night-safety).
+  described above. See [Kompas Krakowa app](#kompas-krakowa-app-night-safety-heat-flood-air-and-accessibility).
 
 ## Data sources
 
@@ -170,10 +170,10 @@ from the Actions tab. To roll back, revert the commit on `master`.
 Not needed to run the apps. From the solution folder: `dotnet test`, or **Test → Run All Tests** in
 Visual Studio. The tests replace every public source with in-memory fakes, so they need no internet.
 
-## Kompas Krakowa app: night safety, heat, flood and air
+## Kompas Krakowa app: night safety, heat, flood, air and accessibility
 
-A web app and API that combine the open data above into four scores for any place in Kraków (night safety, heat, flood safety and
-clean air), and let residents and city planners act on them.
+A web app and API that combine the open data above into five scores for any place in Kraków (night safety, heat, flood safety,
+clean air and accessibility), and let residents and city planners act on them.
 
 - **Heat-relief score** (0 very hot – 100 cool, **higher = better, like every score**): how well a place can cool down on a hot day, from the relief it has: shade, shade, water, a cool indoor place, toilets and a way to reach relief
 - **Night-safety score** (0 unsafe – 100 safe, **higher = safer**): how well set up is this place for walking at night? (street lighting, night transport, places open at night, a defibrillator)
@@ -190,7 +190,7 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
 
 ### Residents
 
-- A map coloured by the chosen view, four tabs: **Night safety**, **Heat relief**, **Flood** and **Air**. The view is suggested from the
+- A map coloured by the chosen view, five tabs: **Night safety**, **Heat relief**, **Flood**, **Air** and **Accessibility**. The view is suggested from the
   conditions: a river above its warning level → flood, high PM2.5 → air, otherwise dark → night safety, hot or a heat warning → heat.
 - **Each view shows only its own data.** Heat relief: the heat-relief score, its factors, where to cool down, heat reports, heat alerts and the heat situation.
   Night safety: the night-safety score, its factors, safe places open at night, night reports and alerts, and daylight. Flood: the flood-safety
@@ -203,8 +203,8 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
 - **Every map says what it is looking at**: the address of the place (looked up from the coordinates), the radius covered (a dashed circle for the
   1.5 km that help is searched within, an outlined square for the 250 m the score and reports apply to) and, for a walk, the start and end addresses.
 - **Report a concern**, limited to the types of the chosen view (Heat relief: no shade, water point not working, overheated spot; Night safety: lamp out,
-  feels unsafe, hazardous path; Flood: flooded street or underpass, blocked drain, river rising fast; Air: smoke or burning smell, strong fumes,
-  dust cloud). Place it by dragging the pin, tapping the map or typing an address. Reports move the score of their square, see below.
+  feels unsafe; Flood: flooded street or underpass, blocked drain, river rising fast; Air: smoke or burning smell, strong fumes,
+  dust cloud; Accessibility: blocked or hazardous path, which feeds the Accessibility score). Place it by dragging the pin, tapping the map or typing an address. Reports move the score of their square, see below.
 - **Walk check** that follows the view: **Check a night walk** (Night safety: lighting, night transport, open places), **Check a cool walk**
   (Heat relief: water, shade, cool places, toilets), **Check a flood-safe path** (distance from rivers, help and exits) or **Check a clean-air path**
   (distance from main roads, trees, indoor places). Type the start and the destination with suggestions, tap the map, or use
@@ -219,19 +219,24 @@ mapped infrastructure and resident reports, not crime statistics** (Kraków publ
 
 ### Planners
 
-Sign in with the planner key; the dashboard has a global **event selector** (Heat relief / Night safety / Flood / Air quality) that decides what is ranked
+Sign in with the planner key; the dashboard has a global **event selector** (Heat relief / Night safety / Flood / Air quality / Accessibility) that decides what is ranked
 **and what is shown**: with Heat selected the dashboard, drawers, map markers, report lists and conditions are about heat only, with Night safety about
-night safety only, and likewise for Flood and Air. Every page except the overview has a **Back to dashboard** button. Addresses are shown for map squares, alert centres and
+night safety only, and likewise for Flood, Air and Accessibility. On a phone the five tabs shrink to icons (the open one keeps its name) and stay inside the screen.
+The **Accessibility** tab adds a **profile switch** (wheelchair, pram, limited mobility, with a line on what each profile weighs most; the choice is remembered on the device
+and every page, the map selection and the open area drawer follow it). It never becomes the suggested view on its own: the conditions only ever suggest heat, night, flood or air.
+For Accessibility the overview shows how many squares have **no data** (squares outside the downloaded area or with nothing mapped nearby: grey on the map, no score,
+left out of every average, share, histogram and ranking), then the share of squares with data, barrier-heavy squares, squares with no accessible stop within 400 m (omitted while no ZTP stop is flagged accessible),
+no accessible toilet within 800 m and no place to rest within 300 m. Every figure, bar and factor opens its explanation. Every page except the overview has a **Back to dashboard** button. Addresses are shown for map squares, alert centres and
 reports; the alert composer and the map take an address to centre on.
 
 | Page | What it does |
 | --- | --- |
-| Overview | Situation banner, headline numbers, score distribution, *what is missing most* (tap a bar to filter), and **where to act first** (ranked list, with a table view for every chart) |
-| Map | The city coloured by priority or score, with resident reports and active alert areas; tap a square to drill down |
+| Overview | Situation banner, headline numbers, score distribution, *what is missing most* (tap a bar to filter), and **where to act first** (ranked list, with a table view for every chart). For Accessibility, a *no data* notice and the access figures (coverage, barrier-heavy squares, no accessible stop / toilet / rest place nearby) |
+| Map | The city coloured by priority or score, with resident reports and active alert areas; tap a square to drill down. Accessibility paints the score of the chosen profile; squares with no data are neutral grey with a *No data* row in the legend |
 | Area drawer | Opens from any list or map square: the full factor table, nearest assets, resident reports (with notes: verify or resolve them) and **suggested actions** |
-| Reports | All resident reports with filters; verify, resolve, show on map, alert the area |
-| Alerts | Compose an alert for **everyone currently inside a circle** (templates, translations, severity, duration, live reach estimate, two-step send); manage running alerts |
-| Weights | How much each factor counts in each of the four scores. Type any numbers (each score is scaled to 100), see why every factor has its default weight, save or reset. **Applies to every score, residents included.** |
+| Reports | All resident reports of the chosen layer with filters (Accessibility shows the *blocked or hazardous path* barrier reports); verify, resolve, show on map, alert the area |
+| Alerts | Compose an alert for **everyone currently inside a circle** (templates for heat, night, flood, air, accessibility, or your own; layer *General / Heat / Night safety / Flood / Air / Accessibility*; translations, severity, duration, live reach estimate, two-step send); manage running alerts |
+| Weights | How much each factor counts in each of the five scores; Accessibility has one section per profile (wheelchair, pram, limited mobility) with its nine factors. Type any numbers (each score is scaled to 100), see why every factor has its default weight, save or reset. A second section sets the **route thresholds** per measure (Safety, Heat, Flood, Air and the three accessibility measures). **Applies to every score, residents included.** |
 | Contacts | Agencies (ZDMK road faults and lighting, the city services portal, Crisis Management Centre, Straż Miejska, ZZM green spaces, ZTP transport), a prefilled **brief** in Polish or English, and a contact log |
 
 From an area drawer a planner can **create an alert** for that area or **contact an agency** with a brief that states the location, scores, weak factors,
@@ -244,7 +249,7 @@ The model lives in one documented file: [`SafetyModel.cs`](src/KrakowOpenData.Ap
 
 1. The city is cut into 250 m squares ([`GridSpec`](src/KrakowOpenData.Application/Safety/GridSpec.cs)); a square is on the map when it has 3+ mapped street lamps or a stop.
 2. Each **factor** is a straight-line distance to the nearest feature (or a density) turned into 0–100: full score up to a near distance, zero beyond a far one, a straight line between. Every factor adds its weight in proportion to its score, so a park within 100 m earns the full 35 heat-relief points and none nearby earns 0.
-3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the score of their own layer). **All four scores point the same way: higher = better**, with the same four bands and colours (75–100 Good, 55–75 Fair, 35–55 Weak, 0–35 Critical). The heat score used to run the other way (0 = cool); it is now the heat-relief score so a high number, a long bar and a blue colour always mean good.
+3. A layer's **base score** is the weighted sum of its factors (weights add up to 100); open reports change it by up to 30 points (they lower the score of their own layer). **All five scores point the same way: higher = better**, with the same four bands and colours (75–100 Good, 55–75 Fair, 35–55 Weak, 0–35 Critical). The heat score used to run the other way (0 = cool); it is now the heat-relief score so a high number, a long bar and a blue colour always mean good.
 
 | Layer | Factor (weight) | Data | Full score → zero |
 | --- | --- | --- | --- |
@@ -263,6 +268,13 @@ The model lives in one documented file: [`SafetyModel.cs`](src/KrakowOpenData.Ap
 | Air | Distance from main roads (45) | OSM motorway, trunk and primary roads (sampled every 120 m) | 30 m → ≥ 300 m (farther is cleaner) |
 | Air | Parks and trees (35) | OSM parks, measured to the edge | ≤ 100 m → 600 m |
 | Air | Indoor place to wait out bad air (20) | libraries, pharmacies, hospitals | ≤ 200 m → 900 m |
+| Access | 9 factors per profile, keys `access.{wheelchair,pram,mobility}.{steps,kerbs,surface,slope,stepFree,accessStops,accessToilets,rest,tactile}` | OSM steps, kerbs, footway surface/slope/width, lifts, entrances, wheelchair tags, toilets, benches, tactile paving; ZTP `wheelchair_boarding` | per-profile weights: docs/ACCESSIBILITY-DATA.md |
+
+**Accessibility is the fifth layer** (the "Dostępność / Kraków bez barier" data as a score, 0–100, higher = easier to get around, the same bands). There is one score per profile
+(`profile=wheelchair` is the default, `pram`, `mobility`), each with its own planner-editable weights and written reasons: steps and kerbs weigh most for a wheelchair, surface
+for a pram, places to rest and slope for limited mobility (defaults in `AccessFactorSets`). Barrier reports (`PathHazard`) lower it. The data covers only the downloaded area
+(`KrakowData:AccessArea`, central Kraków by default): a square outside it, or with nothing mapped within 250 m, has **no accessibility score** (-1 in the grid, `null` in the place
+card, `NoData` band), is left out of planner averages and is never shown as good or critical. See [docs/ACCESSIBILITY-DATA.md](docs/ACCESSIBILITY-DATA.md).
 
 **Flood and air are live as well as structural.** When IMGW reports a river above its warning level, places near water lose up to 35 points
 (level × 35 × (1 − river score ÷ 100); 0.5 above warning, 1 above alarm). When the average GIOŚ PM2.5 is above 15 µg/m³ every place loses points,
@@ -320,18 +332,19 @@ All under `/api/safety` (see Swagger for schemas). Planner endpoints need the `X
 | Endpoint | Purpose |
 | --- | --- |
 | `GET conditions` | Heat pressure, air, rivers, warnings, daylight, suggested view |
-| `GET grid?event=heat\|night\|both` | The whole score grid, compact (for the map and offline use) |
-| `GET place?lat&lon&event` | Scores, factors, nearest help, nearby reports, suggested actions for any point |
-| `GET cells/{id}?event` | The same for a grid square (planners also get report notes) |
-| `GET/PUT/DELETE planner/route-thresholds` | Planner key. Per measure (Safety, Heat, Flood, Air): the average and weakest-stretch scores below which a safer route is searched for, with defaults and reasons; PUT validates 20 to 95 and weakest <= average. `route` returns the threshold used |
-| `GET route?from&to&mode=night|heat|both` | **Walking routes along streets**: the fastest and, when clearly better, a safer / cooler one, each scored every 50 m |
+| `GET grid?event=heat\|night\|flood\|air\|access&profile=` | The whole score grid, compact (for the map and offline use). Columns after `air`: `access`, `accessPram`, `accessMobility` (-1 = no data) and `accessData` (1 / 0); with `event=access`, `profile` (wheelchair \| pram \| mobility, default wheelchair) picks the profile the `priority` column is for |
+| `GET place?lat&lon&event&profile` | Scores, factors, nearest help, nearby reports, suggested actions for any point |
+| `GET cells/{id}?event&profile` | The same for a grid square (planners also get report notes). `access` is the layer of the chosen profile (`score` null, `hasData` false, band `NoData` when there is no data); `accessByProfile` has all three |
+| `GET/PUT/DELETE planner/route-thresholds` | Planner key. Per measure (Safety, Heat, Flood, Air, Access, AccessPram, AccessMobility): the average and weakest-stretch scores below which a safer route is searched for, with defaults and reasons; PUT validates 20 to 95 and weakest <= average. `route` returns the threshold used |
+| `GET route?from&to&mode=night\|heat\|flood\|air\|access&profile` | **Walking routes along streets**: the fastest and, when clearly better, a safer / cooler one, each scored every 50 m |
 | `GET method` | How every score is built: meaning of 0 and 100, bands, each factor with weight, thresholds, reason for the weight, data source and mapped count, definitions of the dashboard figures |
 | `GET corridor?from&to` | Scores sampled every 50 m along the straight line between two points (kept for simple clients) |
 | `GET features` | Water points, parks, refuges, … for offline "nearest" |
 | `GET /api/geo/search?q&lat&lon`, `GET /api/geo/reverse?lat&lon` | Address search with autocomplete, and the address of a point (OpenStreetMap via Photon) |
 | `GET report-types`, `GET reports`, `POST reports`, `POST reports/{id}/confirm` | Citizen reports |
 | `GET alerts?lat&lon&deviceId` | Active alerts covering a point |
-| `GET planner/summary?event` | Dashboard numbers: KPIs, histogram, factor gaps, ranked places |
+| `GET planner/summary?event&profile` | Dashboard numbers: KPIs, histogram, factor gaps, ranked places. For `event=access` also `profile`, `access` (profiles, `hasData`, `cellsWithData`, `cellsWithoutData`, `dataArea`, `note`), the KPIs `accessCoverage`, `cellsNoData`, `stepsBarriers`, `noAccessibleStop400` (omitted while no ZTP stop is flagged wheelchair-accessible, which is the case in the current feeds), `noAccessibleToilet800`, `noRest300`, and `access` on every ranked place. Squares with no data are left out of every figure and counted in `cellsNoData` |
+| `GET/PUT/DELETE planner/weights` | Planner key. Factor weights per layer; layers `Safety`, `Heat`, `Flood`, `Air`, `Access`, `AccessPram`, `AccessMobility` (nine factors each, keys `access.<profile>.<steps\|kerbs\|surface\|slope\|stepFree\|accessStops\|accessToilets\|rest\|tactile>`); `PUT {"weights":{"access.pram.rest":60}}` |
 | `POST planner/reports/{id}/verify\|resolve` | Review reports |
 | `GET\|POST planner/alerts`, `DELETE planner/alerts/{id}`, `GET planner/reach` | Alerts and audience estimate |
 | `GET planner/agencies`, `GET\|POST planner/dispatches` | Agency contacts |
@@ -480,7 +493,7 @@ stored, and the choice stays on the device.
   (closed choice: wrong / outdated / temporary obstacle / missing) that is shown **separately, as unverified**, and reaches planners
   in the existing report workflow.
 - Place cards, the nearby-help list and map popups also show **♿ tak / ograniczona / nie / brak danych** for parks, pharmacies,
-  libraries, toilets and public transport stops (OSM `wheelchair`, GTFS `wheelchair_boarding`).
+  libraries, toilets and public transport stops (OSM `wheelchair`, GTFS `wheelchair_boarding`). While no stop is flagged, the accessible-stops factor is "no data" (`hasData: false`), left out and the other weights rescaled to 100; `conditions.dataGaps` lists `access_stops`.
 - Texts in Polish (first), English and Ukrainian; keyboard and screen-reader friendly (native radio buttons and selects, table
   with caption and headers, live regions for loading results, links that say they open a new tab).
 

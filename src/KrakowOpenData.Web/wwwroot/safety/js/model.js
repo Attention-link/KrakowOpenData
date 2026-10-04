@@ -6,24 +6,53 @@
 // red, so for heat the band is read from 100 − score. Pass kind = 'heat' wherever a heat score is coloured or banded.
 
 import { haversine } from './util.js';
-
-export const COL = { row: 0, col: 1, heat: 2, safety: 3, combined: 4, exposure: 5, reports: 6, priority: 7, flood: 8, air: 9 };
+import { state } from './state.js';
 
 /**
- * The four score layers. mode = what residents choose; event = what planners and the API call it; api = the layer name in the
+ * Column positions of a grid row. The defaults are the order the API sends; applyColumns() re-reads them from the grid's own
+ * "columns" list, so a longer or reordered list still works. Access columns are -1 in a row for a square with NO accessibility data.
+ */
+export const COL = {
+  row: 0, col: 1, heat: 2, safety: 3, combined: 4, exposure: 5, reports: 6, priority: 7, flood: 8, air: 9,
+  access: 10, accessPram: 11, accessMobility: 12, accessData: 13
+};
+
+/** Names the API uses in grid.columns that differ from the keys of COL. */
+const COLUMN_ALIAS = { openReports: 'reports' };
+
+/** Reads column positions from grid.columns (call once per grid). Columns the grid does not have become undefined (= no data). */
+export function applyColumns(columns) {
+  if (!Array.isArray(columns) || !columns.length) return COL;
+  for (const key of Object.keys(COL)) COL[key] = undefined;
+  columns.forEach((name, i) => { COL[COLUMN_ALIAS[name] || name] = i; });
+  return COL;
+}
+
+// ── Accessibility profiles (the fifth layer has one score per profile) ──
+export const ACCESS_PROFILES = ['wheelchair', 'pram', 'mobility'];
+export const asProfile = (p) => (ACCESS_PROFILES.includes(p) ? p : 'wheelchair');
+/** Layer name in weights, thresholds and the method for a profile, and the grid column / corridor-sample field that holds its score. */
+export const ACCESS_LAYER = { wheelchair: 'Access', pram: 'AccessPram', mobility: 'AccessMobility' };
+export const ACCESS_FIELD = { wheelchair: 'access', pram: 'accessPram', mobility: 'accessMobility' };
+/** The profile in use: the argument, else the one saved on this device. */
+export const profileNow = (p) => asProfile(p || state.accessProfile);
+
+/**
+ * The five score layers. mode = what residents choose; event = what planners and the API call it; api = the layer name in the
  * API (reports, alerts, factors). kind 'heat' = higher is hotter (colours and bands are read from 100 − score); otherwise higher = better.
  */
 export const LAYERS = {
   safety: { mode: 'safety', event: 'night', api: 'Safety', icon: 'moon', kind: 'good', col: COL.safety },
   heat: { mode: 'heat', event: 'heat', api: 'Heat', icon: 'sun', kind: 'heat', col: COL.heat },
   flood: { mode: 'flood', event: 'flood', api: 'Flood', icon: 'wave', kind: 'good', col: COL.flood },
-  air: { mode: 'air', event: 'air', api: 'Air', icon: 'wind', kind: 'good', col: COL.air }
+  air: { mode: 'air', event: 'air', api: 'Air', icon: 'wind', kind: 'good', col: COL.air },
+  access: { mode: 'access', event: 'access', api: 'Access', apis: ['Access', 'AccessPram', 'AccessMobility'], icon: 'access', kind: 'good', col: COL.access }
 };
 
-/** Order of the tabs: night safety, heat, flood, air. */
-export const MODE_KEYS = ['safety', 'heat', 'flood', 'air'];
+/** Order of the tabs: night safety, heat, flood, air, accessibility. */
+export const MODE_KEYS = ['safety', 'heat', 'flood', 'air', 'access'];
 
-/** A saved or suggested value turned into one of the four modes (anything else, such as the old "both", becomes night safety). */
+/** A saved or suggested value turned into one of the five modes (anything else, such as the old "both", becomes night safety). */
 export const asMode = (m) => (MODE_KEYS.includes(m) ? m : 'safety');
 
 /** Planner event name of a mode, and back: night safety is "night" for the API. */
@@ -31,7 +60,10 @@ export const eventOfMode = (m) => LAYERS[asMode(m)].event;
 export const modeOfEvent = (ev) => MODE_KEYS.find((k) => LAYERS[k].event === ev) || 'safety';
 
 /** The layer key ('safety' ... 'air') of an API layer name such as 'Heat'; null for anything else. */
-export const layerOfApi = (name) => MODE_KEYS.find((k) => LAYERS[k].api === name) || null;
+export const layerOfApi = (name) => MODE_KEYS.find((k) => LAYERS[k].api === name || LAYERS[k].apis?.includes(name)) || null;
+
+/** The layer name to look up in the method, weights and thresholds: for accessibility the one of the chosen profile ('Access' | 'AccessPram' | 'AccessMobility'). */
+export const methodLayerOf = (mode, profile) => (mode === 'access' ? ACCESS_LAYER[profileNow(profile)] : LAYERS[mode]?.api || null);
 
 export const BANDS = ['Critical', 'Weak', 'Fair', 'Good'];
 
@@ -69,10 +101,17 @@ export function priorityColor(p) {
   return PRIORITY_RAMP[i];
 }
 
-/** The score a mode shows: safety -> night safety, heat -> heat, both -> combined. */
-export function scoreOf(row, mode) {
-  return row[LAYERS[mode] ? LAYERS[mode].col : COL.combined];
+/** The score a mode shows: safety -> night safety, heat -> heat, both -> combined, access -> the score of the chosen profile (-1 = no data). */
+export function scoreOf(row, mode, profile) {
+  if (mode === 'access') {
+    const v = row[COL[ACCESS_FIELD[profileNow(profile)]]];
+    return typeof v === 'number' ? v : -1;
+  }
+  return row[LAYERS[mode] ? COL[mode] : COL.combined];
 }
+
+/** True when a grid row has no accessibility data for the mode (only the accessibility layer can have none). */
+export const noDataRow = (row, mode, profile) => mode === 'access' && scoreOf(row, mode, profile) < 0;
 
 export function indexGrid(grid) {
   const map = new Map();
@@ -106,8 +145,15 @@ export const RELIEF = {
   safety: ['openPlaces', 'nightTransit', 'aed'],
   flood: ['emergency'],
   air: ['green', 'refuge'],
+  get access() { return accessReliefKeys(); },
   both: ['water', 'green', 'refuge', 'toilets', 'openPlaces', 'aed']
 };
+
+/** Keys of the mapped places an accessibility view shows, for the chosen profile: access.<profile>.<base>. */
+export const ACCESS_NEAR_BASES = ['stepFree', 'accessStops', 'accessToilets', 'rest', 'tactile'];
+export const ACCESS_BASES = ['steps', 'kerbs', 'surface', 'slope', 'stepFree', 'accessStops', 'accessToilets', 'rest', 'tactile'];
+export const accessReliefKeys = (profile) => ACCESS_NEAR_BASES.map((b) => `access.${profileNow(profile)}.${b}`);
+const ACCESS_ICON = { steps: 'stairs', kerbs: 'curb', surface: 'path', slope: 'slope', stepFree: 'lift', accessStops: 'bus', accessToilets: 'toilet', rest: 'bench', tactile: 'dots' };
 
 export const FACTOR_ICON = {
   water: 'water', green: 'tree', refuge: 'building', toilets: 'toilet', transit: 'bus',
@@ -120,6 +166,14 @@ export const FACTOR_LAYER = {
   lighting: 'safety', nightTransit: 'safety', openPlaces: 'safety', aed: 'safety',
   river: 'flood', emergency: 'flood', evacuation: 'flood', traffic: 'air', trees: 'air', cleanIndoor: 'air'
 };
+
+// access.<profile>.<base> factors and mapped places: one icon per base, all in the accessibility colour family.
+for (const p of ACCESS_PROFILES) {
+  for (const b of ACCESS_BASES) {
+    FACTOR_ICON[`access.${p}.${b}`] = ACCESS_ICON[b];
+    FACTOR_LAYER[`access.${p}.${b}`] = 'access';
+  }
+}
 
 /**
  * Nearest feature per key from the cached feature list (used offline). Distance to a park is measured to its edge,
@@ -146,7 +200,7 @@ export function nearestFromFeatures(features, lat, lon, keys, maxMeters = 1500) 
 
 /** Which layer each report type feeds (mirrors ReportRules on the server). */
 export const REPORT_LAYER = {
-  LightOut: 'safety', UnsafeAtNight: 'safety', PathHazard: 'safety',
+  LightOut: 'safety', UnsafeAtNight: 'safety', PathHazard: 'access',
   WaterNotWorking: 'heat', NoShade: 'heat', HeatSpot: 'heat',
   FloodedStreet: 'flood', BlockedDrain: 'flood', RisingWater: 'flood',
   SmokeOrBurning: 'air', StrongFumes: 'air', DustCloud: 'air'

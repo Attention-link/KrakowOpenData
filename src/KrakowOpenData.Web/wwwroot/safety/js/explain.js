@@ -3,9 +3,9 @@
 // from the model. Used by the resident cards and legend, and by the planner dashboard (every figure is clickable).
 
 import { h, icon, clear, openDialog, formatDistance } from './util.js';
-import { t } from './i18n.js';
+import { t, getLang } from './i18n.js';
 import { cachedGet, getMethod, peek } from './api.js';
-import { BAND_FILL, kindOf, bandOf, bandRange, FACTOR_ICON, LAYERS, layerOfApi } from './model.js';
+import { BAND_FILL, kindOf, bandOf, bandRange, FACTOR_ICON, LAYERS, layerOfApi, methodLayerOf } from './model.js';
 import { aiExplainSection } from './ai-explain.js';
 
 // ── Method data (loaded once, saved for offline) ─────────────────────────────
@@ -76,7 +76,11 @@ function weightBar(weight) {
 }
 
 function valueText(f, radius) {
+  if (f.hasData === false) return t('accl.noData');
   if (f.unit === 'm') return f.value === null || f.value === undefined ? t('factor.none', { r: formatDistance(radius || 1500) }) : formatDistance(f.value);
+  // Accessibility factors: a weighted count of barriers nearby, or the share of smooth footways (null = nothing mapped, never "fine").
+  if (f.unit === 'barriers') return f.value === null || f.value === undefined ? t('factor.notMapped') : t('factor.barriers', { n: Math.round(f.value * 10) / 10 });
+  if (f.unit === '%') return f.value === null || f.value === undefined ? t('factor.notMapped') : t('factor.pctSmooth', { n: Math.round(f.value) });
   return `${Math.round(f.value ?? 0)} ${t('factor.lamps')}`;
 }
 
@@ -128,8 +132,8 @@ export function openScoreExplainer({ layer, place = null, meta = null }) {
     }
 
     for (const key of layers) {
-      const L = layerOf(LAYERS[key].api);
-      const data = place ? place[key] : null;
+      const L = layerOf(methodLayerOf(key));
+      const data = place && place[key]?.hasData !== false ? place[key] : null;   // no accessibility data: no number to explain
       const kind = kindOf(key);
       sections.push(section(L.title,
         h('p', { class: 'small' }, h('b', null, L.direction)),
@@ -146,9 +150,9 @@ export function openScoreExplainer({ layer, place = null, meta = null }) {
     sections.push(h('ul', { class: 'list tiny muted' }, method.limits.map((l) => h('li', null, l))));
 
     const first = layers[0];
-    const d = place ? place[first] : null;
+    const d = place && place[first]?.hasData !== false ? place[first] : null;
     openFacts({
-      title: layer === 'both' ? t('explain.titleBoth') : layerOf(LAYERS[first].api).title,
+      title: layer === 'both' ? t('explain.titleBoth') : layerOf(methodLayerOf(first)).title,
       value: layer === 'both' ? (place ? Math.round(place.combined) : undefined) : (d ? Math.round(d.score) : undefined),
       valueNote: layer === 'both' || !d ? null : '/ 100',
       band: layer === 'both' ? place?.combinedBand : d?.band,
@@ -169,13 +173,13 @@ function liveHeat() {
 function whyPlace(layerKey, L, data, meta) {
   const reports = data.reportPenalty;
   const total = Math.round(data.score);
-  const rows = data.factors.map((f) => {
+  const rows = data.factors.filter((f) => f.weight > 0).map((f) => {
     const info = factorInfo(f.key);
     return h('tr', null,
       h('td', null, h('button', { class: 'linklike', type: 'button', onclick: () => openFactorExplainer(f.key, { factor: f, layer: layerKey, meta }) }, h('span', { class: 'row' }, icon(FACTOR_ICON[f.key] || 'info', 'sm'), t(`factor.${f.key}`)))),
       h('td', null, valueText(f, meta?.searchRadiusMeters), f.nearestName ? h('div', { class: 'tiny muted' }, f.nearestName) : null),
       h('td', { class: 'num' }, f.weight),
-      h('td', { class: 'num' }, `+${Math.round(f.contribution * 10) / 10}`),
+      h('td', { class: 'num' }, f.hasData === false ? '–' : `+${Math.round(f.contribution * 10) / 10}`),
       h('td', { class: 'num muted' }, info ? info.mappedCount.toLocaleString() : '–'));
   });
   const top = [...data.factors].sort((a, b) => b.contribution - a.contribution).filter((f) => layerKey === 'heat' ? f.contribution > 0 : false).slice(0, 2);
@@ -230,7 +234,9 @@ export function openFactorExplainer(key, { factor = null, layer = null, meta = n
 export function openMethod(meta = null) {
   needMethod(() => {
     const sections = [h('p', null, t('explain.methodIntro'))];
+    const accessLayer = methodLayerOf('access');
     for (const L of method.layers) {
+      if (layerOfApi(L.layer) === 'access' && L.layer !== accessLayer) continue;   // the other two profiles are one tap away in the Accessibility tab
       sections.push(section(L.title,
         h('p', { class: 'small' }, h('b', null, L.direction)),
         h('p', { class: 'small' }, L.formula),
@@ -289,9 +295,12 @@ export function legendBody(mode, meta, { onExplain, compact = false } = {}) {
       h('div', { class: 'tiny muted' }, sub),
       h('ul', { class: 'legend-rows' }, ['Good', 'Fair', 'Weak', 'Critical'].map((b) => {
         const [from, to] = bandRange(b, meta, kind);
-        const meaning = layerMeaning(LAYERS[mode] ? LAYERS[mode].api : null, b) || t(kind === 'heat' ? `band.heat.${b}.desc` : `band.${b}.desc`);
+        const meaning = accessMeaning(mode, b) || layerMeaning(LAYERS[mode] ? methodLayerOf(mode) : null, b) || t(kind === 'heat' ? `band.heat.${b}.desc` : `band.${b}.desc`);
         return h('li', { 'data-band': b }, h('i', { style: { background: BAND_FILL[b] } }), h('span', { class: 'num band-chip' }, `${Math.round(from)}–${Math.round(to)}`), h('span', null, h('b', null, bandText(b, kind)), compact ? null : ' · ', compact ? null : meaning));
-      }))));
+      }), mode === 'access'
+        // A square with nothing mapped is not on the scale: never good, never critical. A hatched swatch, the same grey as on the map.
+        ? h('li', { class: 'nodata' }, h('span', { class: 'nodata-sw', 'aria-hidden': 'true' }), h('span', null, h('b', null, t('legend.noData')), compact ? null : ' · ', compact ? null : t('legend.noData.desc')))
+        : null)));
   };
   if (mode === 'heat') rows('heat', t('legend.heatTitle'), t('explain.dir.heat'));
   else if (LAYERS[mode]) rows('good', t(`legend.${mode}Title`), t(`explain.dir.${mode}`));
@@ -300,6 +309,13 @@ export function legendBody(mode, meta, { onExplain, compact = false } = {}) {
     parts.push(h('div', { class: 'tiny muted' }, t('legend.bothNote')));
   }
   return parts;
+}
+
+/** Band meanings of the accessibility layer in the reader's own language (the API sends them in English only). English keeps the API text. */
+function accessMeaning(mode, band) {
+  if (mode !== 'access' || getLang() === 'en') return null;
+  const key = `band.access.${band}.desc`;
+  return t(key);
 }
 
 function layerMeaning(layerName, band) {

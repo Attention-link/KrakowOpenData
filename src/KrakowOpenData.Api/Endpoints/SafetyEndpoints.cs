@@ -30,18 +30,19 @@ public static class SafetyEndpoints
             .WithSummary("Live conditions: heat pressure, air quality, river alerts, warnings, and whether it is dark.")
             .Produces<ConditionsDto>();
 
-        g.MapGet("/grid", async (string? @event, ScoreService svc, CancellationToken ct) =>
-            Results.Ok(await svc.GetGridAsync(ScoreService.ParseEvent(@event), ct)))
+        g.MapGet("/grid", async (string? @event, string? profile, ScoreService svc, CancellationToken ct) =>
+            BadProfile(profile) ?? Results.Ok(await svc.GetGridAsync(ScoreService.ParseEvent(@event, profile), ct)))
             .WithName("GetSafetyGrid")
-            .WithSummary("The whole 250 m score grid in compact form (heat, safety, combined, exposure, reports, priority). event = heat | night | flood | air (heat is the heat-relief score).")
+            .WithSummary("The whole 250 m score grid in compact form (heat, safety, combined, exposure, reports, priority). event = heat | night | flood | air | access (heat is the heat-relief score). For access, profile = wheelchair (default) | pram | mobility picks the profile of the priority column; the grid always carries all three access columns (-1 = no data).")
             .Produces<GridDto>()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
-        g.MapGet("/place", async (double lat, double lon, string? @event, ScoreService svc, CancellationToken ct) =>
+        g.MapGet("/place", async (double lat, double lon, string? @event, string? profile, ScoreService svc, CancellationToken ct) =>
         {
+            if (BadProfile(profile) is { } bad) return bad;
             var point = new GeoPoint(lat, lon);
             if (!GridSpec.IsInArea(point)) return Results.ValidationProblem(Problem("lat,lon", "The location must be in or around Kraków."));
-            return Results.Ok(await svc.GetPlaceAsync(point, ScoreService.ParseEvent(@event), ct));
+            return Results.Ok(await svc.GetPlaceAsync(point, ScoreService.ParseEvent(@event, profile), ct));
         })
             .WithName("GetSafetyPlace")
             .WithSummary("Heat-relief, night-safety, flood and air score of any point: factors, nearest relief and safe places, nearby reports, suggested actions.")
@@ -49,8 +50,8 @@ public static class SafetyEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
-        g.MapGet("/cells/{id}", async (string id, string? @event, HttpContext http, ScoreService svc, IOptions<SafetyOptions> options, CancellationToken ct) =>
-            await svc.GetCellAsync(id, ScoreService.ParseEvent(@event), IsPlanner(http, options.Value), ct) is { } place ? Results.Ok(place) : Results.NotFound())
+        g.MapGet("/cells/{id}", async (string id, string? @event, string? profile, HttpContext http, ScoreService svc, IOptions<SafetyOptions> options, CancellationToken ct) =>
+            BadProfile(profile) ?? (await svc.GetCellAsync(id, ScoreService.ParseEvent(@event, profile), IsPlanner(http, options.Value), ct) is { } place ? Results.Ok(place) : Results.NotFound()))
             .WithName("GetSafetyCell")
             .WithSummary("One grid cell by id (row-col). Planners (with the key) also see report notes.")
             .Produces<PlaceScoreDto>()
@@ -75,14 +76,15 @@ public static class SafetyEndpoints
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
-        g.MapGet("/route", async (string from, string to, string? mode, RouteService svc, CancellationToken ct) =>
+        g.MapGet("/route", async (string from, string to, string? mode, string? profile, RouteService svc, CancellationToken ct) =>
         {
+            if (BadProfile(profile) is { } bad) return bad;
             if (!GeoPoint.TryParse(from, out var a) || !GeoPoint.TryParse(to, out var b) || !GridSpec.IsInArea(a) || !GridSpec.IsInArea(b))
                 return Results.ValidationProblem(Problem("from,to", "Give from and to as \"lat,lon\" inside Kraków."));
-            return Results.Ok(await svc.GetRoutesAsync(a, b, ScoreService.ParseEvent(mode), ct));
+            return Results.Ok(await svc.GetRoutesAsync(a, b, ScoreService.ParseEvent(mode, profile), ct));
         })
             .WithName("GetSafetyRoute")
-            .WithSummary("Walking routes along real streets: the fastest, and a safer (night) or cooler (heat) alternative when one scores clearly better. mode = night | heat | both.")
+            .WithSummary("Walking routes along real streets: the fastest, and a safer (night) or cooler (heat) alternative when one scores clearly better. mode = night | heat | flood | air | access | both; for access, profile = wheelchair (default) | pram | mobility gives the most accessible (step-free) alternative.")
             .Produces<RoutesDto>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
@@ -216,7 +218,7 @@ public static class SafetyEndpoints
 
         p.MapPut("/route-thresholds", async (SetRouteThresholdsRequest request, RouteThresholdService svc, CancellationToken ct) => Results.Ok(await svc.SetAsync(request, ct)))
             .WithName("SetRouteThresholds")
-            .WithSummary("Sets the route thresholds per layer (Safety, Heat, Flood, Air): average and weakest stretch, 20 to 95, weakest not above average. Applies to every route for everyone.")
+            .WithSummary("Sets the route thresholds per layer (Safety, Heat, Flood, Air, Access, AccessPram, AccessMobility): average and weakest stretch, 20 to 95, weakest not above average. Applies to every route for everyone.")
             .Produces<RouteThresholdsDto>()
             .ProducesValidationProblem()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
@@ -227,10 +229,10 @@ public static class SafetyEndpoints
             .Produces<RouteThresholdsDto>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
-        p.MapGet("/summary", async (string? @event, int? top, PlannerService svc, CancellationToken ct) =>
-            Results.Ok(await svc.GetSummaryAsync(ScoreService.ParseEvent(@event), top ?? PlannerService.DefaultTop, ct)))
+        p.MapGet("/summary", async (string? @event, string? profile, int? top, PlannerService svc, CancellationToken ct) =>
+            BadProfile(profile) ?? Results.Ok(await svc.GetSummaryAsync(ScoreService.ParseEvent(@event, profile), top ?? PlannerService.DefaultTop, ct)))
             .WithName("GetPlannerSummary")
-            .WithSummary("Dashboard numbers for an event (heat | night | both): KPIs, score histogram, factor gaps, top priority places, report counts.")
+            .WithSummary("Dashboard numbers for an event (heat | night | flood | air | access | both; access takes profile = wheelchair | pram | mobility): KPIs, score histogram, factor gaps, top priority places, report counts.")
             .Produces<PlannerSummaryDto>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
@@ -304,6 +306,12 @@ public static class SafetyEndpoints
     private static Dictionary<string, string[]> Problem(string field, string message) => new() { [field] = [message] };
 
     /// <summary>Tells the resident(s) behind a report that a planner verified or resolved it (Telegram, if they linked it).</summary>
+    /// <summary>A validation problem for an unknown accessibility profile; null when the profile is empty (= wheelchair) or known.</summary>
+    private static IResult? BadProfile(string? profile) =>
+        string.IsNullOrWhiteSpace(profile) || KrakowOpenData.Application.Accessibility.AccessProfile.Parse(profile) is not null
+            ? null
+            : Results.ValidationProblem(Problem("profile", "Use wheelchair, pram or mobility."));
+
     private static IResult Published(ISafetyEventSink events, SafetyEventKind kind, ReportDto report)
     {
         events.Publish(new SafetyEvent(kind, report.Id));

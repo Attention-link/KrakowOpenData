@@ -8,7 +8,10 @@ public enum ScoreLayer
     Safety,
     Heat,
     Flood,
-    Air
+    Air,
+
+    /// <summary>Accessibility (Dostępność): barriers for wheelchairs, prams and people with limited mobility.</summary>
+    Access
 }
 
 /// <summary>What a resident can report. Each type feeds exactly one score layer (see <c>ReportRules</c>).</summary>

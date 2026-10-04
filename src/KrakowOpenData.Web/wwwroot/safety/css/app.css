@@ -25,6 +25,8 @@
   --flood-soft: #e2eefb;
   --air: #0f6b5c;
   --air-soft: #dcf1ec;
+  --access: #86198f;   /* accessibility layer: fuchsia. Light: 8.2:1 on surface, 7.1:1 on its soft tint */
+  --access-soft: #fae8ff;
   --danger: #b42318;
   --danger-soft: #fdeceb;
   --ok: #0b6b0b;
@@ -80,6 +82,8 @@
   --flood-soft: #12273f;
   --air: #62d6bf;
   --air-soft: #0e2e28;
+  --access: #f0abfc;   /* dark: 9.7:1 on surface, 8.8:1 on its soft tint; dark ink on it 11.3:1 */
+  --access-soft: #3a1540;
   --danger: #f2877e;
   --danger-soft: #3a1f1c;
   --ok: #7fd37f;
@@ -437,8 +441,10 @@ table.t th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em
   .res-bar { gap: .3rem; padding: .4rem .5rem; }
   .res-bar .seg button { padding: 0 .7rem; font-size: .9rem; gap: 0; }
   .res-bar .seg button .i { display: none; }
+  .res-bar .seg button[data-mode] .i { display: inline-block; }
   .pl-tools .seg button { padding: 0 .6rem; font-size: .85rem; }
   .pl-tools .seg button .i { display: none; }
+  .pl-tools .seg button[data-mode] .i { display: inline-block; }
   .btn { padding-left: .85rem; padding-right: .85rem; }
 }
 
@@ -603,6 +609,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .seg button[data-mode="heat"] { --lc: var(--heat); --lc-soft: var(--heat-soft); }
 .seg button[data-mode="flood"] { --lc: var(--flood); --lc-soft: var(--flood-soft); }
 .seg button[data-mode="air"] { --lc: var(--air); --lc-soft: var(--air-soft); }
+.seg button[data-mode="access"] { --lc: var(--access); --lc-soft: var(--access-soft); }
 .seg button[data-mode] svg { color: var(--lc); flex: none; }
 .seg button[data-mode][aria-pressed="true"] { background: var(--lc-soft); color: var(--ink); border-color: var(--lc); box-shadow: none; }
 .seg button[data-mode][aria-pressed="true"]::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: 2px; height: 3px; border-radius: 3px; background: var(--lc); }
@@ -612,6 +619,10 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .seg button[data-mode] { padding: 0 .55rem; min-width: 44px; }
   .seg button[data-mode]:not([aria-pressed="true"]) .seg-lbl { display: none; }
   .seg button[data-mode][aria-pressed="true"] { padding: 0 .7rem; }
+  /* Five tabs: the inactive ones are icon-only and keep a 44px target; the open one takes the rest of the row for its label. */
+  .res-bar .seg button[data-mode], .pl-tools .seg button[data-mode] { flex: 0 0 auto; }
+  .res-bar .seg button[data-mode][aria-pressed="true"], .pl-tools .seg button[data-mode][aria-pressed="true"] { flex: 1 1 auto; min-width: 0; }
+  .seg button[data-mode] .seg-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 /* ── Path call-to-action + band legend colour-coding (cta) ──
@@ -624,6 +635,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .btn.cta[data-layer="heat"], .btn.cta-soft[data-layer="heat"] { --cta: var(--heat); --cta-soft: var(--heat-soft); }
 .btn.cta[data-layer="flood"], .btn.cta-soft[data-layer="flood"] { --cta: var(--flood); --cta-soft: var(--flood-soft); }
 .btn.cta[data-layer="air"], .btn.cta-soft[data-layer="air"] { --cta: var(--air); --cta-soft: var(--air-soft); }
+.btn.cta[data-layer="access"], .btn.cta-soft[data-layer="access"] { --cta: var(--access); --cta-soft: var(--access-soft); }
 :root:not([data-theme="light"]) .btn.cta, :root:not([data-theme="light"]) .btn.cta-soft,
 :root[data-theme="dark"] .btn.cta, :root[data-theme="dark"] .btn.cta-soft { --cta-ink: #070a0f; --cta-hover: color-mix(in srgb, var(--cta) 85%, #fff); }
 .btn.cta { background: var(--cta); color: var(--cta-ink); border-color: transparent; }
@@ -683,6 +695,30 @@ html, body { max-width: 100%; overflow-x: hidden; }
 .kpi-item > .kpi { flex: 1 1 auto; min-width: 0; }
 /* On / off switches (display settings) */
 .btn.toggle[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+
+/* ── Accessibility layer (fifth tab): fuchsia identity, no-data squares, profile switch ── */
+.seg button[data-mode="access"][aria-pressed="true"] { color: var(--access); }
+.chip.access { background: var(--access-soft); color: var(--access); }
+.dot-marker.access { background: #86198f; }
+.near .ico.access, .type-card .ico.access { background: var(--access-soft); color: var(--access); }
+.hbar.access .fill { background: var(--access); }
+.poi.access { background: #86198f; }
+/* "No data" is neither good nor critical: a hatched neutral swatch in the legend, the same grey on the map. */
+.legend-rows li.nodata { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: .5rem; align-items: center; padding: .3rem .5rem; border-radius: .4rem; border: 1.5px dashed var(--ink-3); color: var(--ink); margin-top: .25rem; }
+.legend-rows li.nodata .nodata-sw { display: block; height: 1rem; border-radius: 4px; border: 1px solid var(--ink-3); background: repeating-linear-gradient(135deg, var(--surface-3) 0 4px, var(--surface) 4px 8px); }
+.band.nodata, .score-box .band[data-band="NoData"] { background: var(--surface-2); color: var(--ink); border: 1.5px dashed var(--ink-3); }
+.meter[data-band="NoData"] > span { display: none; }
+.acc-profile { display: grid; gap: .5rem; border-color: var(--access); }
+.acc-profile .seg { display: flex; width: 100%; }
+.acc-profile .seg button { flex: 1 1 0; min-width: 0; padding: 0 .4rem; font-size: .9rem; text-align: center; line-height: 1.15; min-height: 44px; }
+.acc-profile .seg button[aria-pressed="true"] { background: var(--access-soft); color: var(--ink); box-shadow: inset 0 0 0 2px var(--access); }
+.acc-profile .seg button .i { color: var(--access); }
+.acc-profile .emph { font-size: .88rem; color: var(--ink-2); }
+.acc-cov-note { display: flex; gap: .4rem; align-items: flex-start; }
+.access-by-profile { display: flex; flex-wrap: wrap; gap: .35rem; }
+.access-by-profile .chip { white-space: normal; }
+.access-by-profile .chip[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--access); }
 
 /* Accessibility statement (#/accessibility) */
 .acc-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
@@ -790,6 +826,33 @@ kbd { font: 600 .8rem/1.3 ui-monospace, "SFMono-Regular", Consolas, monospace; b
 .acc-status-wrap { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .3rem; }
 .acc-status { white-space: nowrap; }
 .acc-barrier { font-weight: 700; color: var(--danger); }
+
+/* === Dark theme fixes for master UI ===
+   Dark is the default theme (no data-theme attribute), but the high-contrast overrides above were written when the default
+   followed the OS: with no data-theme and a light OS, data-contrast="high" applied the LIGHT palette on top of the dark tokens
+   (dark soft backgrounds with black text: .acc-rel / .acc-status / .banner unreadable, color-scheme still dark).
+   Fix: high contrast follows the app theme. Default and data-theme="dark" -> white on black; data-theme="light" -> black on white.
+   Specificity (0,3,0) beats both the dark block (0,2,0) and the old high-contrast rules, whatever the OS preference is. */
+:root[data-contrast="high"]:not([data-theme="light"]) {
+  color-scheme: dark;
+  --bg: #000000; --surface: #000000; --surface-2: #000000; --surface-3: #5a5a5a;
+  --ink: #ffffff; --ink-2: #ffffff; --ink-3: #ffffff; --line: #ffffff; --line-ui: #ffffff; --field-line: #ffffff;
+  --accent: #7fe3ff; --accent-ink: #000000; --accent-soft: #00293a; --focus: #ffffff; --focus-halo: #000000;
+  --warn-ink: #ffd98a; --danger: #ffb3ab; --ok: #a6f0a6; --track: #5a5a5a; --on-danger: #000000;
+  --ok-soft: #0a2a0a; --warn-soft: #2e2200; --danger-soft: #3a0f0c;
+}
+:root[data-theme="light"][data-contrast="high"] {
+  color-scheme: light;
+  --bg: #ffffff; --surface: #ffffff; --surface-2: #ffffff; --surface-3: #b5b5b5;
+  --ink: #000000; --ink-2: #000000; --ink-3: #000000; --line: #000000; --line-ui: #000000; --field-line: #000000;
+  --accent: #003c6e; --accent-ink: #ffffff; --accent-soft: #dbe9f5; --focus: #000000; --focus-halo: #ffffff;
+  --warn-ink: #4d3000; --danger: #8f1a12; --ok: #064d06; --track: #b5b5b5; --on-danger: #ffffff;
+  --ok-soft: #e5f4e5; --warn-soft: #fdf3dc; --danger-soft: #fdeceb;
+}
+/* High contrast: the dashed "unknown" badge keeps its dashes but not a dim colour; the focus ring is solid white / black. */
+:root[data-contrast="high"] .acc-rel, :root[data-contrast="high"] .acc-status, :root[data-contrast="high"] .acc-badge { border: 2px solid currentColor; }
+:root[data-contrast="high"] .acc-rel.unknown, :root[data-contrast="high"] .acc-status.unknown, :root[data-contrast="high"] .acc-badge.unknown { border-style: dashed; }
+/* === end dark theme fixes for master UI === */
 
 /* Site menu ("Menu" in the top bar): a sheet from the left with the same entries as the portal's side menu. */
 dialog.sheet { margin: 0 auto 0 0; height: 100dvh; max-height: 100dvh; width: min(88vw, 360px); max-width: none; border-radius: 0 var(--radius) var(--radius) 0; }

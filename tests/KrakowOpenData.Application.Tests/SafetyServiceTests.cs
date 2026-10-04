@@ -63,6 +63,7 @@ public sealed class SafetyWorld
     public InMemoryRepository<Amenity> Amenities { get; } = new();
     public InMemoryRepository<SafetyPlace> Places { get; } = new();
     public InMemoryRepository<TransitStop> Stops { get; } = new();
+    public InMemoryRepository<KrakowOpenData.Domain.Accessibility.AccessFeature> AccessFeatures { get; } = new();
     public FakeScheduleRepository Schedule { get; } = new();
     public InMemoryRepository<WeatherObservation> Weather { get; } = new();
     public InMemoryRepository<WeatherWarning> Warnings { get; } = new();
@@ -96,7 +97,7 @@ public sealed class SafetyWorld
     public static GeoPoint Offset(GeoPoint p, double north, double east) =>
         new(p.Latitude + north / 111_320.0, p.Longitude + east / (111_320.0 * Math.Cos(50.06 * Math.PI / 180)));
 
-    public SafetyModelProvider Models() => new(Lights, Amenities, PlacesForModel, Stops, Schedule, Clock, Store);
+    public SafetyModelProvider Models() => new(Lights, Amenities, PlacesForModel, Stops, Schedule, Clock, Store, AccessFeatures.Items.Count > 0 ? AccessFeatures : null);
 
     public ConditionsService Conditions() => new(new ClimateCrisisQueryService(Hydro, Warnings, Clock), new EnvironmentQueryService(Weather, Air), Clock);
 
@@ -198,7 +199,7 @@ public class ScoreServiceTests
         var (row, col) = GridSpec.CellOf(SafetyWorld.Centre);
         Assert.Contains(grid.Cells, c => c[0] == row && c[1] == col);
         Assert.DoesNotContain(grid.Cells, c => c[0] == GridSpec.CellOf(SafetyWorld.Remote).Row);
-        Assert.Equal(["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority", "flood", "air"], grid.Columns);
+        Assert.Equal(["row", "col", "heat", "safety", "combined", "exposure", "openReports", "priority", "flood", "air", "access", "accessPram", "accessMobility", "accessData"], grid.Columns);
         Assert.All(grid.Cells, c => Assert.Equal(grid.Columns.Count, c.Length));
         Assert.Equal(75, grid.Grid.GoodFrom);
     }
